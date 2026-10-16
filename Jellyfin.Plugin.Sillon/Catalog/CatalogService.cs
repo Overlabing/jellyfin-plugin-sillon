@@ -2,6 +2,7 @@ using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
 using Jellyfin.Plugin.Sillon.Lidarr;
 using Jellyfin.Plugin.Sillon.Storage;
+using System.Globalization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
@@ -11,12 +12,18 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 public sealed class CatalogService
 {
     private const int MaxSearchAlbums = 40;
+    private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
+    private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
 
     private readonly ILidarrProvider _lidarr;
     private readonly RequestStore _requests;
     private readonly IJellyfinLibrary _library;
     private readonly Func<PluginConfiguration> _config;
     private readonly ILogger<CatalogService> _logger;
+    private readonly SemaphoreSlim _catalogLock = new(1, 1);
+    private string? _catalogKey;
+    private DateTime _catalogExpires;
+    private Dictionary<string, LidarrAlbum> _catalog = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Initializes a new instance of the <see cref="CatalogService"/> class.</summary>
     /// <param name="lidarr">The Lidarr client provider.</param>
@@ -53,7 +60,15 @@ public sealed class CatalogService
         {
             _logger.LogError("Lidarr search failed: {Message}", ex.Message);
             await lookup.ConfigureAwait(false);
-            throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
+
+            // the cached allow-list catalogue can still answer
+            if (allowed.Count == 0)
+            {
+                throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
+            }
+
+            items = Array.Empty<LidarrSearchItem>();
+            lookup = Task.FromResult<IReadOnlyList<LidarrAlbum>>(Array.Empty<LidarrAlbum>());
         }
 
         var artists = new List<CatalogArtist>();
@@ -104,6 +119,19 @@ public sealed class CatalogService
 
         if (allowed.Count > 0)
         {
+            // Lidarr answers a search by artist name with the artist alone: match the cached allowed albums too
+            foreach (var album in await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false))
+            {
+                if (Matches(album.Title, query) || Matches(album.Artist?.ArtistName, query))
+                {
+                    Add(album);
+                    if (album.Artist is { ForeignArtistId.Length: > 0 } owner && !artists.Any(a => a.Mbid == owner.ForeignArtistId))
+                    {
+                        artists.Add(ToArtist(owner));
+                    }
+                }
+            }
+
             // an artist is offered only through an allowed album
             var offered = albums.Select(a => a.Artist?.ForeignArtistId).ToHashSet(StringComparer.Ordinal);
             artists.RemoveAll(a => !offered.Contains(a.Mbid));
@@ -133,6 +161,17 @@ public sealed class CatalogService
         }
 
         var allowed = _config().AllowedReleaseGroups();
+        if (allowed.Count > 0)
+        {
+            var cached = (await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false))
+                .Where(a => a.Artist?.ForeignArtistId == mbid)
+                .ToList();
+            if (cached.Count > 0)
+            {
+                return new CatalogArtistResult(ToArtist(cached[0].Artist!), ToAlbums(cached, cached[0].Artist));
+            }
+        }
+
         LidarrArtist? artist = null;
         var albums = new List<LidarrAlbum>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -248,6 +287,62 @@ public sealed class CatalogService
     /// <returns>The year, 0 when unreadable.</returns>
     public static int YearOf(string? date)
         => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
+
+    private static bool Matches(string? text, string query)
+        => !string.IsNullOrEmpty(text)
+            && CultureInfo.InvariantCulture.CompareInfo.IndexOf(text, query.Trim(), CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreCase) >= 0;
+
+    /// <summary>The allowed albums, resolved once each by Lidarr's id lookup, sequentially to spare its upstream rate limit; kept for an hour, rebuilt when the list changes, a failed lookup is retried after a few minutes.</summary>
+    private async Task<IReadOnlyList<LidarrAlbum>> AllowedCatalogAsync(ILidarrApi lidarr, HashSet<string> allowed, CancellationToken ct)
+    {
+        var key = string.Join('\n', allowed.Select(a => a.ToLowerInvariant()).Order(StringComparer.Ordinal));
+        await _catalogLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (key == _catalogKey && DateTime.UtcNow < _catalogExpires)
+            {
+                return _catalog.Values.ToList();
+            }
+
+            var previous = key == _catalogKey ? _catalog : new Dictionary<string, LidarrAlbum>(StringComparer.OrdinalIgnoreCase);
+            var next = new Dictionary<string, LidarrAlbum>(StringComparer.OrdinalIgnoreCase);
+            var failed = false;
+            foreach (var id in allowed)
+            {
+                try
+                {
+                    var found = (await lidarr.LookupAlbumsAsync("lidarr:" + id, ct).ConfigureAwait(false))
+                        .FirstOrDefault(a => string.Equals(a.ForeignAlbumId, id, StringComparison.OrdinalIgnoreCase));
+                    if (found is not null)
+                    {
+                        next[id] = found;
+                    }
+                    else if (previous.TryGetValue(id, out var old))
+                    {
+                        next[id] = old;
+                    }
+                }
+                catch (LidarrException ex)
+                {
+                    failed = true;
+                    _logger.LogWarning("Lidarr lookup of the allowed album {Album} failed: {Message}", id, ex.Message);
+                    if (previous.TryGetValue(id, out var old))
+                    {
+                        next[id] = old;
+                    }
+                }
+            }
+
+            _catalogKey = key;
+            _catalog = next;
+            _catalogExpires = DateTime.UtcNow + (failed ? CatalogRetry : CatalogTtl);
+            return next.Values.ToList();
+        }
+        finally
+        {
+            _catalogLock.Release();
+        }
+    }
 
     private async Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsOrNoneAsync(ILidarrApi lidarr, string query, CancellationToken ct)
     {

@@ -259,6 +259,53 @@ public class CatalogServiceTests
     }
 
     [Fact]
+    public async Task Search_WithAnAllowList_ByArtistName_ServesTheCachedAllowedAlbums_ResolvedOnce()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        var artistOnly = Items("[{\"foreignId\":\"" + Vald + "\",\"artist\":{\"id\":0,\"artistName\":\"Vald\",\"foreignArtistId\":\"" + Vald + "\"}}]");
+        var xeu = Items(SearchJson)[1].Album!;
+        env.Lidarr.OnSearch = _ => artistOnly;
+        env.Lidarr.OnLookup = term => term == "lidarr:" + Xeu ? new[] { xeu } : Array.Empty<LidarrAlbum>();
+        env.Config.CatalogAllowList = Xeu;
+
+        var result = await catalog.SearchAsync("VALD", CancellationToken.None);
+        await catalog.SearchAsync("xeu", CancellationToken.None);
+
+        Assert.Equal(Vald, Assert.Single(result.Artists).Mbid);
+        Assert.Equal(new[] { Xeu }, result.Albums.Select(a => a.Mbid));
+        Assert.Equal(1, env.Lidarr.LookupTerms.Count(t => t == "lidarr:" + Xeu));
+        Assert.Equal(Xeu, Assert.Single((await catalog.ArtistAlbumsAsync(Vald, null, CancellationToken.None)).Albums).Mbid);
+    }
+
+    [Fact]
+    public async Task Search_WithAnAllowList_StillAnswers_WhenLidarrSearchFails()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        var xeu = Items(SearchJson)[1].Album!;
+        env.Lidarr.OnSearch = _ => throw new LidarrException("503");
+        env.Lidarr.OnLookup = term => term == "lidarr:" + Xeu ? new[] { xeu } : Array.Empty<LidarrAlbum>();
+        env.Config.CatalogAllowList = Xeu;
+
+        var result = await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.Single(result.Artists);
+        Assert.Single(result.Albums);
+    }
+
+    [Fact]
+    public async Task Search_WithoutAnAllowList_DoesNotExpandArtists()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+
+        await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.DoesNotContain("lidarr:" + Vald, env.Lidarr.SearchTerms);
+    }
+
+    [Fact]
     public async Task Search_WithAnAllowListMatchingNothing_AnswersEmpty()
     {
         var (env, catalog) = Make();
