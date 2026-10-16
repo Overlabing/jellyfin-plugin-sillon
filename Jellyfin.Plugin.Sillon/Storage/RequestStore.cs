@@ -135,6 +135,20 @@ public sealed class RequestStore
     public void SetJellyfinItem(long id, string itemId)
         => Update(id, r => r.Status == RequestStatus.Available, r => r with { JellyfinItemId = itemId });
 
+    /// <summary>Stores the album folder, as Lidarr sees it, of an available request.</summary>
+    /// <param name="id">The id.</param>
+    /// <param name="folder">The folder.</param>
+    public void SetLidarrFolder(long id, string folder)
+        => UpdateKeepingTime(id, r => r.Status == RequestStatus.Available, r => r with { LidarrFolder = folder });
+
+    /// <summary>Records that the library was asked to scan the album folder of an available request.</summary>
+    /// <param name="id">The id.</param>
+    public void MarkFolderRefreshed(long id)
+    {
+        var now = _now();
+        UpdateKeepingTime(id, r => r.Status == RequestStatus.Available, r => r with { LastFolderRefreshAt = now });
+    }
+
     /// <summary>Records that the album was marked favourite for the requester.</summary>
     /// <param name="id">The id.</param>
     public void MarkLibraryAdded(long id)

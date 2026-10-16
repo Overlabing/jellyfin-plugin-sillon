@@ -32,6 +32,20 @@ public class LidarrClientTests
     }
 
     [Fact]
+    public async Task GetAlbumFolder_IsTheParentOfTheDiscFolders()
+    {
+        var client = new LidarrClient(
+            new HttpClient(new FakeHandler(r => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[{\"path\":\"/m/A/B (2000)/CD 01/1.flac\"},{\"path\":\"/m/A/B (2000)/CD 02/1.flac\"}]")
+            })),
+            "http://lidarr:8686",
+            "k");
+
+        Assert.Equal("/m/A/B (2000)", await client.GetAlbumFolderAsync(41));
+    }
+
+    [Fact]
     public async Task Status_ReturnsVersion_AndSendsApiKeyHeader()
     {
         var (client, handler) = Make(_ => Json("{\"version\":\"2.9.6.4552\",\"other\":1}"));

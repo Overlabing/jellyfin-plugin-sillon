@@ -1,8 +1,13 @@
+using System.Text.RegularExpressions;
+
 namespace Jellyfin.Plugin.Sillon.Requests;
 
 /// <summary>Helpers for the POSIX paths Lidarr and Jellyfin exchange.</summary>
-public static class PathMap
+public static partial class PathMap
 {
+    [GeneratedRegex(@"^(CD|Disc|Disque)\s*\d+$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DiscFolder();
+
     /// <summary>Turns a path as Lidarr sees it into the one Jellyfin sees.</summary>
     /// <param name="path">The path.</param>
     /// <param name="lidarrPrefix">The music folder as Lidarr sees it.</param>
@@ -61,5 +66,30 @@ public static class PathMap
     {
         var cut = path.LastIndexOf('/');
         return cut < 0 ? "." : Clean(cut == 0 ? "/" : path[..cut]);
+    }
+
+    /// <summary>Returns the album folder of a set of track files: their common directory, one level up when that directory is a disc folder (<c>CD 01</c>, <c>Disc 2</c>, <c>Disque 1</c>).</summary>
+    /// <param name="filePaths">The track file paths.</param>
+    /// <returns>The folder, or null when there is no file.</returns>
+    public static string? AlbumFolder(IEnumerable<string> filePaths)
+    {
+        string[]? common = null;
+        foreach (var path in filePaths.Where(p => !string.IsNullOrEmpty(p)))
+        {
+            var parts = Dir(path).Split('/', StringSplitOptions.RemoveEmptyEntries);
+            common = common is null ? parts : common.Zip(parts).TakeWhile(p => p.First == p.Second).Select(p => p.First).ToArray();
+        }
+
+        if (common is null || common.Length == 0)
+        {
+            return null;
+        }
+
+        if (common.Length > 1 && DiscFolder().IsMatch(common[^1]))
+        {
+            common = common[..^1];
+        }
+
+        return "/" + string.Join('/', common);
     }
 }

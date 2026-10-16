@@ -49,6 +49,9 @@ public sealed record RequestTiming
     /// <summary>Gets how long after a webhook that left a request live the reconcile runs again; negative is off.</summary>
     public TimeSpan RecheckDelay { get; init; } = TimeSpan.FromSeconds(60);
 
+    /// <summary>Gets the minimum time between two scans of the same album folder while the library does not show the album.</summary>
+    public TimeSpan FolderRefreshEvery { get; init; } = TimeSpan.FromMinutes(10);
+
     /// <summary>Gets how long an available request that never reached its requester's library is retried.</summary>
     public TimeSpan ResumeWindow { get; init; } = TimeSpan.FromHours(24);
 }
@@ -724,11 +727,15 @@ public sealed class RequestService
 
         var itemId = request.JellyfinItemId;
         var deadline = DateTimeOffset.UtcNow + budget;
+        var folder = string.IsNullOrEmpty(itemId) ? await ResolveFolderAsync(request).ConfigureAwait(false) : null;
         while (string.IsNullOrEmpty(itemId))
         {
             try
             {
-                itemId = _library.FindAlbum(request.ForeignAlbumId, request.Title, request.Artist) ?? string.Empty;
+                itemId = _library.FindAlbum(request.ForeignAlbumId, string.Empty, string.Empty)
+                    ?? (folder is null ? null : _library.FindAlbumByPath(folder))
+                    ?? _library.FindAlbum(string.Empty, request.Title, request.Artist)
+                    ?? string.Empty;
             }
             catch (Exception ex)
             {
@@ -742,8 +749,13 @@ public sealed class RequestService
 
             if (DateTimeOffset.UtcNow >= deadline)
             {
-                _logger.LogWarning("The library did not show the album in time request={Id}", requestId);
+                _logger.LogWarning("The library did not show the album in time request={Id} folder={Folder}", requestId, folder ?? "unknown");
                 break;
+            }
+
+            if (folder is not null)
+            {
+                RefreshFolder(requestId, folder);
             }
 
             await Task.Delay(_timing.PollEvery, _shutdown).ConfigureAwait(false);
@@ -783,6 +795,59 @@ public sealed class RequestService
         {
             _store.MarkNotified(requestId);
         }
+    }
+
+    // the album folder as Jellyfin sees it: stored on the request, else read from Lidarr's track files and stored
+    private async Task<string?> ResolveFolderAsync(RequestRecord request)
+    {
+        var lidarrFolder = request.LidarrFolder;
+        if (string.IsNullOrEmpty(lidarrFolder) && request.LidarrAlbumId is { } albumId)
+        {
+            try
+            {
+                lidarrFolder = await _lidarr.Create().GetAlbumFolderAsync((int)albumId, _shutdown).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("Reading the album folder failed request={Id}: {Message}", request.Id, ex.Message);
+            }
+
+            if (!string.IsNullOrEmpty(lidarrFolder))
+            {
+                _store.SetLidarrFolder(request.Id, lidarrFolder);
+            }
+        }
+
+        if (string.IsNullOrEmpty(lidarrFolder))
+        {
+            return null;
+        }
+
+        var config = _config();
+        return PathMap.Remap(PathMap.Clean(lidarrFolder), config.LidarrPathPrefix, config.JellyfinPathPrefix);
+    }
+
+    // asks the library to scan the album folder, at most once per FolderRefreshEvery for a request
+    private void RefreshFolder(long requestId, string folder)
+    {
+        var request = _store.Get(requestId);
+        if (request is null || (request.LastFolderRefreshAt is { } last && _now() - last < _timing.FolderRefreshEvery))
+        {
+            return;
+        }
+
+        try
+        {
+            _library.RefreshPath(folder);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Asking Jellyfin to scan the album folder failed request={Id}: {Message}", requestId, ex.Message);
+            return;
+        }
+
+        _store.MarkFolderRefreshed(requestId);
+        _logger.LogInformation("Asked Jellyfin to scan the album folder request={Id} folder={Folder}", requestId, folder);
     }
 
     // finishes the available requests whose album never reached the requester's library or whose notification never went out

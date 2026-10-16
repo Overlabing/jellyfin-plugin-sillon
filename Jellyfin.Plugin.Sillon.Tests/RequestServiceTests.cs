@@ -224,6 +224,63 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task Import_FindsAnAlbumTheLibraryRenamedAndHasNoMusicBrainzIdFor_ByItsFolder()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.Files[101] = new List<LidarrTrackFile>
+        {
+            new() { Path = Folder + "/CD 01/01 a.flac" },
+            new() { Path = Folder + "/CD 02/01 b.flac" }
+        };
+        env.Library.KnownFolders["/data/music/Vald/XEU (2022)"] = env.Library.ItemId;
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var done = env.Store.Get(request.Id)!;
+        Assert.Equal(env.Library.ItemId, done.JellyfinItemId);
+        Assert.Equal(Folder, done.LidarrFolder);
+        Assert.Single(env.Library.Favorites);
+        Assert.Empty(env.Library.Refreshed);
+    }
+
+    [Fact]
+    public async Task Import_PrefersTheMusicBrainzIdToTheFolder()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.KnownMbids.Add("alb-1");
+        env.Library.KnownFolders["/data/music/Vald/XEU (2022)"] = "ffffffffffffffffffffffffffffffff";
+        env.Lidarr.Files[101] = new List<LidarrTrackFile> { new() { Path = Folder + "/01 a.flac" } };
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(env.Library.ItemId, env.Store.Get(request.Id)!.JellyfinItemId);
+    }
+
+    [Fact]
+    public async Task Import_WhenTheLibraryDoesNotListTheFolder_AsksJellyfinToScanIt_OncePerTenMinutes()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.Files[101] = new List<LidarrTrackFile> { new() { Path = Folder + "/01 a.flac" } };
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal("/data/music/Vald/XEU (2022)", Assert.Single(env.Library.Refreshed));
+        Assert.NotNull(env.Store.Get(request.Id)!.LastFolderRefreshAt);
+
+        env.Now += TimeSpan.FromMinutes(11);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(2, env.Library.Refreshed.Count);
+    }
+
+    [Fact]
     public async Task Import_WhenTheLibraryNeverShowsTheAlbum_StillNotifiesWithoutALink_AndNeverFavourites()
     {
         var (env, request) = await Requested();
@@ -750,6 +807,9 @@ public class RequestServiceTests
 
             public Task<IReadOnlyList<LidarrTrackFile>> GetTrackFilesAsync(int albumId, CancellationToken ct = default)
                 => queueOnly ? inner!.GetTrackFilesAsync(albumId, ct) : throw Down();
+
+            public Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
+                => queueOnly ? inner!.GetAlbumFolderAsync(albumId, ct) : throw Down();
         }
     }
 }

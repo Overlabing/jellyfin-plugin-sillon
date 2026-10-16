@@ -15,6 +15,15 @@ public interface IJellyfinLibrary
     /// <returns>The Jellyfin item id (32 hexadecimal digits), or null when the library does not have the album (yet).</returns>
     string? FindAlbum(string foreignAlbumId, string title, string artist);
 
+    /// <summary>Looks an album up by its folder.</summary>
+    /// <param name="jellyfinFolder">The album folder, as Jellyfin sees it.</param>
+    /// <returns>The Jellyfin item id (32 hexadecimal digits), or null when the library has no album at that folder.</returns>
+    string? FindAlbumByPath(string jellyfinFolder);
+
+    /// <summary>Asks Jellyfin to scan one folder, without scanning the whole library.</summary>
+    /// <param name="jellyfinFolder">The folder, as Jellyfin sees it.</param>
+    void RefreshPath(string jellyfinFolder);
+
     /// <summary>Tells Jellyfin that a path (as Jellyfin sees it) changed, so the library picks it up.</summary>
     /// <param name="path">The path.</param>
     void ReportPathChanged(string path);

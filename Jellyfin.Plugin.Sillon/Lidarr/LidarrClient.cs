@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Jellyfin.Plugin.Sillon.Requests;
 
 namespace Jellyfin.Plugin.Sillon.Lidarr;
 
@@ -97,6 +98,12 @@ public interface ILidarrApi
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The track files.</returns>
     Task<IReadOnlyList<LidarrTrackFile>> GetTrackFilesAsync(int albumId, CancellationToken ct = default);
+
+    /// <summary>Returns the folder, as Lidarr sees it, that holds an album's track files (above the disc folders).</summary>
+    /// <param name="albumId">The Lidarr album id.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The folder, or null when Lidarr holds no file for the album.</returns>
+    Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default);
 }
 
 /// <summary>Minimal Lidarr API client. Never logs or echoes the API key.</summary>
@@ -188,6 +195,10 @@ public sealed class LidarrClient : ILidarrApi
     /// <inheritdoc />
     public Task<IReadOnlyList<LidarrTrackFile>> GetTrackFilesAsync(int albumId, CancellationToken ct = default)
         => SendAsync<IReadOnlyList<LidarrTrackFile>>(HttpMethod.Get, $"/api/v1/trackfile?albumId={albumId}", null, Normal, ct);
+
+    /// <inheritdoc />
+    public async Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
+        => PathMap.AlbumFolder((await GetTrackFilesAsync(albumId, ct).ConfigureAwait(false)).Select(f => f.Path));
 
     private async Task<T> SendAsync<T>(
         HttpMethod method, string path, object? body, TimeSpan timeout, CancellationToken ct, bool allowEmpty = false)

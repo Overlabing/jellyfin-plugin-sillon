@@ -111,6 +111,10 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
 
     public Task<IReadOnlyList<LidarrTrackFile>> GetTrackFilesAsync(int albumId, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<LidarrTrackFile>>(Files.TryGetValue(albumId, out var f) ? f : new List<LidarrTrackFile>());
+
+    public Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
+        => Task.FromResult(PathMap.AlbumFolder(Files.TryGetValue(albumId, out var f) ? f.Select(x => x.Path) : Array.Empty<string>()));
+
 }
 
 internal sealed class FakeLibrary : IJellyfinLibrary
@@ -134,8 +138,26 @@ internal sealed class FakeLibrary : IJellyfinLibrary
 
     public bool FavoriteFails { get; set; }
 
+    /// <summary>Gets the MusicBrainz ids the library knows; looked up when the title is blank.</summary>
+    public HashSet<string> KnownMbids { get; } = new();
+
+    /// <summary>Gets the album folders (as Jellyfin sees them) the library lists, with their item id.</summary>
+    public Dictionary<string, string> KnownFolders { get; } = new();
+
+    /// <summary>Gets the folders Jellyfin was asked to scan.</summary>
+    public List<string> Refreshed { get; } = new();
+
+    public string? FindAlbumByPath(string jellyfinFolder) => KnownFolders.TryGetValue(jellyfinFolder, out var id) ? id : null;
+
+    public void RefreshPath(string jellyfinFolder) => Refreshed.Add(jellyfinFolder);
+
     public string? FindAlbum(string foreignAlbumId, string title, string artist)
     {
+        if (string.IsNullOrEmpty(title))
+        {
+            return KnownMbids.Contains(foreignAlbumId) ? ItemId : null;
+        }
+
         if (KnownTitles.Contains(title))
         {
             return ItemId;

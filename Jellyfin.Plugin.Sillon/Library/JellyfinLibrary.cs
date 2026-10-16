@@ -68,7 +68,33 @@ public sealed class JellyfinLibrary : IJellyfinLibrary
     }
 
     /// <inheritdoc />
+    public string? FindAlbumByPath(string jellyfinFolder)
+    {
+        var folder = jellyfinFolder.TrimEnd('/');
+        if (folder.Length == 0)
+        {
+            return null;
+        }
+
+        var byPath = _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            IncludeItemTypes = new[] { BaseItemKind.MusicAlbum },
+            Recursive = true,
+            Path = folder
+        });
+        var match = byPath.OfType<MusicAlbum>().FirstOrDefault(a => SamePath(a.Path, folder))
+            ?? _libraryManager.FindByPath(folder, true) as MusicAlbum;
+        return match?.Id.ToString("N");
+    }
+
+    /// <inheritdoc />
+    public void RefreshPath(string jellyfinFolder) => _libraryMonitor.ReportFileSystemChanged(jellyfinFolder);
+
+    /// <inheritdoc />
     public void ReportPathChanged(string path) => _libraryMonitor.ReportFileSystemChanged(path);
+
+    private static bool SamePath(string? itemPath, string folder)
+        => itemPath is not null && string.Equals(itemPath.TrimEnd('/'), folder, StringComparison.Ordinal);
 
     /// <inheritdoc />
     public bool MarkFavorite(string userId, string itemId)
