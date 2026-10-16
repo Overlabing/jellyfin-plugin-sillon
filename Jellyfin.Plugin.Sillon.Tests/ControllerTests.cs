@@ -404,6 +404,6 @@ public class ControllerTests
 
         Assert.Equal(mode.ToString().ToLowerInvariant(), json.GetProperty("mode").GetString());
         Assert.Equal(expected, json.GetProperty("features").EnumerateArray().Any(f => f.GetString() == "requests"));
-        Assert.Equal("0.3.0.0", json.GetProperty("version").GetString());
+        Assert.Equal("0.4.0.0", json.GetProperty("version").GetString());
     }
 }

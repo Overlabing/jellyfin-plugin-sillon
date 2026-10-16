@@ -1,6 +1,6 @@
 namespace Jellyfin.Plugin.Sillon.Requests;
 
-/// <summary>Tells a requester about the outcome of a request (APNs arrives in a later phase).</summary>
+/// <summary>Tells a requester about the outcome of a request.</summary>
 public interface INotifier
 {
     /// <summary>Gets a value indicating whether notifications actually reach devices.</summary>

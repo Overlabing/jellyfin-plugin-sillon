@@ -88,29 +88,37 @@
                     </button>
                 </fieldset>
 
-                <fieldset class="verticalSection-extrabottompadding" disabled>
-                    <legend>Notifications push (bientôt)</legend>
+                <fieldset class="verticalSection-extrabottompadding">
+                    <legend>Notifications push</legend>
                     <div class="checkboxContainer checkboxContainer-withDescription">
                         <label class="emby-checkbox-label">
-                            <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" disabled />
-                            <span>Activer les notifications push</span>
+                            <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" name="ApnsEnabled" />
+                            <span>Activer</span>
                         </label>
                     </div>
+                    <div id="ApnsStatus" class="fieldDescription"></div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsKeyId">Identifiant de clé</label>
-                        <input is="emby-input" type="text" id="ApnsKeyId" disabled />
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsKeyId">Identifiant de clé (Key ID)</label>
+                        <input is="emby-input" type="text" id="ApnsKeyId" name="ApnsKeyId" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsTeamId">Identifiant d'équipe</label>
-                        <input is="emby-input" type="text" id="ApnsTeamId" disabled />
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsTeamId">Identifiant d'équipe (Team ID)</label>
+                        <input is="emby-input" type="text" id="ApnsTeamId" name="ApnsTeamId" />
                     </div>
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="ApnsTopic">Topic</label>
-                        <input is="emby-input" type="text" id="ApnsTopic" disabled />
+                        <input is="emby-input" type="text" id="ApnsTopic" name="ApnsTopic" />
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsPrivateKey">Clé privée</label>
-                        <input is="emby-input" type="password" id="ApnsPrivateKey" disabled />
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsPrivateKey">Clé privée (.p8)</label>
+                        <textarea is="emby-textarea" id="ApnsPrivateKey" name="ApnsPrivateKey" rows="4" class="emby-textarea" autocomplete="off" spellcheck="false" style="-webkit-text-security: disc; font-family: monospace;"></textarea>
+                        <div class="fieldDescription">Enregistrée, la clé s'affiche <code>***</code> ; la laisser telle quelle la conserve. Les variables d'environnement <code>SILLON_APNS_*</code> du serveur l'emportent.</div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="button" id="ApnsTest" class="raised">
+                            <span>Envoyer une notification de test</span>
+                        </button>
+                        <div id="ApnsTestResult" class="fieldDescription"></div>
                     </div>
                 </fieldset>
 
@@ -259,6 +267,26 @@
                 });
             }
 
+            var apnsSources = {
+                environment: 'Clé fournie par l\'environnement du serveur',
+                config: 'Clé fournie ci-dessous',
+                none: 'Aucune clé'
+            };
+
+            function loadApnsStatus() {
+                return getJson('Sillon/Push/Status').then(function (r) {
+                    el('ApnsStatus').textContent = (apnsSources[r.source] || apnsSources.none) + (r.enabled ? ' (notifications actives)' : ' (notifications inactives)');
+                }, function () {
+                    el('ApnsStatus').textContent = '';
+                });
+            }
+
+            function showApnsTest(text, isError) {
+                var box = el('ApnsTestResult');
+                box.textContent = text;
+                box.style.color = isError ? '#e55' : '#4c4';
+            }
+
             function readForm() {
                 config.FulfillmentMode = el('FulfillmentMode').value;
                 config.ExposeToApps = el('ExposeToApps').checked;
@@ -270,6 +298,11 @@
                 config.LidarrQualityProfileId = parseInt(el('LidarrQualityProfileId').value, 10) || 0;
                 config.LidarrMetadataProfileId = parseInt(el('LidarrMetadataProfileId').value, 10) || 0;
                 config.LidarrRootFolder = el('LidarrRootFolder').value || '';
+                config.ApnsEnabled = el('ApnsEnabled').checked;
+                config.ApnsKeyId = el('ApnsKeyId').value;
+                config.ApnsTeamId = el('ApnsTeamId').value;
+                config.ApnsTopic = el('ApnsTopic').value;
+                config.ApnsPrivateKey = el('ApnsPrivateKey').value;
             }
 
             page.addEventListener('pageshow', function () {
@@ -289,6 +322,7 @@
                     el('ApnsTeamId').value = c.ApnsTeamId;
                     el('ApnsTopic').value = c.ApnsTopic;
                     el('ApnsPrivateKey').value = c.ApnsPrivateKey;
+                    loadApnsStatus();
                     loadRequests();
                     if (c.LidarrApiKey) {
                         return loadLists().catch(function () { /* the user can test again */ });
@@ -311,6 +345,28 @@
                     return ApiClient.updatePluginConfiguration(PluginId, config).then(loadLists);
                 }).catch(function (err) {
                     errorText(err).then(function (m) { showResult(m, true); });
+                });
+            });
+
+            el('ApnsTest').addEventListener('click', function () {
+                showApnsTest('Envoi en cours…', false);
+                // the test reads the saved configuration, so save the form first
+                readForm();
+                ApiClient.updatePluginConfiguration(PluginId, config).then(function () {
+                    return ApiClient.ajax({ url: ApiClient.getUrl('Sillon/Push/Test'), type: 'POST', dataType: 'json' });
+                }).then(function (r) {
+                    var devices = r.devices || [];
+                    if (!devices.length) {
+                        showApnsTest('Aucun appareil enregistré pour votre compte : ouvrez l\'application Sillon connectée à ce serveur.', true);
+                        return;
+                    }
+                    var failed = devices.some(function (d) { return d.result !== 'sent'; });
+                    showApnsTest(devices.map(function (d) {
+                        return (d.platform || 'appareil') + (d.env ? ' (' + d.env + ')' : '') + ' : ' + d.result + (d.reason ? ' ' + d.reason : '');
+                    }).join(' ; '), failed);
+                    return loadApnsStatus();
+                }).catch(function (err) {
+                    errorText(err).then(function (m) { showApnsTest(m, true); });
                 });
             });
 

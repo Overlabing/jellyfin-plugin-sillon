@@ -39,6 +39,17 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override Guid Id => Guid.Parse("1daed904-1b05-483c-8544-16cb6dcced54");
 
     /// <inheritdoc />
+    public override void UpdateConfiguration(BasePluginConfiguration configuration)
+    {
+        if (configuration is PluginConfiguration incoming)
+        {
+            incoming.CarryOverSecrets(Configuration);
+        }
+
+        base.UpdateConfiguration(configuration);
+    }
+
+    /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages()
     {
         yield return new PluginPageInfo

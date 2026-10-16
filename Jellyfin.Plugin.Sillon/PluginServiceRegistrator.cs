@@ -2,6 +2,7 @@ using Jellyfin.Plugin.Sillon.Catalog;
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
 using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Push;
 using Jellyfin.Plugin.Sillon.Requests;
 using Jellyfin.Plugin.Sillon.Storage;
 using MediaBrowser.Common.Net;
@@ -27,7 +28,14 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<IJellyfinLibrary, JellyfinLibrary>();
         serviceCollection.AddSingleton<ILidarrProvider>(sp =>
             new LidarrProvider(sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<Func<PluginConfiguration>>()));
-        serviceCollection.AddSingleton<INotifier, NoopNotifier>();
+        serviceCollection.AddSingleton<IPushSender>(sp => new ApnsClient(ApnsClient.CreateHttpClient(), sp.GetRequiredService<ILogger<ApnsClient>>()));
+        serviceCollection.AddSingleton(sp => new ApnsNotifier(
+            sp.GetRequiredService<DeviceStore>(),
+            sp.GetRequiredService<IPushSender>(),
+            sp.GetRequiredService<Func<PluginConfiguration>>(),
+            Environment.GetEnvironmentVariable,
+            sp.GetRequiredService<ILogger<ApnsNotifier>>()));
+        serviceCollection.AddSingleton<INotifier>(sp => sp.GetRequiredService<ApnsNotifier>());
         serviceCollection.AddSingleton<CatalogService>();
         serviceCollection.AddSingleton(sp => new RequestService(
             sp.GetRequiredService<RequestStore>(),

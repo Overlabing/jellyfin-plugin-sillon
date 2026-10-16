@@ -1,4 +1,6 @@
 using System.Security.Cryptography;
+using System.Text.Json.Serialization;
+using System.Xml.Serialization;
 using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Sillon.Configuration;
@@ -24,6 +26,21 @@ public enum FulfillmentMode
 /// </summary>
 public class PluginConfiguration : BasePluginConfiguration
 {
+    /// <summary>
+    /// The placeholder the configuration page gets instead of the private key.
+    /// </summary>
+    public const string MaskedSecret = "***";
+
+    /// <summary>
+    /// The default APNs team id.
+    /// </summary>
+    public const string DefaultApnsTeamId = "XXXXXXXXXX";
+
+    /// <summary>
+    /// The default APNs topic.
+    /// </summary>
+    public const string DefaultApnsTopic = "com.overglass.sillon";
+
     private const string SecretAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
@@ -82,29 +99,71 @@ public class PluginConfiguration : BasePluginConfiguration
     public string WebhookSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets a value indicating whether APNs notifications are enabled (later phase).
+    /// Gets or sets a value indicating whether APNs notifications are enabled.
     /// </summary>
     public bool ApnsEnabled { get; set; }
 
     /// <summary>
-    /// Gets or sets the APNs key id (later phase).
+    /// Gets or sets the APNs key id.
     /// </summary>
     public string ApnsKeyId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the APNs team id (later phase).
+    /// Gets or sets the APNs team id.
     /// </summary>
-    public string ApnsTeamId { get; set; } = string.Empty;
+    public string ApnsTeamId { get; set; } = DefaultApnsTeamId;
 
     /// <summary>
-    /// Gets or sets the APNs topic (later phase).
+    /// Gets or sets the APNs topic (the app's bundle id).
     /// </summary>
-    public string ApnsTopic { get; set; } = string.Empty;
+    public string ApnsTopic { get; set; } = DefaultApnsTopic;
 
     /// <summary>
-    /// Gets or sets the APNs private key (later phase).
+    /// Gets or sets the APNs private key as the configuration API shows it: <c>***</c> when a key is stored, never the key.
+    /// Setting <c>***</c> keeps the stored key (see <see cref="CarryOverSecrets"/>), anything else replaces it.
     /// </summary>
-    public string ApnsPrivateKey { get; set; } = string.Empty;
+    [XmlIgnore]
+    public string ApnsPrivateKey
+    {
+        get => string.IsNullOrEmpty(ApnsPrivateKeyValue) ? string.Empty : MaskedSecret;
+        set
+        {
+            if (value == MaskedSecret)
+            {
+                KeepApnsPrivateKey = true;
+                return;
+            }
+
+            KeepApnsPrivateKey = false;
+            ApnsPrivateKeyValue = value ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the APNs private key as stored in the plugin's XML file; not part of the configuration API.
+    /// </summary>
+    [JsonIgnore]
+    public string ApnsPrivateKeyValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a saved configuration asked to keep the stored private key.
+    /// </summary>
+    [JsonIgnore]
+    [XmlIgnore]
+    public bool KeepApnsPrivateKey { get; set; }
+
+    /// <summary>
+    /// Takes the stored private key from the configuration being replaced when the new one only carries the mask.
+    /// </summary>
+    /// <param name="previous">The configuration being replaced.</param>
+    public void CarryOverSecrets(PluginConfiguration previous)
+    {
+        if (KeepApnsPrivateKey)
+        {
+            ApnsPrivateKeyValue = previous.ApnsPrivateKeyValue;
+            KeepApnsPrivateKey = false;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether album requests can be taken: always in manual mode, in Lidarr mode once Lidarr is set up.
