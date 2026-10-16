@@ -106,6 +106,8 @@ public class ControllerTests
         Assert.False(json.TryGetProperty("jellyfinItemId", out _));
         Assert.False(json.TryGetProperty("tracksImported", out _));
         Assert.False(json.TryGetProperty("libraryAddedAt", out _));
+        // the add asked Lidarr to search
+        Assert.Equal("2026-10-01T12:00:00Z", json.GetProperty("lastSearchAt").GetString());
         // RFC 3339 dates the app parses
         Assert.Equal("2026-10-01T12:00:00Z", json.GetProperty("createdAt").GetString());
     }
@@ -172,6 +174,63 @@ public class ControllerTests
         Assert.Equal(1, own.GetArrayLength());
         Assert.Equal(2, all.GetArrayLength());
         Assert.Equal(2, all[0].GetProperty("id").GetInt64());
+        Assert.False(all[0].TryGetProperty("lastSearchAt", out _));
+    }
+
+    [Fact]
+    public async Task ListRequests_CarriesLastSearchAt_WhenLidarrWasAsked()
+    {
+        using var env = new TestEnv();
+        await Requests(env, Principal(TestEnv.User), CreateBody("alb-1")).CreateRequest(CancellationToken.None);
+
+        var list = Json(Requests(env, Principal(TestEnv.User)).ListRequests(), out _).GetProperty("requests");
+
+        Assert.Equal("2026-10-01T12:00:00Z", list[0].GetProperty("lastSearchAt").GetString());
+    }
+
+    [Fact]
+    public async Task RetryRequest_FollowsTheOwnershipAndStateRules()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.AddError = new Lidarr.LidarrException("down");
+        await Requests(env, Principal(TestEnv.User), CreateBody("alb-1")).CreateRequest(CancellationToken.None);
+        env.Lidarr.AddError = null;
+        await Requests(env, Principal(Other), CreateBody("alb-2")).CreateRequest(CancellationToken.None);
+        env.Now = env.Now.AddMinutes(1);
+        var controller = Requests(env, Principal(TestEnv.User));
+
+        Json(await controller.RetryRequest("2", CancellationToken.None), out var stranger);
+        var own = Json(await controller.RetryRequest("1", CancellationToken.None), out var ownStatus);
+        var byAdmin = Json(await Requests(env, Principal(Admin, admin: true)).RetryRequest("2", CancellationToken.None), out var adminStatus);
+        await controller.CancelRequest("1", CancellationToken.None);
+        Json(await controller.RetryRequest("1", CancellationToken.None), out var cancelled);
+        Json(await controller.RetryRequest("99", CancellationToken.None), out var missing);
+        Json(await controller.RetryRequest("abc", CancellationToken.None), out var invalid);
+        var anonymous = await Requests(env, null).RetryRequest("1", CancellationToken.None);
+
+        Assert.Equal(403, stranger);
+        Assert.Equal(200, ownStatus);
+        Assert.Equal("requested", own.GetProperty("status").GetString());
+        Assert.False(own.TryGetProperty("error", out _));
+        Assert.Equal("2026-10-01T12:01:00Z", own.GetProperty("lastSearchAt").GetString());
+        Assert.Equal(200, adminStatus);
+        Assert.Equal(2, byAdmin.GetProperty("id").GetInt64());
+        Assert.Equal(409, cancelled);
+        Assert.Equal(404, missing);
+        Assert.Equal(400, invalid);
+        Assert.IsType<UnauthorizedResult>(anonymous);
+    }
+
+    [Fact]
+    public async Task RetryRequest_InManualMode_Is409WithAFrenchMessage()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+        await Requests(env, Principal(TestEnv.User), CreateBody("alb-1")).CreateRequest(CancellationToken.None);
+
+        var json = Json(await Requests(env, Principal(TestEnv.User)).RetryRequest("1", CancellationToken.None), out var status);
+
+        Assert.Equal(409, status);
+        Assert.Contains("mode manuel", json.GetProperty("error").GetString());
     }
 
     [Fact]
@@ -404,6 +463,6 @@ public class ControllerTests
 
         Assert.Equal(mode.ToString().ToLowerInvariant(), json.GetProperty("mode").GetString());
         Assert.Equal(expected, json.GetProperty("features").EnumerateArray().Any(f => f.GetString() == "requests"));
-        Assert.Equal("0.4.0.0", json.GetProperty("version").GetString());
+        Assert.Equal("0.5.0.0", json.GetProperty("version").GetString());
     }
 }

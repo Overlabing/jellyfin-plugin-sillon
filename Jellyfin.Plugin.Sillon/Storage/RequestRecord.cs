@@ -78,6 +78,9 @@ public sealed record RequestRecord
     /// <summary>Gets when the album was marked favourite for the requester.</summary>
     public DateTimeOffset? LibraryAddedAt { get; init; }
 
+    /// <summary>Gets when Lidarr was last asked to search for the album.</summary>
+    public DateTimeOffset? LastSearchAt { get; init; }
+
     /// <summary>Gets the creation time.</summary>
     public DateTimeOffset CreatedAt { get; init; }
 

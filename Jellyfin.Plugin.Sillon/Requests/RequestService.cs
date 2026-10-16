@@ -202,6 +202,53 @@ public sealed class RequestService
         return _store.Get(id) ?? request;
     }
 
+    /// <summary>Asks Lidarr to search for the album again, adding and monitoring it first if it vanished; a failed request goes back to requested.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="userId">The caller.</param>
+    /// <param name="admin">Whether the caller is an administrator.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The request.</returns>
+    /// <exception cref="RequestNotRetryableException">The request is not requested, downloading or failed, or the mode is manual.</exception>
+    /// <exception cref="LidarrUnavailableException">Lidarr could not be reached or refused the album.</exception>
+    public async Task<RequestRecord> RetryAsync(long id, string userId, bool admin, CancellationToken ct)
+    {
+        var request = _store.Get(id) ?? throw new RequestNotFoundException();
+        if (request.UserId != userId && !admin)
+        {
+            throw new RequestForbiddenException();
+        }
+
+        if (!request.IsActive && request.Status != RequestStatus.Failed)
+        {
+            throw new RequestNotRetryableException();
+        }
+
+        if (ManualMode)
+        {
+            throw new RequestNotRetryableException("Relance impossible en mode manuel : seul le mode Lidarr relance une recherche.");
+        }
+
+        int lidarrId;
+        try
+        {
+            lidarrId = await AddToLidarrAsync(request, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError("Retrying the Lidarr search failed request={Id}: {Message}", id, ex.Message);
+            throw new LidarrUnavailableException();
+        }
+
+        // a cancellation or an import may have got there first
+        if (!_store.MarkRetried(id, lidarrId))
+        {
+            throw new RequestNotRetryableException();
+        }
+
+        _logger.LogInformation("Album search retried request={Id} user={User}", id, userId);
+        return _store.Get(id) ?? request;
+    }
+
     /// <summary>Marks a live request available by hand (manual mode), then runs the post-availability steps.</summary>
     /// <param name="id">The request id.</param>
     /// <returns>The available request.</returns>

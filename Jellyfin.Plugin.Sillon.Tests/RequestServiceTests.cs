@@ -521,6 +521,105 @@ public class RequestServiceTests
         Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
     }
 
+    [Fact]
+    public async Task Create_RecordsWhenLidarrWasAskedToSearch_ManualNeverDoes()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        using var manual = new TestEnv(FulfillmentMode.Manual);
+
+        Assert.Equal(env.Now, env.Store.Get(request.Id)!.LastSearchAt);
+        var manualRequest = await manual.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+        Assert.Null(manualRequest.LastSearchAt);
+    }
+
+    [Fact]
+    public async Task Retry_OfAFailedRequest_SearchesAgain_AndGoesBackToRequested()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.AddError = new LidarrException("down");
+        await Assert.ThrowsAsync<LidarrAddException>(() => env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None));
+        env.Lidarr.AddError = null;
+        env.Now = env.Now.AddMinutes(5);
+
+        var retried = await env.Service.RetryAsync(1, TestEnv.User, false, CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Requested, retried.Status);
+        Assert.Equal(string.Empty, retried.Error);
+        Assert.Equal(101, retried.LidarrAlbumId);
+        Assert.Equal(env.Now, retried.LastSearchAt);
+        Assert.Equal(env.Now, retried.UpdatedAt);
+        Assert.Equal(new[] { 101 }, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Retry_OfALiveRequest_SearchesAgain_AndKeepsItsStatus_ReAddingAVanishedAlbum()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Service.OnGrab(new[] { "alb-1" });
+        env.Lidarr.Searched.Clear();
+        env.Now = env.Now.AddMinutes(5);
+
+        var retried = await env.Service.RetryAsync(request.Id, "an-admin", true, CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Downloading, retried.Status);
+        Assert.Equal(env.Now, retried.LastSearchAt);
+        Assert.Equal(2, env.Lidarr.Added.Count);
+        Assert.Single(env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Retry_FollowsTheOwnershipAndStateRules()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+
+        await Assert.ThrowsAsync<RequestForbiddenException>(() => env.Service.RetryAsync(request.Id, "someone-else", false, CancellationToken.None));
+        await Assert.ThrowsAsync<RequestNotFoundException>(() => env.Service.RetryAsync(99, TestEnv.User, false, CancellationToken.None));
+        await env.Service.CancelAsync(request.Id, TestEnv.User, false, CancellationToken.None);
+        await Assert.ThrowsAsync<RequestNotRetryableException>(() => env.Service.RetryAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Retry_OfAnAvailableRequest_IsRefused()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+
+        await Assert.ThrowsAsync<RequestNotRetryableException>(() => env.Service.RetryAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Retry_InManualMode_IsRefusedInFrench()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+        var request = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<RequestNotRetryableException>(() => env.Service.RetryAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+
+        Assert.Contains("mode manuel", ex.Message);
+    }
+
+    [Fact]
+    public async Task Retry_WhenLidarrIsDown_KeepsTheRequestAsItWas()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        var down = new RequestService(
+            env.Store,
+            new BrokenLidarr(),
+            env.Library,
+            env.Notifier,
+            () => env.Config,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<RequestService>.Instance);
+
+        await Assert.ThrowsAsync<LidarrUnavailableException>(() => down.RetryAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+
+        Assert.Equal(request.UpdatedAt, env.Store.Get(request.Id)!.UpdatedAt);
+    }
+
     private sealed class BrokenLidarr : ILidarrProvider
     {
         private readonly bool _queueOnly;
@@ -540,6 +639,9 @@ public class RequestServiceTests
 
             public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
                 => queueOnly ? inner!.SearchAsync(term, ct) : throw Down();
+
+            public Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsAsync(string term, CancellationToken ct = default)
+                => queueOnly ? inner!.LookupAlbumsAsync(term, ct) : throw Down();
 
             public Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByArtistAsync(int artistId, CancellationToken ct = default)
                 => queueOnly ? inner!.GetAlbumsByArtistAsync(artistId, ct) : throw Down();

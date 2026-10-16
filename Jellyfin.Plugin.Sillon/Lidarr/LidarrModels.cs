@@ -41,9 +41,41 @@ public sealed class LidarrArtist
     [JsonPropertyName("path")]
     public string Path { get; init; } = string.Empty;
 
+    /// <summary>Gets the artist type (Person, Group, ...).</summary>
+    [JsonPropertyName("artistType")]
+    public string ArtistType { get; init; } = string.Empty;
+
+    /// <summary>Gets the genres.</summary>
+    [JsonPropertyName("genres")]
+    public List<string>? Genres { get; init; }
+
     /// <summary>Gets the images.</summary>
     [JsonPropertyName("images")]
     public List<LidarrImage>? Images { get; init; }
+}
+
+/// <summary>A release of an album (one edition).</summary>
+public sealed class LidarrRelease
+{
+    /// <summary>Gets the number of discs.</summary>
+    [JsonPropertyName("mediumCount")]
+    public int MediumCount { get; init; }
+
+    /// <summary>Gets the number of tracks.</summary>
+    [JsonPropertyName("trackCount")]
+    public int TrackCount { get; init; }
+
+    /// <summary>Gets the labels.</summary>
+    [JsonPropertyName("label")]
+    public List<string>? Label { get; init; }
+
+    /// <summary>Gets the disambiguation text.</summary>
+    [JsonPropertyName("disambiguation")]
+    public string Disambiguation { get; init; } = string.Empty;
+
+    /// <summary>Gets the status (Official, ...).</summary>
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = string.Empty;
 }
 
 /// <summary>An album's file statistics.</summary>
@@ -92,6 +124,18 @@ public sealed class LidarrAlbum
     /// <summary>Gets the album type.</summary>
     [JsonPropertyName("albumType")]
     public string AlbumType { get; init; } = string.Empty;
+
+    /// <summary>Gets the secondary types (Compilation, Live, ...).</summary>
+    [JsonPropertyName("secondaryTypes")]
+    public List<string>? SecondaryTypes { get; init; }
+
+    /// <summary>Gets the disambiguation text.</summary>
+    [JsonPropertyName("disambiguation")]
+    public string Disambiguation { get; init; } = string.Empty;
+
+    /// <summary>Gets the releases.</summary>
+    [JsonPropertyName("releases")]
+    public List<LidarrRelease>? Releases { get; init; }
 
     /// <summary>Gets the images.</summary>
     [JsonPropertyName("images")]

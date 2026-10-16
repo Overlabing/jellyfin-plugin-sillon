@@ -10,6 +10,8 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <summary>The album catalogue: Lidarr's lookup, cross-referenced with the requests and Jellyfin's library.</summary>
 public sealed class CatalogService
 {
+    private const int MaxSearchAlbums = 40;
+
     private readonly ILidarrProvider _lidarr;
     private readonly RequestStore _requests;
     private readonly IJellyfinLibrary _library;
@@ -40,6 +42,7 @@ public sealed class CatalogService
     public async Task<CatalogSearchResult> SearchAsync(string query, CancellationToken ct)
     {
         var lidarr = RequireLidarr();
+        var lookup = LookupAlbumsOrNoneAsync(lidarr, query, ct);
         IReadOnlyList<LidarrSearchItem> items;
         try
         {
@@ -48,11 +51,31 @@ public sealed class CatalogService
         catch (LidarrException ex)
         {
             _logger.LogError("Lidarr search failed: {Message}", ex.Message);
+            await lookup.ConfigureAwait(false);
             throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
         }
 
         var artists = new List<CatalogArtist>();
         var albums = new List<LidarrAlbum>();
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        void Add(LidarrAlbum album)
+        {
+            if (seen.TryGetValue(album.ForeignAlbumId, out var index))
+            {
+                // the combined search can omit the releases the album lookup carries
+                if (albums[index].Releases is not { Count: > 0 } && album.Releases is { Count: > 0 })
+                {
+                    albums[index] = album;
+                }
+            }
+            else if (albums.Count < MaxSearchAlbums)
+            {
+                seen[album.ForeignAlbumId] = albums.Count;
+                albums.Add(album);
+            }
+        }
+
         foreach (var item in items)
         {
             if (item.Artist is { ForeignArtistId.Length: > 0 })
@@ -61,7 +84,15 @@ public sealed class CatalogService
             }
             else if (item.Album is { ForeignAlbumId.Length: > 0 })
             {
-                albums.Add(item.Album);
+                Add(item.Album);
+            }
+        }
+
+        foreach (var album in await lookup.ConfigureAwait(false))
+        {
+            if (album.ForeignAlbumId.Length > 0)
+            {
+                Add(album);
             }
         }
 
@@ -199,6 +230,19 @@ public sealed class CatalogService
     public static int YearOf(string? date)
         => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
 
+    private async Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsOrNoneAsync(ILidarrApi lidarr, string query, CancellationToken ct)
+    {
+        try
+        {
+            return await lidarr.LookupAlbumsAsync(query, ct).ConfigureAwait(false);
+        }
+        catch (LidarrException ex)
+        {
+            _logger.LogWarning("Lidarr album lookup failed: {Message}", ex.Message);
+            return Array.Empty<LidarrAlbum>();
+        }
+    }
+
     private static CatalogArtist ToArtist(LidarrArtist artist)
         => new(
             artist.ForeignArtistId,
@@ -207,7 +251,9 @@ public sealed class CatalogService
             (artist.Images ?? new List<LidarrImage>())
                 .Where(i => ImageUrl(i).Length > 0)
                 .Select(i => new CatalogImage(i.CoverType, ImageUrl(i)))
-                .ToList());
+                .ToList(),
+            artist.ArtistType,
+            artist.Genres ?? new List<string>());
 
     private bool InLibrary(string foreignAlbumId, string title, string artist)
     {
@@ -268,7 +314,14 @@ public sealed class CatalogService
                 album.AlbumType,
                 CoverOf(album.Images),
                 state,
-                requestId));
+                requestId,
+                album.AlbumType,
+                album.SecondaryTypes ?? new List<string>(),
+                album.Releases is { Count: > 0 } releases ? Math.Max(1, releases.Max(r => r.MediumCount)) : 1,
+                album.Releases is { Count: > 0 } ? album.Releases[0].TrackCount : 0,
+                album.Releases is { Count: > 0 } && album.Releases[0].Label is { Count: > 0 } labels ? labels[0] : null,
+                album.ReleaseDate,
+                album.Disambiguation));
         }
 
         return result;

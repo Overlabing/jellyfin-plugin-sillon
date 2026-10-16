@@ -93,11 +93,33 @@ public sealed class RequestStore
     public void SetTracks(long id, int imported, int total)
         => Update(id, r => r.Status == RequestStatus.Available, r => r with { TracksImported = imported, TracksTotal = total });
 
-    /// <summary>Stores the Lidarr album id of a live request.</summary>
+    /// <summary>Stores the Lidarr album id of a live request, which Lidarr has just been asked to search for.</summary>
     /// <param name="id">The id.</param>
     /// <param name="lidarrAlbumId">The Lidarr album id.</param>
     public void SetLidarrAlbum(long id, long lidarrAlbumId)
-        => Update(id, r => r.IsActive, r => r with { LidarrAlbumId = lidarrAlbumId });
+    {
+        var now = _now();
+        Update(id, r => r.IsActive, r => r with { LidarrAlbumId = lidarrAlbumId, LastSearchAt = now });
+    }
+
+    /// <summary>Records a new Lidarr search for a request the user asked to retry; a failed request goes back to requested.</summary>
+    /// <param name="id">The id.</param>
+    /// <param name="lidarrAlbumId">The Lidarr album id.</param>
+    /// <returns><c>false</c> when the request is no longer requested, downloading or failed.</returns>
+    public bool MarkRetried(long id, long lidarrAlbumId)
+    {
+        var now = _now();
+        return Update(
+            id,
+            r => r.IsActive || r.Status == RequestStatus.Failed,
+            r => r with
+            {
+                Status = r.Status == RequestStatus.Failed ? RequestStatus.Requested : r.Status,
+                Error = r.Status == RequestStatus.Failed ? string.Empty : r.Error,
+                LidarrAlbumId = lidarrAlbumId,
+                LastSearchAt = now
+            });
+    }
 
     /// <summary>Stores the Jellyfin album of an available request.</summary>
     /// <param name="id">The id.</param>

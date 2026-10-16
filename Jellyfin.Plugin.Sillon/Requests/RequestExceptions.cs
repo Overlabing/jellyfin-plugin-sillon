@@ -52,3 +52,14 @@ public sealed class LidarrUnavailableException : Exception
     {
     }
 }
+
+/// <summary>A request that cannot be retried: wrong state, or no Lidarr to retry with.</summary>
+public sealed class RequestNotRetryableException : Exception
+{
+    /// <summary>Initializes a new instance of the <see cref="RequestNotRetryableException"/> class.</summary>
+    /// <param name="message">The message shown to the user.</param>
+    public RequestNotRetryableException(string message = "cette envie ne peut pas être relancée")
+        : base(message)
+    {
+    }
+}

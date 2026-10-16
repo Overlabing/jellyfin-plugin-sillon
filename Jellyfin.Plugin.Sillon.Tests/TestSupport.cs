@@ -39,6 +39,16 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
         return Task.FromResult(OnSearch(term));
     }
 
+    public List<string> LookupTerms { get; } = new();
+
+    public Func<string, IReadOnlyList<LidarrAlbum>> OnLookup { get; set; } = _ => Array.Empty<LidarrAlbum>();
+
+    public Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsAsync(string term, CancellationToken ct = default)
+    {
+        LookupTerms.Add(term);
+        return Task.FromResult(OnLookup(term));
+    }
+
     public Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByArtistAsync(int artistId, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<LidarrAlbum>>(Albums.Values.Where(a => a.Artist?.Id == artistId).ToList());
 

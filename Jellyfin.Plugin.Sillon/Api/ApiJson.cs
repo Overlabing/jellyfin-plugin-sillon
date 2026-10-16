@@ -73,6 +73,10 @@ public sealed record RequestDto
     [JsonPropertyName("libraryAddedAt")]
     public DateTimeOffset? LibraryAddedAt { get; init; }
 
+    /// <summary>Gets when Lidarr was last asked to search for the album, absent until then.</summary>
+    [JsonPropertyName("lastSearchAt")]
+    public DateTimeOffset? LastSearchAt { get; init; }
+
     /// <summary>Gets the creation time.</summary>
     [JsonPropertyName("createdAt")]
     public DateTimeOffset CreatedAt { get; init; }
@@ -102,6 +106,7 @@ public sealed record RequestDto
         TracksImported = r.TracksImported > 0 ? r.TracksImported : null,
         TracksTotal = r.TracksTotal > 0 ? r.TracksTotal : null,
         LibraryAddedAt = r.LibraryAddedAt,
+        LastSearchAt = r.LastSearchAt,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt
     };

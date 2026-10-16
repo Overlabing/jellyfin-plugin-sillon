@@ -14,11 +14,15 @@ public sealed record CatalogImage(
 /// <param name="Name">The name.</param>
 /// <param name="Disambiguation">The disambiguation text.</param>
 /// <param name="Images">The images.</param>
+/// <param name="ArtistType">The artist type (Person, Group, ...), empty when unknown.</param>
+/// <param name="Genres">The genres.</param>
 public sealed record CatalogArtist(
     [property: JsonPropertyName("mbid")] string Mbid,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("disambiguation")] string Disambiguation,
-    [property: JsonPropertyName("images")] IReadOnlyList<CatalogImage> Images);
+    [property: JsonPropertyName("images")] IReadOnlyList<CatalogImage> Images,
+    [property: JsonPropertyName("artistType")] string ArtistType,
+    [property: JsonPropertyName("genres")] IReadOnlyList<string> Genres);
 
 /// <summary>An album of the catalogue, with where it stands.</summary>
 /// <param name="Mbid">The MusicBrainz id.</param>
@@ -30,6 +34,13 @@ public sealed record CatalogArtist(
 /// <param name="CoverUrl">The cover URL, empty when unknown.</param>
 /// <param name="State">library, requested, downloading, available, failed or absent.</param>
 /// <param name="RequestId">The request id, when a request exists.</param>
+/// <param name="AlbumType">Lidarr's album type: Album, EP, Single, Broadcast or Other.</param>
+/// <param name="SecondaryTypes">Lidarr's secondary types (Compilation, Live, ...).</param>
+/// <param name="DiscCount">The most discs of any release, 1 when unknown.</param>
+/// <param name="TrackCount">The tracks of the primary release, 0 when unknown.</param>
+/// <param name="Label">The label of the primary release, when known.</param>
+/// <param name="ReleaseDate">The release date as Lidarr gives it, when known.</param>
+/// <param name="Disambiguation">The disambiguation text, empty when none.</param>
 public sealed record CatalogAlbum(
     [property: JsonPropertyName("mbid")] string Mbid,
     [property: JsonPropertyName("artistMbid")] string ArtistMbid,
@@ -39,7 +50,14 @@ public sealed record CatalogAlbum(
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("coverUrl")] string CoverUrl,
     [property: JsonPropertyName("state")] string State,
-    [property: JsonPropertyName("requestId")] long? RequestId);
+    [property: JsonPropertyName("requestId")] long? RequestId,
+    [property: JsonPropertyName("albumType")] string AlbumType,
+    [property: JsonPropertyName("secondaryTypes")] IReadOnlyList<string> SecondaryTypes,
+    [property: JsonPropertyName("discCount")] int DiscCount,
+    [property: JsonPropertyName("trackCount")] int TrackCount,
+    [property: JsonPropertyName("label")] string? Label,
+    [property: JsonPropertyName("releaseDate")] string? ReleaseDate,
+    [property: JsonPropertyName("disambiguation")] string Disambiguation);
 
 /// <summary>Result of a catalogue search.</summary>
 /// <param name="Artists">The artists.</param>

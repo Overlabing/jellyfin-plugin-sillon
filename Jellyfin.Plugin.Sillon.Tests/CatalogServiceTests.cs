@@ -83,6 +83,113 @@ public class CatalogServiceTests
         Assert.Equal("absent", (await catalog.SearchAsync("vald", CancellationToken.None)).Albums[0].State);
     }
 
+    private const string RichAlbumJson = """
+        {"id":0,"title":"Live at X","foreignAlbumId":"rich-1","releaseDate":"2019-05-03T00:00:00Z","albumType":"EP","secondaryTypes":["Live","Compilation"],"disambiguation":"deluxe",
+         "releases":[{"mediumCount":1,"trackCount":9,"label":["Label A","Label B"],"disambiguation":"","status":"Official"},{"mediumCount":3,"trackCount":30,"label":[],"status":"Official"}],
+         "artist":{"artistName":"Era","foreignArtistId":"era-1","artistType":"Group","genres":["ambient","new age"]}}
+        """;
+
+    private static LidarrAlbum Album(string json)
+        => JsonSerializer.Deserialize<LidarrAlbum>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
+    [Fact]
+    public async Task Search_CarriesTheRichAlbumFields_AndTheArtistTypeAndGenres()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        var rich = Album(RichAlbumJson);
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Album = rich }, new LidarrSearchItem { Artist = rich.Artist } };
+
+        var result = await catalog.SearchAsync("era", CancellationToken.None);
+
+        var album = Assert.Single(result.Albums);
+        Assert.Equal(("EP", 3, 9, "Label A", "2019-05-03T00:00:00Z", "deluxe"), (album.AlbumType, album.DiscCount, album.TrackCount, album.Label, album.ReleaseDate, album.Disambiguation));
+        Assert.Equal(new[] { "Live", "Compilation" }, album.SecondaryTypes);
+        var artist = Assert.Single(result.Artists);
+        Assert.Equal("Group", artist.ArtistType);
+        Assert.Equal(new[] { "ambient", "new age" }, artist.Genres);
+    }
+
+    [Fact]
+    public async Task Search_AnAlbumWithoutReleases_HasTheDefaults()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+
+        var album = (await catalog.SearchAsync("vald", CancellationToken.None)).Albums[0];
+
+        Assert.Equal(("Album", 1, 0, null, "", ""), (album.AlbumType, album.DiscCount, album.TrackCount, album.Label, album.Disambiguation, string.Join(',', album.SecondaryTypes)));
+        Assert.Equal("2022-11-18T00:00:00Z", album.ReleaseDate);
+        Assert.Empty((await catalog.SearchAsync("vald", CancellationToken.None)).Artists[0].Genres);
+    }
+
+    [Fact]
+    public async Task Search_Json_HasTheContractKeys_AndOmitsAbsentOnes()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Album = Album(RichAlbumJson) }, new LidarrSearchItem { Album = new LidarrAlbum { ForeignAlbumId = "bare", Title = "Bare" } } };
+
+        var json = JsonDocument.Parse(JsonSerializer.Serialize(await catalog.SearchAsync("era", CancellationToken.None), ApiJson.Options)).RootElement.GetProperty("albums");
+
+        Assert.Equal(
+            new[] { "mbid", "artistMbid", "title", "artist", "year", "type", "coverUrl", "state", "albumType", "secondaryTypes", "discCount", "trackCount", "label", "releaseDate", "disambiguation" },
+            json[0].EnumerateObject().Select(p => p.Name));
+        Assert.Equal(
+            new[] { "mbid", "artistMbid", "title", "artist", "year", "type", "coverUrl", "state", "albumType", "secondaryTypes", "discCount", "trackCount", "disambiguation" },
+            json[1].EnumerateObject().Select(p => p.Name));
+    }
+
+    [Fact]
+    public async Task Search_MergesTheAlbumLookup_DedupedByForeignAlbumId()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = "era-1", ArtistName = "Era" } } };
+        env.Lidarr.OnLookup = _ => new[]
+        {
+            Album(RichAlbumJson),
+            new LidarrAlbum { ForeignAlbumId = "rich-1", Title = "dup" },
+            new LidarrAlbum { ForeignAlbumId = string.Empty, Title = "no id" },
+            new LidarrAlbum { ForeignAlbumId = "other", Title = "Other" }
+        };
+
+        var result = await catalog.SearchAsync("Era", CancellationToken.None);
+
+        Assert.Single(result.Artists);
+        Assert.Equal(new[] { "rich-1", "other" }, result.Albums.Select(a => a.Mbid));
+        Assert.Equal("Live at X", result.Albums[0].Title);
+        Assert.Equal(new[] { "Era" }, env.Lidarr.LookupTerms);
+    }
+
+    [Fact]
+    public async Task Search_SearchAlbumsComeFirst_TheLookupFillsInMissingReleases_AndTheCapIs40()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Album = new LidarrAlbum { ForeignAlbumId = "rich-1", Title = "bare" } } };
+        env.Lidarr.OnLookup = _ => new[] { Album(RichAlbumJson) }
+            .Concat(Enumerable.Range(0, 60).Select(i => new LidarrAlbum { ForeignAlbumId = "x" + i, Title = "x" + i })).ToList();
+
+        var result = await catalog.SearchAsync("era", CancellationToken.None);
+
+        Assert.Equal(40, result.Albums.Count);
+        Assert.Equal("rich-1", result.Albums[0].Mbid);
+        Assert.Equal(3, result.Albums[0].DiscCount);
+    }
+
+    [Fact]
+    public async Task Search_WhenOnlyTheAlbumLookupFails_StillAnswers()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnLookup = _ => throw new LidarrException("down");
+
+        var result = await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.Equal(2, result.Albums.Count);
+    }
+
     [Fact]
     public async Task Search_InManualMode_Is503WithAFrenchMessage()
     {
@@ -174,12 +281,12 @@ public class CatalogServiceTests
 
         var xeu = json.GetProperty("albums")[0];
         Assert.Equal(
-            "{\"mbid\":\"" + Xeu + "\",\"artistMbid\":\"" + Vald + "\",\"title\":\"XEU\",\"artist\":\"Vald\",\"year\":2022,\"type\":\"Album\",\"coverUrl\":\"https://img/xeu.jpg\",\"state\":\"requested\",\"requestId\":1}",
+            "{\"mbid\":\"" + Xeu + "\",\"artistMbid\":\"" + Vald + "\",\"title\":\"XEU\",\"artist\":\"Vald\",\"year\":2022,\"type\":\"Album\",\"coverUrl\":\"https://img/xeu.jpg\",\"state\":\"requested\",\"requestId\":1,\"albumType\":\"Album\",\"secondaryTypes\":[],\"discCount\":1,\"trackCount\":0,\"releaseDate\":\"2022-11-18T00:00:00Z\",\"disambiguation\":\"\"}",
             xeu.GetRawText());
         // no request: requestId is absent, not null
         Assert.False(json.GetProperty("albums")[1].TryGetProperty("requestId", out var ignored));
         Assert.Equal(
-            "{\"mbid\":\"" + Vald + "\",\"name\":\"Vald\",\"disambiguation\":\"rap\",\"images\":[{\"coverType\":\"poster\",\"url\":\"https://img/vald.jpg\"}]}",
+            "{\"mbid\":\"" + Vald + "\",\"name\":\"Vald\",\"disambiguation\":\"rap\",\"images\":[{\"coverType\":\"poster\",\"url\":\"https://img/vald.jpg\"}],\"artistType\":\"\",\"genres\":[]}",
             json.GetProperty("artists")[0].GetRawText());
     }
 

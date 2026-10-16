@@ -6,8 +6,8 @@ Le plugin reprend la liste d'envies d'albums de l'ancien service Go `sillon-gate
 
 ## Installation
 
-1. `scripts/package.sh` produit `dist/Sillon_0.4.0.0.zip` (la dll et `meta.json`).
-2. Dézipper dans un dossier `Sillon_0.4.0.0/` du répertoire `plugins/` de Jellyfin.
+1. `scripts/package.sh` produit `dist/Sillon_0.5.0.0.zip` (la dll et `meta.json`).
+2. Dézipper dans un dossier `Sillon_0.5.0.0/` du répertoire `plugins/` de Jellyfin.
 3. Redémarrer Jellyfin.
 
 ## Configuration
@@ -53,7 +53,7 @@ Reprend les envies et les appareils de l'ancien service Go dans le plugin (`scri
 2. Copier la base SQLite du gateway (avec ses fichiers `-wal` et `-shm` s'ils existent) vers un dossier de travail ; ne jamais travailler sur l'original.
 3. Contrôler sans rien écrire : `python3 -I scripts/migrate-from-gateway.py --db gateway.db --out /tmp/sillon --dry-run`. Le résumé donne le nombre d'envies par état et d'appareils par utilisateur ; les jetons ne sont jamais affichés.
 4. Écrire les fichiers : même commande sans `--dry-run`. Le script refuse d'écraser un `requests.json` ou un `devices.json` non vides sans `--force`. Il convertit les identifiants d'utilisateur en 32 caractères hexadécimaux sans tirets (format `N` de Jellyfin) et toutes les dates en UTC. Les numéros d'envie sont conservés, le plugin continue après le plus grand.
-5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.4.0.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
+5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.5.0.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
 6. Démarrer Jellyfin, vérifier la section « Liste d'envies » du tableau de bord, puis activer « Proposer la liste d'envies aux applications Sillon ».
 
 Le schéma actuel du gateway n'a pas de colonne `library_added_at` : le script la lit quand elle existe, sinon les envies disponibles sont reprises sans date d'ajout aux favoris.
@@ -62,7 +62,7 @@ Le schéma actuel du gateway n'a pas de colonne `library_added_at` : le script l
 
 - `GET /Sillon/health` : anonyme, `{ "status": "ok" }`.
 - `GET /Sillon/Config` : utilisateur authentifié, `{ "version", "features", "mode" }`. `features` contient `requests` en mode manuel, ou en mode Lidarr quand l'URL et la clé sont renseignées, sauf si « Proposer la liste d'envies aux applications Sillon » est désactivé (alors `[]`).
-- Utilisateur authentifié (jeton Jellyfin) : `GET /Sillon/v1/me`, `GET /Sillon/v1/catalog/search?q=`, `GET /Sillon/v1/catalog/artist/{mbid}`, `GET|POST /Sillon/v1/requests`, `DELETE /Sillon/v1/requests/{id}`, `POST /Sillon/v1/devices`, `DELETE /Sillon/v1/devices/{token}`. Un administrateur voit et retire toutes les envies, un utilisateur les siennes.
+- Utilisateur authentifié (jeton Jellyfin) : `GET /Sillon/v1/me`, `GET /Sillon/v1/catalog/search?q=`, `GET /Sillon/v1/catalog/artist/{mbid}`, `GET|POST /Sillon/v1/requests`, `DELETE /Sillon/v1/requests/{id}`, `POST /Sillon/v1/requests/{id}/retry` (relance la recherche Lidarr d'une envie en attente, en cours ou échouée), `POST /Sillon/v1/devices`, `DELETE /Sillon/v1/devices/{token}`. Un administrateur voit et retire toutes les envies, un utilisateur les siennes.
 - Administrateur uniquement : `POST /Sillon/v1/requests/{id}/available`, `POST /Sillon/Lidarr/Test`, `GET /Sillon/Lidarr/QualityProfiles`, `GET /Sillon/Lidarr/MetadataProfiles`, `GET /Sillon/Lidarr/RootFolders`, `GET /Sillon/Push/Status`, `POST /Sillon/Push/Test` (notification de test aux appareils de l'administrateur).
 - Anonyme, protégé par le secret : `POST /Sillon/webhooks/lidarr?secret=`.
 

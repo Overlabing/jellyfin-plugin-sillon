@@ -44,6 +44,12 @@ public interface ILidarrApi
     /// <returns>The items.</returns>
     Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default);
 
+    /// <summary>The album-only lookup.</summary>
+    /// <param name="term">The search term.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The albums.</returns>
+    Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsAsync(string term, CancellationToken ct = default);
+
     /// <summary>Lists the albums of an artist Lidarr holds.</summary>
     /// <param name="artistId">The Lidarr artist id.</param>
     /// <param name="ct">Cancellation token.</param>
@@ -143,10 +149,7 @@ public sealed class LidarrClient : ILidarrApi
     public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
         => SendAsync<IReadOnlyList<LidarrSearchItem>>(HttpMethod.Get, "/api/v1/search?term=" + Uri.EscapeDataString(term), null, Slow, ct);
 
-    /// <summary>Searches albums only.</summary>
-    /// <param name="term">The search term.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The albums.</returns>
+    /// <inheritdoc />
     public Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsAsync(string term, CancellationToken ct = default)
         => SendAsync<IReadOnlyList<LidarrAlbum>>(HttpMethod.Get, "/api/v1/album/lookup?term=" + Uri.EscapeDataString(term), null, Slow, ct);
 

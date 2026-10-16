@@ -250,6 +250,35 @@ public sealed partial class RequestsController : ControllerBase
         }
     }
 
+    /// <summary>Asks Lidarr to search again for a request that is requested, downloading or failed; users retry their own, administrators any.</summary>
+    /// <param name="id">The request id.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The request.</returns>
+    [HttpPost("v1/requests/{id}/retry")]
+    [Authorize]
+    public async Task<ActionResult> RetryRequest(string id, CancellationToken ct)
+    {
+        var caller = Caller();
+        if (caller is null)
+        {
+            return Unauthorized();
+        }
+
+        if (!long.TryParse(id, out var requestId) || requestId <= 0)
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant d'envie invalide");
+        }
+
+        try
+        {
+            return ApiJson.Result(RequestDto.From(await _requests.RetryAsync(requestId, caller.Id, caller.IsAdmin, ct).ConfigureAwait(false)));
+        }
+        catch (Exception ex) when (ex is RequestNotFoundException or RequestForbiddenException or RequestNotRetryableException or LidarrUnavailableException)
+        {
+            return ApiJson.Error(StatusOf(ex), ex.Message);
+        }
+    }
+
     /// <summary>Marks a live request available by hand (manual mode).</summary>
     /// <param name="id">The request id.</param>
     /// <returns>The available request.</returns>
@@ -331,7 +360,7 @@ public sealed partial class RequestsController : ControllerBase
     {
         RequestNotFoundException => StatusCodes.Status404NotFound,
         RequestForbiddenException => StatusCodes.Status403Forbidden,
-        RequestNotActiveException => StatusCodes.Status409Conflict,
+        RequestNotActiveException or RequestNotRetryableException => StatusCodes.Status409Conflict,
         _ => StatusCodes.Status502BadGateway
     };
 
