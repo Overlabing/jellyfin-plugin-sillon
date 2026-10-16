@@ -45,6 +45,19 @@ La case « Activer » reste nécessaire. Un serveur tiers n'a pas la clé Apple 
 - **Mode manuel** : l'envie est enregistrée sans appel à Lidarr. Un administrateur la marque comme ajoutée depuis la section « Liste d'envies » de la page du plugin ; les mêmes étapes suivent (attente de l'album dans la bibliothèque, favori, notification). La recherche dans le catalogue répond 503 (« mode manuel ») : l'accès direct à MusicBrainz viendra plus tard. La tâche planifiée ne fait ni relance ni échec automatique dans ce mode.
 - Les données sont dans `requests.json` et `devices.json`, dans le dossier de données du plugin.
 
+## Migration depuis sillon-gateway
+
+Reprend les envies et les appareils de l'ancien service Go dans le plugin (`scripts/migrate-from-gateway.py`, Python 3 sans dépendance).
+
+1. Arrêter `sillon-gateway` et Jellyfin.
+2. Copier la base SQLite du gateway (avec ses fichiers `-wal` et `-shm` s'ils existent) vers un dossier de travail ; ne jamais travailler sur l'original.
+3. Contrôler sans rien écrire : `python3 -I scripts/migrate-from-gateway.py --db gateway.db --out /tmp/sillon --dry-run`. Le résumé donne le nombre d'envies par état et d'appareils par utilisateur ; les jetons ne sont jamais affichés.
+4. Écrire les fichiers : même commande sans `--dry-run`. Le script refuse d'écraser un `requests.json` ou un `devices.json` non vides sans `--force`. Il convertit les identifiants d'utilisateur en 32 caractères hexadécimaux sans tirets (format `N` de Jellyfin) et toutes les dates en UTC. Les numéros d'envie sont conservés, le plugin continue après le plus grand.
+5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.4.0.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
+6. Démarrer Jellyfin, vérifier la section « Liste d'envies » du tableau de bord, puis activer « Proposer la liste d'envies aux applications Sillon ».
+
+Le schéma actuel du gateway n'a pas de colonne `library_added_at` : le script la lit quand elle existe, sinon les envies disponibles sont reprises sans date d'ajout aux favoris.
+
 ## API
 
 - `GET /Sillon/health` : anonyme, `{ "status": "ok" }`.
@@ -58,5 +71,6 @@ La case « Activer » reste nécessaire. Un serveur tiers n'a pas la clé Apple 
 ```
 dotnet build -warnaserror
 dotnet test
+python3 -I scripts/test_migrate.py
 scripts/package.sh
 ```
