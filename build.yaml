@@ -1,7 +1,7 @@
 ---
 name: "Sillon"
 guid: "1daed904-1b05-483c-8544-16cb6dcced54"
-version: "0.5.1.0"
+version: "0.6.0.0"
 targetAbi: "12.2.0.0"
 framework: "net10.0"
 owner: "Overlabing"

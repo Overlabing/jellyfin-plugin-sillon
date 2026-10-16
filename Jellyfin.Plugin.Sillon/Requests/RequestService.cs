@@ -134,10 +134,17 @@ public sealed class RequestService
     /// <param name="input">The request.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The stored request.</returns>
+    /// <exception cref="AlbumNotAllowedException">The catalogue allow-list is set and does not list the album.</exception>
     /// <exception cref="ActiveRequestException">The album already has a live request.</exception>
     /// <exception cref="LidarrAddException">Lidarr refused the album; the request is kept as failed so the user can ask again.</exception>
     public async Task<RequestRecord> CreateAsync(NewRequest input, CancellationToken ct)
     {
+        var allowed = _config().AllowedReleaseGroups();
+        if (allowed.Count > 0 && !allowed.Contains(input.ForeignAlbumId))
+        {
+            throw new AlbumNotAllowedException();
+        }
+
         var created = _store.Create(new RequestRecord
         {
             UserId = input.UserId,

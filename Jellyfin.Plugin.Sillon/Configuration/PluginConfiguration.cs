@@ -94,6 +94,11 @@ public class PluginConfiguration : BasePluginConfiguration
     public int RequestTimeoutDays { get; set; } = 14;
 
     /// <summary>
+    /// Gets or sets the release-group MBIDs the catalogue offers, one per line (blank lines and <c>#</c> comments ignored); empty offers the whole catalogue.
+    /// </summary>
+    public string CatalogAllowList { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the secret protecting the Lidarr webhook.
     /// </summary>
     public string WebhookSecret { get; set; } = string.Empty;
@@ -171,6 +176,25 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <returns><c>true</c> when the <c>requests</c> feature is available.</returns>
     public bool RequestsEnabled() => FulfillmentMode == FulfillmentMode.Manual
         || (!string.IsNullOrWhiteSpace(LidarrUrl) && !string.IsNullOrWhiteSpace(LidarrApiKey));
+
+    /// <summary>
+    /// Parses <see cref="CatalogAllowList"/>.
+    /// </summary>
+    /// <returns>The allowed release-group MBIDs, lower-cased; empty when the whole catalogue is offered.</returns>
+    public HashSet<string> AllowedReleaseGroups()
+    {
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in (CatalogAllowList ?? string.Empty).Split('\n'))
+        {
+            var entry = line.Trim();
+            if (entry.Length > 0 && entry[0] != '#')
+            {
+                allowed.Add(entry);
+            }
+        }
+
+        return allowed;
+    }
 
     /// <summary>
     /// Generates a random 32-character alphanumeric token.

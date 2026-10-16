@@ -126,6 +126,18 @@ public class ControllerTests
     }
 
     [Fact]
+    public async Task CreateRequest_AnAlbumOutsideTheAllowList_Is400WithAFrenchMessage()
+    {
+        using var env = new TestEnv();
+        env.Config.CatalogAllowList = "something-else";
+
+        var json = Json(await Requests(env, Principal(TestEnv.User), CreateBody()).CreateRequest(CancellationToken.None), out var status);
+
+        Assert.Equal(400, status);
+        Assert.Equal("Cet album n'est pas proposé sur ce serveur.", json.GetProperty("error").GetString());
+    }
+
+    [Fact]
     public async Task CreateRequest_MissingIds_Is400_AndBadJson_Is400()
     {
         using var env = new TestEnv();
@@ -463,6 +475,6 @@ public class ControllerTests
 
         Assert.Equal(mode.ToString().ToLowerInvariant(), json.GetProperty("mode").GetString());
         Assert.Equal(expected, json.GetProperty("features").EnumerateArray().Any(f => f.GetString() == "requests"));
-        Assert.Equal("0.5.1.0", json.GetProperty("version").GetString());
+        Assert.Equal("0.6.0.0", json.GetProperty("version").GetString());
     }
 }

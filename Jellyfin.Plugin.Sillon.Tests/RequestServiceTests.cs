@@ -39,6 +39,22 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task Create_WithAnAllowList_RefusesAnUnlistedAlbum_WithoutARecord_AndAcceptsAListedOne()
+    {
+        using var env = new TestEnv();
+        env.Config.CatalogAllowList = "ALB-2";
+
+        var ex = await Assert.ThrowsAsync<AlbumNotAllowedException>(() => env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None));
+
+        Assert.Equal("Cet album n'est pas proposé sur ce serveur.", ex.Message);
+        Assert.Empty(env.Store.Newest(new[] { "alb-1" }));
+        Assert.Empty(env.Lidarr.Added);
+
+        var created = await env.Service.CreateAsync(TestEnv.Input(album: "alb-2"), CancellationToken.None);
+        Assert.Equal("alb-2", created.ForeignAlbumId);
+    }
+
+    [Fact]
     public async Task Create_WaitsForLidarrsRefresh_ThenMonitorsAndSearchesInOrder()
     {
         using var env = new TestEnv();

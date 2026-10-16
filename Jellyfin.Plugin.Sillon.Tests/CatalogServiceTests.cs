@@ -246,6 +246,52 @@ public class CatalogServiceTests
     }
 
     [Fact]
+    public async Task Search_WithAnAllowList_KeepsOnlyListedAlbums_AndTheirArtists()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Config.CatalogAllowList = "# demo\n" + Xeu.ToUpperInvariant() + "\n";
+
+        var result = await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.Equal(new[] { Xeu }, result.Albums.Select(a => a.Mbid));
+        Assert.Single(result.Artists);
+    }
+
+    [Fact]
+    public async Task Search_WithAnAllowListMatchingNothing_AnswersEmpty()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Config.CatalogAllowList = "other-album";
+
+        var result = await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.Empty(result.Albums);
+        Assert.Empty(result.Artists);
+    }
+
+    [Fact]
+    public async Task Artist_WithAnAllowList_ListsOnlyListedAlbums_AndIs404WithNone()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        var artist = new LidarrArtist { Id = 3, ArtistName = "Vald", ForeignArtistId = Vald };
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Artist = artist } };
+        env.Lidarr.Albums[1] = new LidarrAlbum { Id = 1, Title = "Agartha", ForeignAlbumId = "alb-1", Artist = artist };
+        env.Lidarr.Albums[2] = new LidarrAlbum { Id = 2, Title = "XEU", ForeignAlbumId = "alb-2", Artist = artist };
+        env.Config.CatalogAllowList = "ALB-2";
+
+        var result = await catalog.ArtistAlbumsAsync(Vald, null, CancellationToken.None);
+
+        Assert.Equal(new[] { "alb-2" }, result.Albums.Select(a => a.Mbid));
+
+        env.Config.CatalogAllowList = "alb-9";
+        var ex = await Assert.ThrowsAsync<CatalogException>(() => catalog.ArtistAlbumsAsync(Vald, null, CancellationToken.None));
+        Assert.Equal(404, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task Artist_UsesTheNameHint_WhenTheIdLookupFindsNothing()
     {
         var (env, catalog) = Make();

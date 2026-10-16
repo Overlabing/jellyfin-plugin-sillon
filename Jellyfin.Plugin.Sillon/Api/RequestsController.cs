@@ -215,6 +215,10 @@ public sealed partial class RequestsController : ControllerBase
                 new ConflictBody("Cet album est déjà dans votre liste d'envies", existing is null ? null : RequestDto.From(existing)),
                 StatusCodes.Status409Conflict);
         }
+        catch (AlbumNotAllowedException ex)
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
         catch (LidarrAddException ex)
         {
             return ApiJson.Error(StatusCodes.Status502BadGateway, ex.Message);

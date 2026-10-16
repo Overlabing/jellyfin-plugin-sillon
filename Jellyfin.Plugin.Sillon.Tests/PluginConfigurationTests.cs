@@ -18,6 +18,25 @@ public class PluginConfigurationTests
     }
 
     [Fact]
+    public void AllowedReleaseGroups_IsEmptyByDefault()
+    {
+        Assert.Empty(new PluginConfiguration().AllowedReleaseGroups());
+    }
+
+    [Fact]
+    public void AllowedReleaseGroups_IgnoresBlankLinesAndComments_TrimsAndIgnoresCase()
+    {
+        var config = new PluginConfiguration { CatalogAllowList = "# demo\r\n\r\n  AAA-1  \n   \n#bbb-2\nccc-3 # not a comment\r\naaa-1\n" };
+
+        var allowed = config.AllowedReleaseGroups();
+
+        Assert.Equal(2, allowed.Count);
+        Assert.Contains("aaa-1", allowed);
+        Assert.Contains("CCC-3 # NOT A COMMENT", allowed);
+        Assert.DoesNotContain("bbb-2", allowed);
+    }
+
+    [Fact]
     public void EnsureWebhookSecret_GeneratesA32CharToken_WhenEmpty()
     {
         var config = new PluginConfiguration();

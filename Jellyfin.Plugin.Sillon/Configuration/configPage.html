@@ -25,6 +25,10 @@
                         <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Délai avant échec d'une envie (jours)</label>
                         <input is="emby-input" type="number" min="1" id="RequestTimeoutDays" name="RequestTimeoutDays" />
                     </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="CatalogAllowList">Albums autorisés dans le catalogue (MBID de release-group, un par ligne ; vide = tout le catalogue)</label>
+                        <textarea is="emby-textarea" id="CatalogAllowList" name="CatalogAllowList" rows="6" class="emby-textarea"></textarea>
+                    </div>
                 </fieldset>
 
                 <fieldset class="verticalSection-extrabottompadding">
@@ -291,6 +295,7 @@
                 config.FulfillmentMode = el('FulfillmentMode').value;
                 config.ExposeToApps = el('ExposeToApps').checked;
                 config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10) || 14;
+                config.CatalogAllowList = el('CatalogAllowList').value;
                 config.LidarrPathPrefix = el('LidarrPathPrefix').value;
                 config.JellyfinPathPrefix = el('JellyfinPathPrefix').value;
                 config.LidarrUrl = el('LidarrUrl').value;
@@ -311,6 +316,7 @@
                     config = c;
                     el('FulfillmentMode').value = c.FulfillmentMode;
                     el('RequestTimeoutDays').value = c.RequestTimeoutDays;
+                    el('CatalogAllowList').value = c.CatalogAllowList || '';
                     el('ExposeToApps').checked = c.ExposeToApps !== false;
                     el('LidarrPathPrefix').value = c.LidarrPathPrefix;
                     el('JellyfinPathPrefix').value = c.JellyfinPathPrefix;

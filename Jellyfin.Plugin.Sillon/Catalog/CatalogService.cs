@@ -42,6 +42,7 @@ public sealed class CatalogService
     public async Task<CatalogSearchResult> SearchAsync(string query, CancellationToken ct)
     {
         var lidarr = RequireLidarr();
+        var allowed = _config().AllowedReleaseGroups();
         var lookup = LookupAlbumsOrNoneAsync(lidarr, query, ct);
         IReadOnlyList<LidarrSearchItem> items;
         try
@@ -61,6 +62,11 @@ public sealed class CatalogService
 
         void Add(LidarrAlbum album)
         {
+            if (allowed.Count > 0 && !allowed.Contains(album.ForeignAlbumId))
+            {
+                return;
+            }
+
             if (seen.TryGetValue(album.ForeignAlbumId, out var index))
             {
                 // the combined search can omit the releases the album lookup carries
@@ -96,6 +102,13 @@ public sealed class CatalogService
             }
         }
 
+        if (allowed.Count > 0)
+        {
+            // an artist is offered only through an allowed album
+            var offered = albums.Select(a => a.Artist?.ForeignArtistId).ToHashSet(StringComparer.Ordinal);
+            artists.RemoveAll(a => !offered.Contains(a.Mbid));
+        }
+
         return new CatalogSearchResult(artists, ToAlbums(albums, null));
     }
 
@@ -119,12 +132,18 @@ public sealed class CatalogService
             throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
         }
 
+        var allowed = _config().AllowedReleaseGroups();
         LidarrArtist? artist = null;
         var albums = new List<LidarrAlbum>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
         void Add(LidarrAlbum album)
         {
+            if (allowed.Count > 0 && !allowed.Contains(album.ForeignAlbumId))
+            {
+                return;
+            }
+
             if (album.ForeignAlbumId.Length > 0 && seen.Add(album.ForeignAlbumId))
             {
                 albums.Add(album);
@@ -183,7 +202,7 @@ public sealed class CatalogService
             }
         }
 
-        if (artist is null && albums.Count == 0)
+        if ((artist is null || allowed.Count > 0) && albums.Count == 0)
         {
             throw new CatalogException(StatusCodes.Status404NotFound, "artiste introuvable");
         }

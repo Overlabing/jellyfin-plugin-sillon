@@ -30,6 +30,16 @@ public sealed class RequestNotActiveException : Exception
     }
 }
 
+/// <summary>The album is not in the catalogue allow-list.</summary>
+public sealed class AlbumNotAllowedException : Exception
+{
+    /// <summary>Initializes a new instance of the <see cref="AlbumNotAllowedException"/> class.</summary>
+    public AlbumNotAllowedException()
+        : base("Cet album n'est pas proposé sur ce serveur.")
+    {
+    }
+}
+
 /// <summary>Lidarr refused the album; the detail is logged, never sent to clients.</summary>
 public sealed class LidarrAddException : Exception
 {
