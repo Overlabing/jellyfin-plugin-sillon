@@ -115,6 +115,22 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
     public Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
         => Task.FromResult(PathMap.AlbumFolder(Files.TryGetValue(albumId, out var f) ? f.Select(x => x.Path) : Array.Empty<string>()));
 
+    public List<int> AnyReleaseOk { get; } = new();
+
+    public List<string> Scans { get; } = new();
+
+    public Task SetAnyReleaseOkAsync(int albumId, CancellationToken ct = default)
+    {
+        AnyReleaseOk.Add(albumId);
+        return Task.CompletedTask;
+    }
+
+    public Task DownloadedAlbumsScanAsync(string path, CancellationToken ct = default)
+    {
+        Scans.Add(path);
+        return Task.CompletedTask;
+    }
+
     public int CutoffSearches { get; private set; }
 
     public Task CutoffUnmetSearchAsync(CancellationToken ct = default)

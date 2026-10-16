@@ -152,6 +152,14 @@ public sealed class RequestStore
         Update(id, r => r.IsActive, r => r with { LastSearchAt = now, LastReSearchAt = now });
     }
 
+    /// <summary>Records that the reconcile retried a failed import for a live request.</summary>
+    /// <param name="id">The id.</param>
+    public void MarkImportRetried(long id)
+    {
+        var now = _now();
+        Update(id, r => r.IsActive, r => r with { LastImportRetryAt = now });
+    }
+
     /// <summary>Stores the Jellyfin album of an available request.</summary>
     /// <param name="id">The id.</param>
     /// <param name="itemId">The Jellyfin item id.</param>

@@ -180,6 +180,30 @@ public sealed class LidarrQueueRecord
     /// <summary>Gets the album, when the queue was asked to include it.</summary>
     [JsonPropertyName("album")]
     public LidarrAlbum? Album { get; init; }
+
+    /// <summary>Gets the tracked download state (importFailed, ...).</summary>
+    [JsonPropertyName("trackedDownloadState")]
+    public string? TrackedDownloadState { get; init; }
+
+    /// <summary>Gets the folder the download client wrote, as Lidarr sees it.</summary>
+    [JsonPropertyName("outputPath")]
+    public string? OutputPath { get; init; }
+
+    /// <summary>Gets the status messages.</summary>
+    [JsonPropertyName("statusMessages")]
+    public List<LidarrStatusMessage>? StatusMessages { get; init; }
+}
+
+/// <summary>A status message of a queue item.</summary>
+public sealed class LidarrStatusMessage
+{
+    /// <summary>Gets the title.</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; init; }
+
+    /// <summary>Gets the messages.</summary>
+    [JsonPropertyName("messages")]
+    public List<string>? Messages { get; init; }
 }
 
 /// <summary>Body of POST /album.</summary>
@@ -192,6 +216,10 @@ public sealed class LidarrAddAlbum
     /// <summary>Gets a value indicating whether the album is monitored.</summary>
     [JsonPropertyName("monitored")]
     public bool Monitored { get; init; }
+
+    /// <summary>Gets a value indicating whether Lidarr imports any edition of the album, not only the monitored release.</summary>
+    [JsonPropertyName("anyReleaseOk")]
+    public bool AnyReleaseOk { get; init; }
 
     /// <summary>Gets the artist block.</summary>
     [JsonPropertyName("artist")]

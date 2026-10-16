@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Jellyfin.Plugin.Sillon.Requests;
 
@@ -109,6 +110,18 @@ public interface ILidarrApi
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A task.</returns>
     Task CutoffUnmetSearchAsync(CancellationToken ct = default);
+
+    /// <summary>Makes Lidarr accept any edition of an album, writing it only when the flag was off.</summary>
+    /// <param name="albumId">The Lidarr album id.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    Task SetAnyReleaseOkAsync(int albumId, CancellationToken ct = default);
+
+    /// <summary>Queues a DownloadedAlbumsScan command: an import of a folder.</summary>
+    /// <param name="path">The folder, as Lidarr sees it.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    Task DownloadedAlbumsScanAsync(string path, CancellationToken ct = default);
 }
 
 /// <summary>Minimal Lidarr API client. Never logs or echoes the API key.</summary>
@@ -208,6 +221,24 @@ public sealed class LidarrClient : ILidarrApi
     /// <inheritdoc />
     public Task CutoffUnmetSearchAsync(CancellationToken ct = default)
         => SendAsync<JsonElement>(HttpMethod.Post, "/api/v1/command", new { name = "CutoffUnmetAlbumSearch" }, Normal, ct, allowEmpty: true);
+
+    /// <inheritdoc />
+    public async Task SetAnyReleaseOkAsync(int albumId, CancellationToken ct = default)
+    {
+        // the PUT takes the whole album, which the typed model does not carry
+        var album = await SendAsync<JsonObject>(HttpMethod.Get, $"/api/v1/album/{albumId}", null, Normal, ct).ConfigureAwait(false);
+        if (album["anyReleaseOk"]?.GetValueKind() == JsonValueKind.True)
+        {
+            return;
+        }
+
+        album["anyReleaseOk"] = true;
+        await SendAsync<JsonElement>(HttpMethod.Put, $"/api/v1/album/{albumId}", album, Normal, ct, allowEmpty: true).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public Task DownloadedAlbumsScanAsync(string path, CancellationToken ct = default)
+        => SendAsync<JsonElement>(HttpMethod.Post, "/api/v1/command", new { name = "DownloadedAlbumsScan", path }, Normal, ct, allowEmpty: true);
 
     private async Task<T> SendAsync<T>(
         HttpMethod method, string path, object? body, TimeSpan timeout, CancellationToken ct, bool allowEmpty = false)

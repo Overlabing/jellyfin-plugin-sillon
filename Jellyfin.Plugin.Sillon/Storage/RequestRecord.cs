@@ -84,6 +84,9 @@ public sealed record RequestRecord
     /// <summary>Gets when the reconcile last searched the album again on its own; absent in records written before 0.5.1.0.</summary>
     public DateTimeOffset? LastReSearchAt { get; init; }
 
+    /// <summary>Gets when the reconcile last retried a failed import with any release accepted; absent in records written before 0.6.1.0.</summary>
+    public DateTimeOffset? LastImportRetryAt { get; init; }
+
     /// <summary>Gets the album folder as Lidarr sees it; absent in records written before 0.6.0.0.</summary>
     public string? LidarrFolder { get; init; }
 

@@ -135,6 +135,59 @@ public class RequestServiceTests
         Assert.Equal(7, request.LidarrAlbumId);
         Assert.True(env.Lidarr.Monitored[7]);
         Assert.Equal(new[] { 7 }, env.Lidarr.Searched);
+        Assert.Equal(new[] { 7 }, env.Lidarr.AnyReleaseOk);
+    }
+
+    [Fact]
+    public async Task Create_AddsTheAlbumAcceptingAnyRelease()
+    {
+        var (env, _) = await Requested();
+        using var _ = env;
+
+        Assert.True(env.Lidarr.Added[0].AnyReleaseOk);
+    }
+
+    private static LidarrQueueRecord FailedImport(int albumId, string message = "Album release not requested")
+        => new()
+        {
+            AlbumId = albumId,
+            TrackedDownloadState = "importFailed",
+            OutputPath = "/downloads/The Wall",
+            StatusMessages = new() { new LidarrStatusMessage { Title = "x", Messages = new() { message } } }
+        };
+
+    [Fact]
+    public async Task Reconcile_ARejectedEdition_AcceptsAnyReleaseAndRescans_AtMostEveryThirtyMinutes()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.AnyReleaseOk.Clear();
+        env.Lidarr.Queue = new() { FailedImport(101) };
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(new[] { 101 }, env.Lidarr.AnyReleaseOk);
+        Assert.Equal(new[] { "/downloads/The Wall" }, env.Lidarr.Scans);
+        Assert.NotNull(env.Store.Get(request.Id)!.LastImportRetryAt);
+
+        env.Now = env.Now.AddMinutes(29);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Single(env.Lidarr.Scans);
+
+        env.Now = env.Now.AddMinutes(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(2, env.Lidarr.Scans.Count);
+    }
+
+    [Fact]
+    public async Task Reconcile_AnotherImportFailure_IsNotRetried()
+    {
+        var (env, _) = await Requested();
+        using var _ = env;
+        env.Lidarr.Queue = new() { FailedImport(101, "Has missing tracks") };
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Empty(env.Lidarr.Scans);
     }
 
     [Fact]
@@ -842,6 +895,12 @@ public class RequestServiceTests
 
             public Task CutoffUnmetSearchAsync(CancellationToken ct = default)
                 => queueOnly ? inner!.CutoffUnmetSearchAsync(ct) : throw Down();
+
+            public Task SetAnyReleaseOkAsync(int albumId, CancellationToken ct = default)
+                => queueOnly ? inner!.SetAnyReleaseOkAsync(albumId, ct) : throw Down();
+
+            public Task DownloadedAlbumsScanAsync(string path, CancellationToken ct = default)
+                => queueOnly ? inner!.DownloadedAlbumsScanAsync(path, ct) : throw Down();
         }
     }
 }

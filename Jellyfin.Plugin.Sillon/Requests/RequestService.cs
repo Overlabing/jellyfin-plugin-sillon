@@ -55,6 +55,9 @@ public sealed record RequestTiming
     /// <summary>Gets the minimum time between two Lidarr cutoff-unmet searches.</summary>
     public TimeSpan CutoffSearchEvery { get; init; } = TimeSpan.FromDays(7);
 
+    /// <summary>Gets the minimum time between two retries of a failed import for the same request.</summary>
+    public TimeSpan ImportRetryEvery { get; init; } = TimeSpan.FromMinutes(30);
+
     /// <summary>Gets how long an available request that never reached its requester's library is retried.</summary>
     public TimeSpan ResumeWindow { get; init; } = TimeSpan.FromHours(24);
 }
@@ -460,6 +463,7 @@ public sealed class RequestService
             else if (isQueued)
             {
                 SetDownloading(request);
+                await RetryFailedImportAsync(request, lidarr, (int)lidarrId, queue, ct).ConfigureAwait(false);
             }
             else if (queueRead && age > limit)
             {
@@ -492,6 +496,38 @@ public sealed class RequestService
 
         _store.MarkCutoffSearched();
         _logger.LogInformation("Cutoff-unmet search queued in Lidarr");
+    }
+
+    // Lidarr refuses a download of another edition than the monitored release; accepting any release lets the same files import
+    private async Task RetryFailedImportAsync(
+        RequestRecord request, ILidarrApi lidarr, int lidarrId, IReadOnlyList<LidarrQueueRecord> queue, CancellationToken ct)
+    {
+        var failed = queue.FirstOrDefault(q =>
+            (q.AlbumId != 0 ? q.AlbumId : q.Album?.Id ?? 0) == lidarrId
+            && q.TrackedDownloadState == "importFailed"
+            && !string.IsNullOrEmpty(q.OutputPath)
+            && (q.StatusMessages ?? new()).Any(m => (m.Messages ?? new()).Any(
+                t => t.Contains("Album release not requested", StringComparison.OrdinalIgnoreCase))));
+        if (failed is null
+            || (request.LastImportRetryAt is { } last && _now() - last < _timing.ImportRetryEvery))
+        {
+            return;
+        }
+
+        try
+        {
+            await lidarr.SetAnyReleaseOkAsync(lidarrId, ct).ConfigureAwait(false);
+            await lidarr.DownloadedAlbumsScanAsync(failed.OutputPath!, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("Reconcile: retrying the import failed request={Id}: {Message}", request.Id, ex.Message);
+            return;
+        }
+
+        _store.MarkImportRetried(request.Id);
+        _logger.LogInformation(
+            "Retrying import with any release accepted request={Id} artist={Artist} title={Title}", request.Id, request.Artist, request.Title);
     }
 
     // monitors the album again and queues a new search when the last one is old and the last automatic one older still
@@ -572,6 +608,14 @@ public sealed class RequestService
         if (existing.Count > 0)
         {
             id = existing[0].Id;
+            try
+            {
+                await lidarr.SetAnyReleaseOkAsync(id, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("Accepting any release failed request={Id}: {Message}", request.Id, ex.Message);
+            }
         }
         else
         {
@@ -580,6 +624,7 @@ public sealed class RequestService
                 {
                     ForeignAlbumId = request.ForeignAlbumId,
                     Monitored = true,
+                    AnyReleaseOk = true,
                     Artist = new LidarrAddArtist
                     {
                         ForeignArtistId = request.ForeignArtistId,

@@ -65,6 +65,33 @@ public class LidarrClientTests
     }
 
     [Fact]
+    public async Task SetAnyReleaseOk_PutsTheWholeAlbum_OnlyWhenTheFlagWasOff()
+    {
+        var flag = "false";
+        var (client, handler) = Make(_ => Json("{\"id\":7,\"title\":\"t\",\"anyReleaseOk\":" + flag + ",\"extra\":{\"k\":1}}"));
+
+        await client.SetAnyReleaseOkAsync(7);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(HttpMethod.Put, handler.Requests[1].Method);
+        Assert.Equal("/api/v1/album/7", handler.Requests[1].RequestUri!.AbsolutePath);
+        Assert.Equal("{\"id\":7,\"title\":\"t\",\"anyReleaseOk\":true,\"extra\":{\"k\":1}}", handler.Bodies[1]);
+
+        flag = "true";
+        await client.SetAnyReleaseOkAsync(7);
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task DownloadedAlbumsScan_PostsTheCommandWithThePath()
+    {
+        var (client, handler) = Make(_ => Json("{}"));
+
+        await client.DownloadedAlbumsScanAsync("/dl/x");
+
+        Assert.Equal("{\"name\":\"DownloadedAlbumsScan\",\"path\":\"/dl/x\"}", handler.Bodies[0]);
+    }
+
+    [Fact]
     public async Task Status_ReturnsVersion_AndSendsApiKeyHeader()
     {
         var (client, handler) = Make(_ => Json("{\"version\":\"2.9.6.4552\",\"other\":1}"));
@@ -202,13 +229,14 @@ public class LidarrClientTests
         {
             ForeignAlbumId = "m",
             Monitored = true,
+            AnyReleaseOk = true,
             Artist = new LidarrAddArtist { ForeignArtistId = "a", QualityProfileId = 2, MetadataProfileId = 1, RootFolderPath = "/music" }
         });
 
         Assert.Equal(41, added.Id);
         Assert.Equal(HttpMethod.Post, handler.Requests[0].Method);
         Assert.Equal(
-            "{\"foreignAlbumId\":\"m\",\"monitored\":true,\"artist\":{\"foreignArtistId\":\"a\",\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/music\",\"monitored\":false,\"monitorNewItems\":\"none\",\"addOptions\":{\"monitor\":\"none\",\"searchForMissingAlbums\":false}},\"addOptions\":{\"searchForNewAlbum\":false}}",
+            "{\"foreignAlbumId\":\"m\",\"monitored\":true,\"anyReleaseOk\":true,\"artist\":{\"foreignArtistId\":\"a\",\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/music\",\"monitored\":false,\"monitorNewItems\":\"none\",\"addOptions\":{\"monitor\":\"none\",\"searchForMissingAlbums\":false}},\"addOptions\":{\"searchForNewAlbum\":false}}",
             handler.Bodies[0]);
     }
 

@@ -6,8 +6,8 @@ Le plugin reprend la liste d'envies d'albums de l'ancien service Go `sillon-gate
 
 ## Installation
 
-1. `scripts/package.sh` produit `dist/Sillon_0.6.0.0.zip` (la dll et `meta.json`).
-2. Dézipper dans un dossier `Sillon_0.6.0.0/` du répertoire `plugins/` de Jellyfin.
+1. `scripts/package.sh` produit `dist/Sillon_0.6.1.0.zip` (la dll et `meta.json`).
+2. Dézipper dans un dossier `Sillon_0.6.1.0/` du répertoire `plugins/` de Jellyfin.
 3. Redémarrer Jellyfin.
 
 ## Configuration
@@ -43,6 +43,7 @@ La case « Activer » reste nécessaire. Un serveur tiers n'a pas la clé Apple 
 
 - **Mode Lidarr** : une envie ajoute l'artiste (non surveillé) et l'album à Lidarr, surveille l'album et lance la recherche. Les événements du webhook (Grab, Download ou AlbumImport, ImportFailure) font avancer l'envie ; un import partiel est accepté. Quand l'album est dans la bibliothèque Jellyfin (le plugin l'attend jusqu'à 5 minutes), il est ajouté aux favoris du demandeur. Une tâche planifiée « Rapprocher la liste d'envies avec Lidarr » (toutes les 5 minutes, lançable depuis le tableau de bord) rattrape les événements perdus, relance un ajout resté en plan après 10 minutes et fait échouer les envies qui dépassent le délai.
 - **Retrouver l'album importé** : après un import, le plugin cherche l'album dans Jellyfin par identifiant MusicBrainz, puis par dossier (celui que Lidarr a rempli, sans le niveau `CD 01`, converti avec les deux dossiers de musique ci-dessus), puis par titre exact. Tant qu'il ne le trouve pas, il demande à Jellyfin de scanner ce dossier, au plus une fois toutes les 10 minutes par envie.
+- **Éditions** : l'album est ajouté avec `anyReleaseOk` (et le drapeau est posé sur un album déjà connu), et quand l'import d'un téléchargement échoue avec « Album release not requested », la tâche planifiée l'accepte puis relance l'import (`DownloadedAlbumsScan`), au plus une fois par 30 minutes et par envie.
 - **Mises à niveau de qualité** : une fois par semaine, la tâche planifiée lance dans Lidarr la recherche « Cutoff Unmet » (`CutoffUnmetAlbumSearch`), pour qu'un FLAC trouvé plus tard remplace un MP3 déjà importé quand le profil de qualité le permet.
 - **Mode manuel** : l'envie est enregistrée sans appel à Lidarr. Un administrateur la marque comme ajoutée depuis la section « Liste d'envies » de la page du plugin ; les mêmes étapes suivent (attente de l'album dans la bibliothèque, favori, notification). La recherche dans le catalogue répond 503 (« mode manuel ») : l'accès direct à MusicBrainz viendra plus tard. La tâche planifiée ne fait ni relance ni échec automatique dans ce mode.
 - **Liste d'albums autorisés** (« Albums autorisés dans le catalogue ») : un MBID de release-group par ligne, lignes vides et commentaires `#` ignorés, casse indifférente. Vide (par défaut), tout le catalogue est proposé. Renseignée, la recherche et les pages d'artiste du catalogue ne montrent que ces albums (et les artistes qui en ont au moins un), et une envie pour un autre album est refusée en 400 (« Cet album n'est pas proposé sur ce serveur. »). La bibliothèque Jellyfin n'est pas touchée. Prévu pour un serveur de démonstration ne contenant que des albums Creative Commons (revue App Store).
@@ -56,7 +57,7 @@ Reprend les envies et les appareils de l'ancien service Go dans le plugin (`scri
 2. Copier la base SQLite du gateway (avec ses fichiers `-wal` et `-shm` s'ils existent) vers un dossier de travail ; ne jamais travailler sur l'original.
 3. Contrôler sans rien écrire : `python3 -I scripts/migrate-from-gateway.py --db gateway.db --out /tmp/sillon --dry-run`. Le résumé donne le nombre d'envies par état et d'appareils par utilisateur ; les jetons ne sont jamais affichés.
 4. Écrire les fichiers : même commande sans `--dry-run`. Le script refuse d'écraser un `requests.json` ou un `devices.json` non vides sans `--force`. Il convertit les identifiants d'utilisateur en 32 caractères hexadécimaux sans tirets (format `N` de Jellyfin) et toutes les dates en UTC. Les numéros d'envie sont conservés, le plugin continue après le plus grand.
-5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.6.0.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
+5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.6.1.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
 6. Démarrer Jellyfin, vérifier la section « Liste d'envies » du tableau de bord, puis activer « Proposer la liste d'envies aux applications Sillon ».
 
 Le schéma actuel du gateway n'a pas de colonne `library_added_at` : le script la lit quand elle existe, sinon les envies disponibles sont reprises sans date d'ajout aux favoris.
