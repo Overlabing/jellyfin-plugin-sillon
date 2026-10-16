@@ -57,6 +57,21 @@ public class PluginConfiguration : BasePluginConfiguration
     public string LidarrRootFolder { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the music folder as Lidarr sees it.
+    /// </summary>
+    public string LidarrPathPrefix { get; set; } = "/data/media/music";
+
+    /// <summary>
+    /// Gets or sets the same folder as Jellyfin sees it.
+    /// </summary>
+    public string JellyfinPathPrefix { get; set; } = "/data/music";
+
+    /// <summary>
+    /// Gets or sets how many days a request may wait for a release before it fails.
+    /// </summary>
+    public int RequestTimeoutDays { get; set; } = 14;
+
+    /// <summary>
     /// Gets or sets the secret protecting the Lidarr webhook.
     /// </summary>
     public string WebhookSecret { get; set; } = string.Empty;
@@ -85,6 +100,13 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the APNs private key (later phase).
     /// </summary>
     public string ApnsPrivateKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets a value indicating whether album requests can be taken: always in manual mode, in Lidarr mode once Lidarr is set up.
+    /// </summary>
+    /// <returns><c>true</c> when the <c>requests</c> feature is available.</returns>
+    public bool RequestsEnabled() => FulfillmentMode == FulfillmentMode.Manual
+        || (!string.IsNullOrWhiteSpace(LidarrUrl) && !string.IsNullOrWhiteSpace(LidarrApiKey));
 
     /// <summary>
     /// Generates a random 32-character alphanumeric token.

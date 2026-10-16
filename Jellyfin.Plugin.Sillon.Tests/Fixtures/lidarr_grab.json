@@ -1,0 +1,10 @@
+{
+  "eventType": "Grab",
+  "instanceName": "Lidarr",
+  "applicationUrl": "",
+  "artist": {"id": 3, "name": "Vald", "path": "/data/media/music/Vald", "mbId": "9d2d1c4e-7a0b-4f5c-8d6a-0c6f6d2a1b11"},
+  "albums": [
+    {"id": 41, "mbId": "5f0e7c3a-2b1d-4e8f-9a6b-7d3c1e5a9b22", "title": "XEU", "releaseDate": "2022-11-18T00:00:00Z"}
+  ],
+  "downloadId": "0123456789ABCDEF0123456789ABCDEF01234567"
+}

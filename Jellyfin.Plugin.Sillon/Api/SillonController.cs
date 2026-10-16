@@ -24,14 +24,17 @@ public class SillonController : ControllerBase
 {
     private readonly ILogger<SillonController> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly Func<PluginConfiguration> _config;
 
     /// <summary>Initializes a new instance of the <see cref="SillonController"/> class.</summary>
     /// <param name="logger">The logger.</param>
     /// <param name="httpClientFactory">The HTTP client factory.</param>
-    public SillonController(ILogger<SillonController> logger, IHttpClientFactory httpClientFactory)
+    /// <param name="config">The configuration accessor.</param>
+    public SillonController(ILogger<SillonController> logger, IHttpClientFactory httpClientFactory, Func<PluginConfiguration> config)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
+        _config = config;
     }
 
     /// <summary>Unauthenticated liveness probe.</summary>
@@ -46,15 +49,12 @@ public class SillonController : ControllerBase
     [Authorize]
     public ActionResult GetConfig()
     {
-        var mode = (Plugin.Instance?.Configuration.FulfillmentMode ?? FulfillmentMode.Manual)
-            .ToString().ToLowerInvariant();
-
-        // "requests" joins this list once request handling lands (phase 2); empty until then.
+        var config = _config();
         return new JsonResult(new
         {
             version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
-            features = Array.Empty<string>(),
-            mode
+            features = config.RequestsEnabled() ? new[] { "requests" } : Array.Empty<string>(),
+            mode = config.FulfillmentMode.ToString().ToLowerInvariant()
         });
     }
 
@@ -102,7 +102,7 @@ public class SillonController : ControllerBase
 
     private LidarrClient SavedClient()
     {
-        var config = Plugin.Instance?.Configuration ?? new PluginConfiguration();
+        var config = _config();
         return new LidarrClient(Http(), config.LidarrUrl, config.LidarrApiKey);
     }
 

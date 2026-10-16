@@ -1,0 +1,7 @@
+{
+  "eventType": "Test",
+  "instanceName": "Lidarr",
+  "applicationUrl": "",
+  "artist": {"id": 1, "name": "Test Name", "path": "C:\\testpath", "mbId": "1234"},
+  "albums": [{"id": 123, "mbId": "1234", "title": "Test title"}]
+}

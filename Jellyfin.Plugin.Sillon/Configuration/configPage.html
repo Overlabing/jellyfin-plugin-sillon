@@ -19,6 +19,11 @@
                             <option value="Manual">Manuel</option>
                             <option value="Lidarr">Lidarr</option>
                         </select>
+                        <div class="fieldDescription">Manuel : les demandes sont enregistrées et vous les marquez disponibles vous-même (section « Demandes »). Lidarr : elles sont transmises à Lidarr.</div>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Délai avant échec d'une demande (jours)</label>
+                        <input is="emby-input" type="number" min="1" id="RequestTimeoutDays" name="RequestTimeoutDays" />
                     </div>
                 </fieldset>
 
@@ -49,6 +54,15 @@
                     <div class="selectContainer">
                         <label class="selectLabel" for="LidarrRootFolder">Dossier racine</label>
                         <select is="emby-select" id="LidarrRootFolder" name="LidarrRootFolder" class="emby-select-withcolor emby-select"></select>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LidarrPathPrefix">Dossier de musique vu par Lidarr</label>
+                        <input is="emby-input" type="text" id="LidarrPathPrefix" name="LidarrPathPrefix" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="JellyfinPathPrefix">Le même dossier vu par Jellyfin</label>
+                        <input is="emby-input" type="text" id="JellyfinPathPrefix" name="JellyfinPathPrefix" />
+                        <div class="fieldDescription">Sert à dire à Jellyfin où chercher un album que Lidarr vient d'importer.</div>
                     </div>
                 </fieldset>
 
@@ -95,6 +109,29 @@
                     </button>
                 </div>
             </form>
+
+            <fieldset id="SillonRequests" class="verticalSection-extrabottompadding">
+                <legend>Demandes</legend>
+                <div>
+                    <button is="emby-button" type="button" id="RequestsRefresh" class="raised">
+                        <span>Actualiser</span>
+                    </button>
+                    <div id="RequestsResult" class="fieldDescription"></div>
+                </div>
+                <table class="detailTable" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th style="text-align: left;">Utilisateur</th>
+                            <th style="text-align: left;">Artiste</th>
+                            <th style="text-align: left;">Album</th>
+                            <th style="text-align: left;">Statut</th>
+                            <th style="text-align: left;">Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="RequestsBody"></tbody>
+                </table>
+            </fieldset>
         </div>
     </div>
 
@@ -147,8 +184,75 @@
                 return Promise.resolve('Échec de la connexion.');
             }
 
+            var statusLabels = {
+                requested: 'Demandé',
+                downloading: 'En cours',
+                available: 'Disponible',
+                failed: 'Échec',
+                cancelled: 'Annulé'
+            };
+
+            function setRequestsMessage(text, isError) {
+                var box = el('RequestsResult');
+                box.textContent = text;
+                box.style.color = isError ? '#e55' : '';
+            }
+
+            function cell(text) {
+                var td = document.createElement('td');
+                td.textContent = text;
+                return td;
+            }
+
+            function renderRequests(list) {
+                var body = el('RequestsBody');
+                body.innerHTML = '';
+                var manual = el('FulfillmentMode').value === 'Manual';
+                list.forEach(function (r) {
+                    var tr = document.createElement('tr');
+                    tr.appendChild(cell(r.userName));
+                    tr.appendChild(cell(r.artist));
+                    tr.appendChild(cell(r.title));
+                    tr.appendChild(cell((statusLabels[r.status] || r.status) + (r.error ? ' (' + r.error + ')' : '')));
+                    tr.appendChild(cell(new Date(r.createdAt).toLocaleString()));
+                    var action = document.createElement('td');
+                    if (manual && (r.status === 'requested' || r.status === 'downloading')) {
+                        var button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'raised';
+                        button.textContent = 'Marquer disponible';
+                        button.addEventListener('click', function () { markAvailable(r.id); });
+                        action.appendChild(button);
+                    }
+                    tr.appendChild(action);
+                    body.appendChild(tr);
+                });
+                setRequestsMessage(list.length ? '' : 'Aucune demande.', false);
+            }
+
+            function loadRequests() {
+                return getJson('Sillon/v1/requests').then(function (r) {
+                    renderRequests(r.requests || []);
+                }, function () {
+                    setRequestsMessage('Impossible de charger les demandes.', true);
+                });
+            }
+
+            function markAvailable(id) {
+                ApiClient.ajax({
+                    url: ApiClient.getUrl('Sillon/v1/requests/' + id + '/available'),
+                    type: 'POST',
+                    dataType: 'json'
+                }).then(loadRequests, function () {
+                    setRequestsMessage('Impossible de marquer la demande disponible.', true);
+                });
+            }
+
             function readForm() {
                 config.FulfillmentMode = el('FulfillmentMode').value;
+                config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10) || 14;
+                config.LidarrPathPrefix = el('LidarrPathPrefix').value;
+                config.JellyfinPathPrefix = el('JellyfinPathPrefix').value;
                 config.LidarrUrl = el('LidarrUrl').value;
                 config.LidarrApiKey = el('LidarrApiKey').value;
                 config.LidarrQualityProfileId = parseInt(el('LidarrQualityProfileId').value, 10) || 0;
@@ -161,6 +265,9 @@
                 ApiClient.getPluginConfiguration(PluginId).then(function (c) {
                     config = c;
                     el('FulfillmentMode').value = c.FulfillmentMode;
+                    el('RequestTimeoutDays').value = c.RequestTimeoutDays;
+                    el('LidarrPathPrefix').value = c.LidarrPathPrefix;
+                    el('JellyfinPathPrefix').value = c.JellyfinPathPrefix;
                     el('LidarrUrl').value = c.LidarrUrl;
                     el('LidarrApiKey').value = c.LidarrApiKey;
                     el('WebhookUrl').value = ApiClient.serverAddress() + '/Sillon/webhooks/lidarr?secret=' + encodeURIComponent(c.WebhookSecret);
@@ -169,6 +276,7 @@
                     el('ApnsTeamId').value = c.ApnsTeamId;
                     el('ApnsTopic').value = c.ApnsTopic;
                     el('ApnsPrivateKey').value = c.ApnsPrivateKey;
+                    loadRequests();
                     if (c.LidarrApiKey) {
                         return loadLists().catch(function () { /* the user can test again */ });
                     }
@@ -193,6 +301,9 @@
                 });
             });
 
+            el('RequestsRefresh').addEventListener('click', loadRequests);
+            el('FulfillmentMode').addEventListener('change', loadRequests);
+
             el('WebhookCopy').addEventListener('click', function () {
                 var input = el('WebhookUrl');
                 input.select();
@@ -209,6 +320,7 @@
                 readForm();
                 ApiClient.updatePluginConfiguration(PluginId, config).then(function (result) {
                     Dashboard.processPluginConfigurationUpdateResult(result);
+                    loadRequests();
                 });
                 return false;
             });

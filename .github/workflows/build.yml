@@ -23,10 +23,10 @@ jobs:
 
       - name: Stage plugin folder
         run: |
-          mkdir -p Sillon_0.1.0.0
-          cp publish/Jellyfin.Plugin.Sillon.dll Sillon_0.1.0.0/
+          mkdir -p Sillon_0.2.0.0
+          cp publish/Jellyfin.Plugin.Sillon.dll Sillon_0.2.0.0/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Sillon_0.1.0.0
-          path: Sillon_0.1.0.0/Jellyfin.Plugin.Sillon.dll
+          name: Sillon_0.2.0.0
+          path: Sillon_0.2.0.0/Jellyfin.Plugin.Sillon.dll

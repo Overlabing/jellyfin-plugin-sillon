@@ -1,0 +1,568 @@
+using Jellyfin.Plugin.Sillon.Configuration;
+using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Requests;
+using Jellyfin.Plugin.Sillon.Storage;
+using Xunit;
+
+namespace Jellyfin.Plugin.Sillon.Tests;
+
+public class RequestServiceTests
+{
+    private const string Folder = "/data/media/music/Vald/XEU (2022)";
+
+    private static async Task<(TestEnv Env, RequestRecord Request)> Requested(TestEnv? existing = null)
+    {
+        var env = existing ?? new TestEnv();
+        var request = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+        return (env, request);
+    }
+
+    [Fact]
+    public async Task Create_InLidarrMode_AddsTheAlbumUnmonitoredArtist_MonitorsAndSearches()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+
+        Assert.Equal(RequestStatus.Requested, request.Status);
+        Assert.Equal(101, request.LidarrAlbumId);
+        var added = Assert.Single(env.Lidarr.Added);
+        Assert.Equal("alb-1", added.ForeignAlbumId);
+        Assert.True(added.Monitored);
+        Assert.False(added.Artist.Monitored);
+        Assert.Equal("none", added.Artist.MonitorNewItems);
+        Assert.Equal("none", added.Artist.AddOptions.Monitor);
+        Assert.Equal(2, added.Artist.QualityProfileId);
+        Assert.Equal(1, added.Artist.MetadataProfileId);
+        Assert.Equal("/data/media/music", added.Artist.RootFolderPath);
+        Assert.True(env.Lidarr.Monitored[101]);
+        Assert.Equal(new[] { 101 }, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Create_ForAnAlbumLidarrAlreadyHolds_DoesNotAddItAgain()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.Existing["alb-1"] = new LidarrAlbum { Id = 7, ForeignAlbumId = "alb-1" };
+
+        var request = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+
+        Assert.Empty(env.Lidarr.Added);
+        Assert.Equal(7, request.LidarrAlbumId);
+        Assert.True(env.Lidarr.Monitored[7]);
+        Assert.Equal(new[] { 7 }, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Create_WhenLidarrRefuses_KeepsAFailedRequestWithAGenericError_AndLeaksNothing()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.AddError = new LidarrException("SECRET-DETAIL /data/media/music");
+
+        var ex = await Assert.ThrowsAsync<LidarrAddException>(() => env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None));
+
+        Assert.Equal("ajout Lidarr refusé", ex.Message);
+        var stored = Assert.Single(env.Store.List(null));
+        Assert.Equal(RequestStatus.Failed, stored.Status);
+        Assert.Equal("ajout Lidarr refusé", stored.Error);
+        Assert.DoesNotContain("SECRET", stored.Error);
+        // a failed request does not block asking again
+        env.Lidarr.AddError = null;
+        await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Create_ADuplicateOfALiveRequest_IsRefused()
+    {
+        var (env, _) = await Requested();
+        using var _ = env;
+
+        await Assert.ThrowsAsync<ActiveRequestException>(() => env.Service.CreateAsync(TestEnv.Input("0000000000000000000000000000bbbb"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Lifecycle_RequestedToDownloadingToAvailable_FavouritesTheAlbumAndRecordsIt()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+
+        env.Service.OnGrab(new[] { "alb-1" });
+        Assert.Equal(RequestStatus.Downloading, env.Store.Get(request.Id)!.Status);
+
+        var outcome = await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Contains("downloading -> available", Assert.Single(outcome));
+        var done = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Available, done.Status);
+        Assert.Equal(env.Library.ItemId, done.JellyfinItemId);
+        Assert.NotNull(done.LibraryAddedAt);
+        Assert.NotNull(done.NotifiedAt);
+        Assert.Equal("/data/music/Vald/XEU (2022)", Assert.Single(env.Library.Reported));
+        Assert.Equal((TestEnv.User, env.Library.ItemId), Assert.Single(env.Library.Favorites));
+        var sent = Assert.Single(env.Notifier.Sent);
+        Assert.Equal("XEU de Vald est disponible", sent.Body);
+        Assert.Equal(env.Library.ItemId, sent.Extra["album_id"]);
+        Assert.Equal(request.Id, sent.Extra["request_id"]);
+    }
+
+    [Fact]
+    public async Task Import_IsIdempotent_ASecondEventDoesNothing()
+    {
+        var (env, _) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+        var second = await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal("alb-1: no active request", Assert.Single(second));
+        Assert.Single(env.Notifier.Sent);
+        Assert.Single(env.Library.Favorites);
+    }
+
+    [Fact]
+    public async Task Import_PollsTheLibraryUntilTheAlbumAppears()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+        env.Library.MissesBeforeFound = 3;
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(env.Library.ItemId, env.Store.Get(request.Id)!.JellyfinItemId);
+        Assert.Single(env.Library.Favorites);
+    }
+
+    [Fact]
+    public async Task Import_WhenTheLibraryNeverShowsTheAlbum_StillNotifiesWithoutALink_AndNeverFavourites()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var done = env.Store.Get(request.Id)!;
+        Assert.Equal(string.Empty, done.JellyfinItemId);
+        Assert.Null(done.LibraryAddedAt);
+        Assert.NotNull(done.NotifiedAt);
+        Assert.Empty(env.Library.Favorites);
+        Assert.False(Assert.Single(env.Notifier.Sent).Extra.ContainsKey("album_id"));
+    }
+
+    [Fact]
+    public async Task Import_OfAPartialAlbum_IsAvailableWithTheCounts()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+        env.Lidarr.Albums[101] = new LidarrAlbum
+        {
+            Id = 101,
+            Statistics = new LidarrStats { TrackFileCount = 16, TrackCount = 17, PercentOfTracks = 94.1 }
+        };
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var done = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Available, done.Status);
+        Assert.Equal((16, 17), (done.TracksImported, done.TracksTotal));
+        Assert.Equal("XEU de Vald est disponible (16/17 titres)", Assert.Single(env.Notifier.Sent).Body);
+    }
+
+    [Fact]
+    public async Task ImportFailure_WithoutFiles_RecordsAGenericError_AndKeepsTheStatus()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Service.OnGrab(new[] { "alb-1" });
+
+        await env.Service.OnFailureAsync(new[] { "alb-1" }, "Import failed, missing tracks", CancellationToken.None);
+
+        var stored = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Downloading, stored.Status);
+        Assert.Equal("import échoué", stored.Error);
+        Assert.Empty(env.Notifier.Sent);
+    }
+
+    [Fact]
+    public async Task ImportFailure_WithImportedFilesAndAnEmptyQueue_IsAvailable()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+        env.Lidarr.Albums[101] = new LidarrAlbum
+        {
+            Id = 101,
+            Statistics = new LidarrStats { TrackFileCount = 16, TrackCount = 17 },
+            Artist = new LidarrArtist { Path = "/data/media/music/Vald" }
+        };
+        env.Lidarr.Files[101] = new List<LidarrTrackFile> { new() { Path = Folder + "/t.flac" } };
+
+        var outcome = await env.Service.OnFailureAsync(new[] { "alb-1" }, "missing tracks", CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Available, env.Store.Get(request.Id)!.Status);
+        Assert.Contains("available (16/17", Assert.Single(outcome));
+        Assert.Equal("/data/music/Vald/XEU (2022)", Assert.Single(env.Library.Reported));
+    }
+
+    [Fact]
+    public async Task ImportFailure_WhileTheDownloadIsStillQueued_StaysLiveWithTheError()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.Albums[101] = new LidarrAlbum { Id = 101, Statistics = new LidarrStats { TrackFileCount = 16, TrackCount = 17 } };
+        env.Lidarr.Queue = new List<LidarrQueueRecord> { new() { AlbumId = 101 } };
+
+        await env.Service.OnFailureAsync(new[] { "alb-1" }, "missing tracks", CancellationToken.None);
+
+        var stored = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Requested, stored.Status);
+        Assert.Equal("import échoué", stored.Error);
+    }
+
+    [Fact]
+    public async Task Cancel_UnmonitorsInLidarr_AndFollowsTheOwnershipRules()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+
+        await Assert.ThrowsAsync<RequestForbiddenException>(() => env.Service.CancelAsync(request.Id, "someone-else", false, CancellationToken.None));
+        await Assert.ThrowsAsync<RequestNotFoundException>(() => env.Service.CancelAsync(99, TestEnv.User, false, CancellationToken.None));
+
+        var cancelled = await env.Service.CancelAsync(request.Id, "an-admin", true, CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Cancelled, cancelled.Status);
+        Assert.False(env.Lidarr.Monitored[101]);
+        await Assert.ThrowsAsync<RequestNotActiveException>(() => env.Service.CancelAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Cancel_OfAnAvailableRequest_IsRefused()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        await Assert.ThrowsAsync<RequestNotActiveException>(() => env.Service.CancelAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Cancel_WhenLidarrIsDown_KeepsTheRequestLive()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        var broken = new BrokenLidarr();
+        var down = new RequestService(
+            env.Store,
+            broken,
+            env.Library,
+            env.Notifier,
+            () => env.Config,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<RequestService>.Instance);
+
+        await Assert.ThrowsAsync<LidarrUnavailableException>(() => down.CancelAsync(request.Id, TestEnv.User, false, CancellationToken.None));
+
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Manual_RequestIsStoredWithoutCallingLidarr_AndTheAdminMarksItAvailable()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+        env.Library.AlbumPresent = true;
+
+        var request = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Requested, request.Status);
+        Assert.Null(request.LidarrAlbumId);
+        Assert.Empty(env.Lidarr.Added);
+        Assert.Empty(env.Lidarr.Searched);
+
+        var available = env.Service.MarkAvailableByHand(request.Id);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Available, available.Status);
+        var done = env.Store.Get(request.Id)!;
+        Assert.NotNull(done.LibraryAddedAt);
+        Assert.Equal((TestEnv.User, env.Library.ItemId), Assert.Single(env.Library.Favorites));
+        Assert.Empty(env.Library.Reported);
+        Assert.Single(env.Notifier.Sent);
+        Assert.Throws<RequestNotActiveException>(() => env.Service.MarkAvailableByHand(request.Id));
+        Assert.Throws<RequestNotFoundException>(() => env.Service.MarkAvailableByHand(99));
+    }
+
+    [Fact]
+    public async Task Manual_ReconcileNeverRetriesTheAdd_NorTimesTheRequestOut()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+        var request = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+        env.Now = env.Now.AddDays(60);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
+        Assert.Empty(env.Lidarr.Added);
+    }
+
+    [Fact]
+    public async Task Reconcile_AFullyImportedAlbum_BecomesAvailable()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+        env.Lidarr.Albums[101] = new LidarrAlbum
+        {
+            Id = 101,
+            Statistics = new LidarrStats { PercentOfTracks = 100, TrackFileCount = 12, TrackCount = 12 },
+            Artist = new LidarrArtist { Path = "/data/media/music/Vald" }
+        };
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Available, env.Store.Get(request.Id)!.Status);
+        Assert.Equal("/data/music/Vald", Assert.Single(env.Library.Reported));
+    }
+
+    [Fact]
+    public async Task Reconcile_PartialFilesAndAnEmptyQueue_IsAvailable_ButNotWhileQueued()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.Albums[101] = new LidarrAlbum { Id = 101, Statistics = new LidarrStats { PercentOfTracks = 94, TrackFileCount = 16, TrackCount = 17 } };
+        env.Lidarr.Queue = new List<LidarrQueueRecord> { new() { Album = new LidarrAlbum { Id = 101 } } };
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(RequestStatus.Downloading, env.Store.Get(request.Id)!.Status);
+
+        env.Lidarr.Queue = new List<LidarrQueueRecord>();
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var done = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Available, done.Status);
+        Assert.Equal((16, 17), (done.TracksImported, done.TracksTotal));
+    }
+
+    [Fact]
+    public async Task Reconcile_PastTheTimeout_FailsTheRequest_AndTellsTheRequester()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Config.RequestTimeoutDays = 14;
+        env.Now = env.Now.AddDays(15);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        var failed = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Failed, failed.Status);
+        Assert.Equal("introuvable après 14 jours", failed.Error);
+        Assert.Equal("XEU de Vald est introuvable", Assert.Single(env.Notifier.Sent).Body);
+    }
+
+    [Fact]
+    public async Task Reconcile_BeforeTheTimeout_LeavesTheRequestAlone()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Now = env.Now.AddDays(13);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Reconcile_ARequestStillQueuedIsFailedOnlyAtTwiceTheTimeout()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Config.RequestTimeoutDays = 10;
+        env.Lidarr.Queue = new List<LidarrQueueRecord> { new() { AlbumId = 101 } };
+
+        env.Now = env.Now.AddDays(15);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(RequestStatus.Downloading, env.Store.Get(request.Id)!.Status);
+
+        env.Now = env.Now.AddDays(6);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Reconcile_WhenTheQueueCannotBeRead_DoesNotTimeOutARequest()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Now = env.Now.AddDays(20);
+        var service = new RequestService(
+            env.Store,
+            new BrokenLidarr(queueOnly: true, inner: env.Lidarr),
+            env.Library,
+            env.Notifier,
+            () => env.Config,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<RequestService>.Instance,
+            now: () => env.Now);
+
+        await service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Reconcile_RetriesAnAddThatNeverHappened_AfterTenMinutes()
+    {
+        using var env = new TestEnv();
+        var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1", Title = "T", Artist = "A" });
+
+        env.Now = env.Now.AddMinutes(9);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Empty(env.Lidarr.Added);
+
+        env.Now = env.Now.AddMinutes(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Single(env.Lidarr.Added);
+        Assert.Equal(101, env.Store.Get(orphan.Id)!.LidarrAlbumId);
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(orphan.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Reconcile_ASecondFailedAdd_EndsTheRequest()
+    {
+        using var env = new TestEnv();
+        var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1" });
+        env.Lidarr.AddError = new LidarrException("boom");
+        env.Now = env.Now.AddMinutes(11);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        var stored = env.Store.Get(orphan.Id)!;
+        Assert.Equal(RequestStatus.Failed, stored.Status);
+        Assert.Equal("ajout Lidarr refusé", stored.Error);
+    }
+
+    [Fact]
+    public async Task Reconcile_CatchesUpAnAvailableRequestThatNeverReachedTheLibrary()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        // the plugin stopped right after the import: available, but nothing finalised
+        env.Store.Transition(request.Id, RequestStatus.Live, RequestStatus.Available, string.Empty);
+        env.Library.AlbumPresent = true;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var done = env.Store.Get(request.Id)!;
+        Assert.NotNull(done.LibraryAddedAt);
+        Assert.NotNull(done.NotifiedAt);
+        Assert.Equal((TestEnv.User, env.Library.ItemId), Assert.Single(env.Library.Favorites));
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+        Assert.Single(env.Library.Favorites);
+        Assert.Single(env.Notifier.Sent);
+    }
+
+    [Fact]
+    public async Task Reconcile_GivesUpOnAvailableRequestsOlderThanTheResumeWindow()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Store.Transition(request.Id, RequestStatus.Live, RequestStatus.Available, string.Empty);
+        env.Library.AlbumPresent = true;
+        env.Now = env.Now.AddDays(2);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Empty(env.Library.Favorites);
+    }
+
+    [Fact]
+    public async Task ANotifierThatReportsATransientFailure_IsRetriedByTheNextReconcile()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+        env.Notifier.Result = false;
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+        Assert.Null(env.Store.Get(request.Id)!.NotifiedAt);
+
+        env.Notifier.Result = true;
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.NotNull(env.Store.Get(request.Id)!.NotifiedAt);
+        Assert.Equal(2, env.Notifier.Sent.Count);
+        Assert.Single(env.Library.Favorites);
+    }
+
+    [Fact]
+    public async Task Grab_ForAnUnknownAlbum_IsIgnored()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+
+        var outcome = env.Service.OnGrab(new[] { "nobody-asked" });
+
+        Assert.Equal("nobody-asked: no active request", Assert.Single(outcome));
+        Assert.Equal(RequestStatus.Requested, env.Store.Get(request.Id)!.Status);
+    }
+
+    private sealed class BrokenLidarr : ILidarrProvider
+    {
+        private readonly bool _queueOnly;
+        private readonly ILidarrApi? _inner;
+
+        public BrokenLidarr(bool queueOnly = false, ILidarrApi? inner = null)
+        {
+            _queueOnly = queueOnly;
+            _inner = inner;
+        }
+
+        public ILidarrApi Create() => new Api(_queueOnly, _inner);
+
+        private sealed class Api(bool queueOnly, ILidarrApi? inner) : ILidarrApi
+        {
+            private static LidarrException Down() => new("Lidarr injoignable");
+
+            public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
+                => queueOnly ? inner!.SearchAsync(term, ct) : throw Down();
+
+            public Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByArtistAsync(int artistId, CancellationToken ct = default)
+                => queueOnly ? inner!.GetAlbumsByArtistAsync(artistId, ct) : throw Down();
+
+            public Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByForeignIdAsync(string foreignAlbumId, CancellationToken ct = default)
+                => queueOnly ? inner!.GetAlbumsByForeignIdAsync(foreignAlbumId, ct) : throw Down();
+
+            public Task<LidarrAlbum> AddAlbumAsync(LidarrAddAlbum album, CancellationToken ct = default)
+                => queueOnly ? inner!.AddAlbumAsync(album, ct) : throw Down();
+
+            public Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default)
+                => queueOnly ? inner!.MonitorAlbumsAsync(ids, monitored, ct) : throw Down();
+
+            public Task AlbumSearchAsync(IReadOnlyList<int> ids, CancellationToken ct = default)
+                => queueOnly ? inner!.AlbumSearchAsync(ids, ct) : throw Down();
+
+            public Task<LidarrAlbum> GetAlbumAsync(int id, CancellationToken ct = default)
+                => queueOnly ? inner!.GetAlbumAsync(id, ct) : throw Down();
+
+            public Task<IReadOnlyList<LidarrQueueRecord>> GetQueueAsync(CancellationToken ct = default) => throw Down();
+
+            public Task<IReadOnlyList<LidarrTrackFile>> GetTrackFilesAsync(int albumId, CancellationToken ct = default)
+                => queueOnly ? inner!.GetTrackFilesAsync(albumId, ct) : throw Down();
+        }
+    }
+}

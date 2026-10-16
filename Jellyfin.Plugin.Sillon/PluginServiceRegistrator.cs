@@ -1,0 +1,49 @@
+using Jellyfin.Plugin.Sillon.Catalog;
+using Jellyfin.Plugin.Sillon.Configuration;
+using Jellyfin.Plugin.Sillon.Library;
+using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Requests;
+using Jellyfin.Plugin.Sillon.Storage;
+using MediaBrowser.Common.Net;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Plugins;
+using MediaBrowser.Model.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+namespace Jellyfin.Plugin.Sillon;
+
+/// <summary>Registers the plugin's services with Jellyfin.</summary>
+public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
+{
+    /// <inheritdoc />
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
+    {
+        // resolved lazily: the plugin instance exists by the time the first request or task needs a service
+        serviceCollection.AddSingleton<Func<PluginConfiguration>>(_ => () => Plugin.Instance?.Configuration ?? new PluginConfiguration());
+        serviceCollection.AddSingleton(_ => new RequestStore(DataFolder()));
+        serviceCollection.AddSingleton(_ => new DeviceStore(DataFolder()));
+        serviceCollection.AddSingleton<IJellyfinLibrary, JellyfinLibrary>();
+        serviceCollection.AddSingleton<ILidarrProvider>(sp =>
+            new LidarrProvider(sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<Func<PluginConfiguration>>()));
+        serviceCollection.AddSingleton<INotifier, NoopNotifier>();
+        serviceCollection.AddSingleton<CatalogService>();
+        serviceCollection.AddSingleton(sp => new RequestService(
+            sp.GetRequiredService<RequestStore>(),
+            sp.GetRequiredService<ILidarrProvider>(),
+            sp.GetRequiredService<IJellyfinLibrary>(),
+            sp.GetRequiredService<INotifier>(),
+            sp.GetRequiredService<Func<PluginConfiguration>>(),
+            sp.GetRequiredService<ILogger<RequestService>>(),
+            shutdown: sp.GetService<IHostApplicationLifetime>()?.ApplicationStopping ?? default));
+        serviceCollection.AddSingleton<IScheduledTask, ReconcileTask>();
+    }
+
+    private static string DataFolder()
+    {
+        var folder = Plugin.Instance?.DataFolderPath ?? throw new InvalidOperationException("The Sillon plugin is not loaded.");
+        Directory.CreateDirectory(folder);
+        return folder;
+    }
+}
