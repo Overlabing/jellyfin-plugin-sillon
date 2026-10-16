@@ -27,6 +27,12 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
 
     public Func<string, IReadOnlyList<LidarrSearchItem>> OnSearch { get; set; } = _ => Array.Empty<LidarrSearchItem>();
 
+    public List<string> Calls { get; } = new();
+
+    public Func<int, int, LidarrAlbum?>? OnGet { get; set; }
+
+    private int _gets;
+
     public Exception? AddError { get; set; }
 
     public Exception? AlbumError { get; set; }
@@ -68,6 +74,7 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
 
     public Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default)
     {
+        Calls.Add("monitor");
         foreach (var id in ids)
         {
             Monitored[id] = monitored;
@@ -78,6 +85,7 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
 
     public Task AlbumSearchAsync(IReadOnlyList<int> ids, CancellationToken ct = default)
     {
+        Calls.Add("search");
         Searched.AddRange(ids);
         return Task.CompletedTask;
     }
@@ -89,7 +97,13 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
             throw AlbumError;
         }
 
-        return Task.FromResult(Albums.TryGetValue(id, out var a) ? a : new LidarrAlbum { Id = id });
+        Calls.Add("get");
+        if (OnGet?.Invoke(id, ++_gets) is { } custom)
+        {
+            return Task.FromResult(custom);
+        }
+
+        return Task.FromResult(Albums.TryGetValue(id, out var a) ? a : new LidarrAlbum { Id = id, Duration = 1000 });
     }
 
     public Task<IReadOnlyList<LidarrQueueRecord>> GetQueueAsync(CancellationToken ct = default)
@@ -225,7 +239,9 @@ internal sealed class TestEnv : IDisposable
                 PollEvery = TimeSpan.FromMilliseconds(1),
                 PollMax = TimeSpan.FromMilliseconds(200),
                 ResumePollMax = TimeSpan.FromMilliseconds(50),
-                RecheckDelay = TimeSpan.FromSeconds(-1)
+                RecheckDelay = TimeSpan.FromSeconds(-1),
+                RefreshPollEvery = TimeSpan.FromMilliseconds(1),
+                RefreshWaitMax = TimeSpan.FromMilliseconds(20)
             },
             () => Now);
 

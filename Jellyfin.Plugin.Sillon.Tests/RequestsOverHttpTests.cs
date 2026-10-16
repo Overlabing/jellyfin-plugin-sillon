@@ -35,6 +35,11 @@ public class RequestsOverHttpTests
                     : Json("{\"id\":41,\"foreignAlbumId\":\"alb-1\"}");
             }
 
+            if (path == "/api/v1/album/41" && request.Method == HttpMethod.Get)
+            {
+                return Json("{\"id\":41,\"duration\":240000}");
+            }
+
             return Json("[]");
         }
 
@@ -64,12 +69,13 @@ public class RequestsOverHttpTests
         var request = await service.CreateAsync(TestEnv.Input(), CancellationToken.None);
 
         Assert.Equal(41, request.LidarrAlbumId);
-        Assert.Equal(4, handler.Calls.Count);
+        Assert.Equal(5, handler.Calls.Count);
         Assert.Equal("GET /api/v1/album?includeAllArtistAlbums=false&foreignAlbumId=alb-1", handler.Calls[0]);
         Assert.StartsWith("POST /api/v1/album {\"foreignAlbumId\":\"alb-1\",\"monitored\":true,", handler.Calls[1]);
         Assert.Contains("\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/data/media/music\"", handler.Calls[1]);
-        Assert.Equal("PUT /api/v1/album/monitor {\"albumIds\":[41],\"monitored\":true}", handler.Calls[2]);
-        Assert.Equal("POST /api/v1/command {\"name\":\"AlbumSearch\",\"albumIds\":[41]}", handler.Calls[3]);
+        Assert.Equal("GET /api/v1/album/41", handler.Calls[2]);
+        Assert.Equal("PUT /api/v1/album/monitor {\"albumIds\":[41],\"monitored\":true}", handler.Calls[3]);
+        Assert.Equal("POST /api/v1/command {\"name\":\"AlbumSearch\",\"albumIds\":[41]}", handler.Calls[4]);
     }
 
     [Fact]

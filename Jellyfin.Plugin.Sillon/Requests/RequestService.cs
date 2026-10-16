@@ -25,6 +25,18 @@ public sealed record RequestTiming
     /// <summary>Gets how long a live request may sit without a Lidarr album id before the reconcile retries the add.</summary>
     public TimeSpan AddRetryAfter { get; init; } = TimeSpan.FromMinutes(10);
 
+    /// <summary>Gets how often Lidarr is asked whether it has finished refreshing a new album.</summary>
+    public TimeSpan RefreshPollEvery { get; init; } = TimeSpan.FromSeconds(2);
+
+    /// <summary>Gets how long the plugin waits for that refresh before it searches anyway.</summary>
+    public TimeSpan RefreshWaitMax { get; init; } = TimeSpan.FromSeconds(90);
+
+    /// <summary>Gets how long a live request may go without a grab, since its last search, before the reconcile searches again.</summary>
+    public TimeSpan ReSearchAfter { get; init; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>Gets the minimum time between two automatic searches of the same request.</summary>
+    public TimeSpan ReSearchEvery { get; init; } = TimeSpan.FromHours(6);
+
     /// <summary>Gets how often the library is polled for a new album.</summary>
     public TimeSpan PollEvery { get; init; } = TimeSpan.FromSeconds(15);
 
@@ -438,6 +450,65 @@ public sealed class RequestService
             {
                 await TimeoutAsync(request, days, ct).ConfigureAwait(false);
             }
+            else if (album.Monitored == false || (queueRead && imported == 0))
+            {
+                await ReSearchAsync(request, lidarr, (int)lidarrId, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    // monitors the album again and queues a new search when the last one is old and the last automatic one older still
+    private async Task ReSearchAsync(RequestRecord request, ILidarrApi lidarr, int lidarrId, CancellationToken ct)
+    {
+        var now = _now();
+        if (now - (request.LastSearchAt ?? request.CreatedAt) <= _timing.ReSearchAfter
+            || (request.LastReSearchAt is { } last && now - last < _timing.ReSearchEvery))
+        {
+            return;
+        }
+
+        try
+        {
+            await lidarr.MonitorAlbumsAsync(new[] { lidarrId }, true, ct).ConfigureAwait(false);
+            await lidarr.AlbumSearchAsync(new[] { lidarrId }, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("Reconcile: searching the album again failed request={Id}: {Message}", request.Id, ex.Message);
+            return;
+        }
+
+        _store.MarkReSearched(request.Id);
+        _logger.LogInformation("Re-searching album in Lidarr request={Id} artist={Artist} title={Title}", request.Id, request.Artist, request.Title);
+    }
+
+    // Lidarr refreshes a new artist after the add; a search before that sees an album of duration 0 and rejects every release
+    private async Task WaitForRefreshAsync(ILidarrApi lidarr, int id, CancellationToken ct)
+    {
+        var waited = TimeSpan.Zero;
+        while (true)
+        {
+            try
+            {
+                var album = await lidarr.GetAlbumAsync(id, ct).ConfigureAwait(false);
+                if (album.Duration > 0 && (album.Statistics is null || album.Statistics.TrackCount > 0))
+                {
+                    return;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("Reading the album while waiting for Lidarr's refresh failed album={Id}: {Message}", id, ex.Message);
+            }
+
+            if (waited >= _timing.RefreshWaitMax)
+            {
+                _logger.LogWarning("Lidarr did not finish refreshing the album in time, searching anyway album={Id}", id);
+                return;
+            }
+
+            await Task.Delay(_timing.RefreshPollEvery, ct).ConfigureAwait(false);
+            waited += _timing.RefreshPollEvery;
         }
     }
 
@@ -493,6 +564,7 @@ public sealed class RequestService
             throw new InvalidOperationException("Lidarr returned no album id");
         }
 
+        await WaitForRefreshAsync(lidarr, id, ct).ConfigureAwait(false);
         await lidarr.MonitorAlbumsAsync(new[] { id }, true, ct).ConfigureAwait(false);
         await lidarr.AlbumSearchAsync(new[] { id }, ct).ConfigureAwait(false);
         return id;

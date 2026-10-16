@@ -148,6 +148,14 @@ public sealed class LidarrAlbum
     /// <summary>Gets the file statistics.</summary>
     [JsonPropertyName("statistics")]
     public LidarrStats? Statistics { get; init; }
+
+    /// <summary>Gets the duration in milliseconds, 0 until Lidarr has refreshed the album.</summary>
+    [JsonPropertyName("duration")]
+    public long Duration { get; init; }
+
+    /// <summary>Gets a value indicating whether Lidarr monitors the album, null when the field is absent.</summary>
+    [JsonPropertyName("monitored")]
+    public bool? Monitored { get; init; }
 }
 
 /// <summary>One /search result: an artist or an album.</summary>

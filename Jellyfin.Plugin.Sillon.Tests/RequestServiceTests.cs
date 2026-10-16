@@ -39,6 +39,75 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task Create_WaitsForLidarrsRefresh_ThenMonitorsAndSearchesInOrder()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.OnGet = (id, n) => new LidarrAlbum { Id = id, Duration = n < 3 ? 0 : 240000, Statistics = new LidarrStats { TrackCount = n < 3 ? 0 : 12 } };
+
+        await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+
+        Assert.Equal(new[] { "get", "get", "get", "monitor", "search" }, env.Lidarr.Calls);
+    }
+
+    [Fact]
+    public async Task Create_WhenLidarrNeverFinishesRefreshing_StillMonitorsAndSearches()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.OnGet = (id, _) => new LidarrAlbum { Id = id, Duration = 0 };
+
+        await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+
+        Assert.Equal(new[] { "monitor", "search" }, env.Lidarr.Calls.Where(c => c != "get"));
+        Assert.True(env.Lidarr.Calls.Count(c => c == "get") > 1);
+        Assert.Equal(new[] { 101 }, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Reconcile_AnUnmonitoredLiveRequest_IsMonitoredAndSearchedAgain_AtMostEverySixHours()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Lidarr.Albums[101] = new LidarrAlbum { Id = 101, Monitored = false, Duration = 1000 };
+        env.Lidarr.Calls.Clear();
+        env.Lidarr.Searched.Clear();
+
+        // too soon after the first search
+        env.Now = env.Now.AddMinutes(5);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Empty(env.Lidarr.Searched);
+
+        env.Now = env.Now.AddMinutes(6);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(new[] { 101 }, env.Lidarr.Searched);
+        Assert.True(env.Lidarr.Monitored[101]);
+        Assert.NotNull(env.Store.Get(request.Id)!.LastReSearchAt);
+
+        // throttled for six hours
+        env.Now = env.Now.AddHours(5);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Single(env.Lidarr.Searched);
+
+        env.Now = env.Now.AddHours(1.1);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(2, env.Lidarr.Searched.Count);
+    }
+
+    [Fact]
+    public async Task Reconcile_AMonitoredAlbumWithAGrabInTheQueue_IsNotSearchedAgain()
+    {
+        var (env, _) = await Requested();
+        using var _ = env;
+        env.Lidarr.Albums[101] = new LidarrAlbum { Id = 101, Monitored = false };
+        env.Lidarr.Queue = new List<LidarrQueueRecord> { new() { AlbumId = 101 } };
+        env.Lidarr.Searched.Clear();
+        env.Now = env.Now.AddMinutes(30);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Empty(env.Lidarr.Searched);
+    }
+
+    [Fact]
     public async Task Create_ForAnAlbumLidarrAlreadyHolds_DoesNotAddItAgain()
     {
         using var env = new TestEnv();

@@ -81,6 +81,9 @@ public sealed record RequestRecord
     /// <summary>Gets when Lidarr was last asked to search for the album.</summary>
     public DateTimeOffset? LastSearchAt { get; init; }
 
+    /// <summary>Gets when the reconcile last searched the album again on its own; absent in records written before 0.5.1.0.</summary>
+    public DateTimeOffset? LastReSearchAt { get; init; }
+
     /// <summary>Gets the creation time.</summary>
     public DateTimeOffset CreatedAt { get; init; }
 
