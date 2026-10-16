@@ -8,7 +8,7 @@ public static class RequestStatus
     /// <summary>Waiting for a release.</summary>
     public const string Requested = "requested";
 
-    /// <summary>A release is being downloaded.</summary>
+    /// <summary>Lidarr has picked up a release.</summary>
     public const string Downloading = "downloading";
 
     /// <summary>The album is in the library.</summary>

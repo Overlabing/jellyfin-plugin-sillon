@@ -229,7 +229,7 @@ public sealed class CatalogService
         {
             throw new CatalogException(
                 StatusCodes.Status503ServiceUnavailable,
-                "La recherche dans le catalogue n'est pas disponible en mode manuel, choisissez le mode Lidarr dans la configuration du plugin.");
+                "La liste d'envies est indisponible en mode manuel : la recherche dans le catalogue exige le mode Lidarr, choisissez le mode Lidarr dans la configuration du plugin.");
         }
 
         return _lidarr.Create();

@@ -119,7 +119,7 @@ public class ControllerTests
         var json = Json(await Requests(env, Principal(Admin, admin: true), CreateBody()).CreateRequest(CancellationToken.None), out var status);
 
         Assert.Equal(409, status);
-        Assert.Equal("an active request exists for this album", json.GetProperty("error").GetString());
+        Assert.Equal("Cet album est déjà dans votre liste d'envies", json.GetProperty("error").GetString());
         Assert.Equal(1, json.GetProperty("request").GetProperty("id").GetInt64());
     }
 
@@ -375,6 +375,20 @@ public class ControllerTests
         Assert.False(WebhookController.SecretMatches(null, string.Empty));
     }
 
+    [Fact]
+    public void Config_HidesTheFeature_WhenNotExposedToApps()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+        env.Config.ExposeToApps = false;
+        var controller = new SillonController(NullLogger<SillonController>.Instance, null!, () => env.Config);
+
+        var result = Assert.IsType<JsonResult>(controller.GetConfig());
+        var json = JsonSerializer.SerializeToElement(result.Value);
+
+        Assert.Equal(0, json.GetProperty("features").GetArrayLength());
+        Assert.True(env.Config.RequestsEnabled());
+    }
+
     [Theory]
     [InlineData(FulfillmentMode.Manual, "", true)]
     [InlineData(FulfillmentMode.Lidarr, "key", true)]
@@ -390,6 +404,6 @@ public class ControllerTests
 
         Assert.Equal(mode.ToString().ToLowerInvariant(), json.GetProperty("mode").GetString());
         Assert.Equal(expected, json.GetProperty("features").EnumerateArray().Any(f => f.GetString() == "requests"));
-        Assert.Equal("0.2.0.0", json.GetProperty("version").GetString());
+        Assert.Equal("0.3.0.0", json.GetProperty("version").GetString());
     }
 }

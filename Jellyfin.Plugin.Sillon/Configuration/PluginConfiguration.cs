@@ -4,17 +4,17 @@ using MediaBrowser.Model.Plugins;
 namespace Jellyfin.Plugin.Sillon.Configuration;
 
 /// <summary>
-/// How requests are fulfilled.
+/// How wishlist entries are fulfilled.
 /// </summary>
 public enum FulfillmentMode
 {
     /// <summary>
-    /// Requests are handled by hand.
+    /// Entries are handled by hand.
     /// </summary>
     Manual,
 
     /// <summary>
-    /// Requests are forwarded to Lidarr.
+    /// Entries are forwarded to Lidarr.
     /// </summary>
     Lidarr
 }
@@ -65,6 +65,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets the same folder as Jellyfin sees it.
     /// </summary>
     public string JellyfinPathPrefix { get; set; } = "/data/music";
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the wishlist is offered to the apps through <c>features</c>.
+    /// </summary>
+    public bool ExposeToApps { get; set; } = true;
 
     /// <summary>
     /// Gets or sets how many days a request may wait for a release before it fails.

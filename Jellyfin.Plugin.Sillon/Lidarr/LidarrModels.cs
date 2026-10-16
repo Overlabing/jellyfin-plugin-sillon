@@ -118,7 +118,7 @@ public sealed class LidarrSearchItem
     public LidarrAlbum? Album { get; init; }
 }
 
-/// <summary>One item of the download queue.</summary>
+/// <summary>One item of the queue.</summary>
 public sealed class LidarrQueueRecord
 {
     /// <summary>Gets the album id.</summary>

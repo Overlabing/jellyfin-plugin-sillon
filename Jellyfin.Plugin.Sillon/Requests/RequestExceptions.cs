@@ -5,7 +5,7 @@ public sealed class RequestNotFoundException : Exception
 {
     /// <summary>Initializes a new instance of the <see cref="RequestNotFoundException"/> class.</summary>
     public RequestNotFoundException()
-        : base("demande introuvable")
+        : base("envie introuvable")
     {
     }
 }
@@ -15,7 +15,7 @@ public sealed class RequestForbiddenException : Exception
 {
     /// <summary>Initializes a new instance of the <see cref="RequestForbiddenException"/> class.</summary>
     public RequestForbiddenException()
-        : base("cette demande n'est pas la vôtre")
+        : base("cet album n'est pas dans votre liste d'envies")
     {
     }
 }
@@ -25,7 +25,7 @@ public sealed class RequestNotActiveException : Exception
 {
     /// <summary>Initializes a new instance of the <see cref="RequestNotActiveException"/> class.</summary>
     public RequestNotActiveException()
-        : base("la demande n'est plus active")
+        : base("cet album n'est plus en attente dans la liste d'envies")
     {
     }
 }

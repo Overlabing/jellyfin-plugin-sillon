@@ -217,7 +217,7 @@ public sealed class RequestService
         return _store.Get(id) ?? request;
     }
 
-    /// <summary>Marks the live requests of these albums as downloading.</summary>
+    /// <summary>Marks the live requests of these albums as in progress.</summary>
     /// <param name="albumIds">The MusicBrainz album ids.</param>
     /// <returns>What happened to each album, for the webhook log.</returns>
     public IReadOnlyList<string> OnGrab(IEnumerable<string> albumIds)
@@ -276,7 +276,7 @@ public sealed class RequestService
         return outcome;
     }
 
-    /// <summary>Handles an import or download failure. When Lidarr already holds track files for the album and no download of it is left in the queue (the automatic import was rejected, a manual one then succeeded) the request is available, partial if tracks are missing. Otherwise the failure is recorded as a generic error; the status stays and the reconcile decides.</summary>
+    /// <summary>Handles an import failure. When Lidarr already holds track files for the album and nothing of it is left in the queue (the automatic import was rejected, a manual one then succeeded) the request is available, partial if tracks are missing. Otherwise the failure is recorded as a generic error; the status stays and the reconcile decides.</summary>
     /// <param name="albumIds">The MusicBrainz album ids.</param>
     /// <param name="message">Lidarr's message, logged only.</param>
     /// <param name="ct">Cancellation token.</param>

@@ -13,6 +13,7 @@ public class PluginConfigurationTests
         Assert.Equal(FulfillmentMode.Manual, config.FulfillmentMode);
         Assert.Equal("http://lidarr:8686", config.LidarrUrl);
         Assert.False(config.ApnsEnabled);
+        Assert.True(config.ExposeToApps);
         Assert.Equal(string.Empty, config.WebhookSecret);
     }
 

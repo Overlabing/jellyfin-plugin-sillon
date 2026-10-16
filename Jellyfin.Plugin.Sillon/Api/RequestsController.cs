@@ -198,7 +198,7 @@ public sealed partial class RequestsController : ControllerBase
 
         if (!_config().RequestsEnabled())
         {
-            return ApiJson.Error(StatusCodes.Status503ServiceUnavailable, "Les demandes ne sont pas configurées");
+            return ApiJson.Error(StatusCodes.Status503ServiceUnavailable, "La liste d'envies n'est pas configurée");
         }
 
         try
@@ -208,11 +208,11 @@ public sealed partial class RequestsController : ControllerBase
                 ct).ConfigureAwait(false);
             return ApiJson.Result(RequestDto.From(created));
         }
-        catch (ActiveRequestException ex)
+        catch (ActiveRequestException)
         {
             var existing = _store.ActiveByForeignAlbum(body.ForeignAlbumId);
             return ApiJson.Result(
-                new ConflictBody(ex.Message, existing is null ? null : RequestDto.From(existing)),
+                new ConflictBody("Cet album est déjà dans votre liste d'envies", existing is null ? null : RequestDto.From(existing)),
                 StatusCodes.Status409Conflict);
         }
         catch (LidarrAddException ex)
@@ -237,7 +237,7 @@ public sealed partial class RequestsController : ControllerBase
 
         if (!long.TryParse(id, out var requestId) || requestId <= 0)
         {
-            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant de demande invalide");
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant d'envie invalide");
         }
 
         try
@@ -259,7 +259,7 @@ public sealed partial class RequestsController : ControllerBase
     {
         if (!long.TryParse(id, out var requestId) || requestId <= 0)
         {
-            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant de demande invalide");
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant d'envie invalide");
         }
 
         try

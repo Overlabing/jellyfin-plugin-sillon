@@ -12,18 +12,29 @@
                 <h2>Sillon</h2>
 
                 <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Traitement des demandes</legend>
+                    <legend>Traitement de la liste d'envies</legend>
                     <div class="selectContainer">
                         <label class="selectLabel" for="FulfillmentMode">Mode</label>
                         <select is="emby-select" id="FulfillmentMode" name="FulfillmentMode" class="emby-select-withcolor emby-select">
                             <option value="Manual">Manuel</option>
                             <option value="Lidarr">Lidarr</option>
                         </select>
-                        <div class="fieldDescription">Manuel : les demandes sont enregistrées et vous les marquez disponibles vous-même (section « Demandes »). Lidarr : elles sont transmises à Lidarr.</div>
+                        <div class="fieldDescription">Manuel : les envies sont enregistrées et vous les marquez ajoutées vous-même (section « Liste d'envies »). Lidarr : elles sont transmises à Lidarr.</div>
                     </div>
                     <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Délai avant échec d'une demande (jours)</label>
+                        <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Délai avant échec d'une envie (jours)</label>
                         <input is="emby-input" type="number" min="1" id="RequestTimeoutDays" name="RequestTimeoutDays" />
+                    </div>
+                </fieldset>
+
+                <fieldset class="verticalSection-extrabottompadding">
+                    <legend>Applications</legend>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input is="emby-checkbox" type="checkbox" id="ExposeToApps" name="ExposeToApps" />
+                            <span>Proposer la liste d'envies aux applications Sillon</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">Désactivé, les applications ne voient pas la fonctionnalité (utile pendant une migration).</div>
                     </div>
                 </fieldset>
 
@@ -111,7 +122,7 @@
             </form>
 
             <fieldset id="SillonRequests" class="verticalSection-extrabottompadding">
-                <legend>Demandes</legend>
+                <legend>Liste d'envies</legend>
                 <div>
                     <button is="emby-button" type="button" id="RequestsRefresh" class="raised">
                         <span>Actualiser</span>
@@ -185,11 +196,11 @@
             }
 
             var statusLabels = {
-                requested: 'Demandé',
+                requested: 'En attente',
                 downloading: 'En cours',
-                available: 'Disponible',
-                failed: 'Échec',
-                cancelled: 'Annulé'
+                available: 'Ajouté',
+                failed: 'Non disponible',
+                cancelled: 'Retiré'
             };
 
             function setRequestsMessage(text, isError) {
@@ -220,21 +231,21 @@
                         var button = document.createElement('button');
                         button.type = 'button';
                         button.className = 'raised';
-                        button.textContent = 'Marquer disponible';
+                        button.textContent = 'Marquer comme ajouté';
                         button.addEventListener('click', function () { markAvailable(r.id); });
                         action.appendChild(button);
                     }
                     tr.appendChild(action);
                     body.appendChild(tr);
                 });
-                setRequestsMessage(list.length ? '' : 'Aucune demande.', false);
+                setRequestsMessage(list.length ? '' : 'Aucun album dans la liste d\'envies.', false);
             }
 
             function loadRequests() {
                 return getJson('Sillon/v1/requests').then(function (r) {
                     renderRequests(r.requests || []);
                 }, function () {
-                    setRequestsMessage('Impossible de charger les demandes.', true);
+                    setRequestsMessage('Impossible de charger la liste d\'envies.', true);
                 });
             }
 
@@ -244,12 +255,13 @@
                     type: 'POST',
                     dataType: 'json'
                 }).then(loadRequests, function () {
-                    setRequestsMessage('Impossible de marquer la demande disponible.', true);
+                    setRequestsMessage('Impossible de marquer cet album comme ajouté.', true);
                 });
             }
 
             function readForm() {
                 config.FulfillmentMode = el('FulfillmentMode').value;
+                config.ExposeToApps = el('ExposeToApps').checked;
                 config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10) || 14;
                 config.LidarrPathPrefix = el('LidarrPathPrefix').value;
                 config.JellyfinPathPrefix = el('JellyfinPathPrefix').value;
@@ -266,6 +278,7 @@
                     config = c;
                     el('FulfillmentMode').value = c.FulfillmentMode;
                     el('RequestTimeoutDays').value = c.RequestTimeoutDays;
+                    el('ExposeToApps').checked = c.ExposeToApps !== false;
                     el('LidarrPathPrefix').value = c.LidarrPathPrefix;
                     el('JellyfinPathPrefix').value = c.JellyfinPathPrefix;
                     el('LidarrUrl').value = c.LidarrUrl;

@@ -81,7 +81,7 @@ public interface ILidarrApi
     /// <returns>The album.</returns>
     Task<LidarrAlbum> GetAlbumAsync(int id, CancellationToken ct = default);
 
-    /// <summary>Returns the download queue.</summary>
+    /// <summary>Returns the queue.</summary>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The queue records.</returns>
     Task<IReadOnlyList<LidarrQueueRecord>> GetQueueAsync(CancellationToken ct = default);

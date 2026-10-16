@@ -16,13 +16,13 @@ public sealed class ReconcileTask : IScheduledTask
     }
 
     /// <inheritdoc />
-    public string Name => "Rapprocher les demandes avec Lidarr";
+    public string Name => "Rapprocher la liste d'envies avec Lidarr";
 
     /// <inheritdoc />
     public string Key => "SillonReconcile";
 
     /// <inheritdoc />
-    public string Description => "Vérifie les demandes d'albums en cours auprès de Lidarr et rattrape celles dont l'album n'est pas encore dans la bibliothèque du demandeur.";
+    public string Description => "Vérifie les albums de la liste d'envies auprès de Lidarr et rattrape ceux qui ne sont pas encore dans la bibliothèque de leur demandeur.";
 
     /// <inheritdoc />
     public string Category => "Sillon";

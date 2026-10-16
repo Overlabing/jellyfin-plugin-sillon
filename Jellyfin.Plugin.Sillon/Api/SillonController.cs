@@ -53,7 +53,7 @@ public class SillonController : ControllerBase
         return new JsonResult(new
         {
             version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
-            features = config.RequestsEnabled() ? new[] { "requests" } : Array.Empty<string>(),
+            features = config.ExposeToApps && config.RequestsEnabled() ? new[] { "requests" } : Array.Empty<string>(),
             mode = config.FulfillmentMode.ToString().ToLowerInvariant()
         });
     }
