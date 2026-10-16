@@ -101,7 +101,7 @@ public class RequestServiceTests
         Assert.Equal("/data/music/Vald/XEU (2022)", Assert.Single(env.Library.Reported));
         Assert.Equal((TestEnv.User, env.Library.ItemId), Assert.Single(env.Library.Favorites));
         var sent = Assert.Single(env.Notifier.Sent);
-        Assert.Equal("XEU de Vald est disponible", sent.Body);
+        Assert.Equal("XEU de Vald est maintenant dans la bibliothèque", sent.Body);
         Assert.Equal(env.Library.ItemId, sent.Extra["album_id"]);
         Assert.Equal(request.Id, sent.Extra["request_id"]);
     }
@@ -173,7 +173,7 @@ public class RequestServiceTests
         var done = env.Store.Get(request.Id)!;
         Assert.Equal(RequestStatus.Available, done.Status);
         Assert.Equal((16, 17), (done.TracksImported, done.TracksTotal));
-        Assert.Equal("XEU de Vald est disponible (16/17 titres)", Assert.Single(env.Notifier.Sent).Body);
+        Assert.Equal("XEU de Vald est maintenant dans la bibliothèque (16/17 titres)", Assert.Single(env.Notifier.Sent).Body);
     }
 
     [Fact]

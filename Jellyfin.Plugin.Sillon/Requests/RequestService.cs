@@ -647,7 +647,7 @@ public sealed class RequestService
             extra["album_id"] = itemId;
         }
 
-        var body = $"{request.Title} de {request.Artist} est disponible";
+        var body = $"{request.Title} de {request.Artist} est maintenant dans la bibliothèque";
         if (request.TracksTotal > 0 && request.TracksImported < request.TracksTotal)
         {
             body += string.Create(CultureInfo.InvariantCulture, $" ({request.TracksImported}/{request.TracksTotal} titres)");
