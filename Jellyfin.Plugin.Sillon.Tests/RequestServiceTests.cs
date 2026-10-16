@@ -281,6 +281,35 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task Reconcile_QueuesTheCutoffUnmetSearch_OnceAWeek()
+    {
+        using var env = new TestEnv();
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(1, env.Lidarr.CutoffSearches);
+
+        env.Now += TimeSpan.FromDays(6);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(1, env.Lidarr.CutoffSearches);
+
+        env.Now += TimeSpan.FromDays(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(2, env.Lidarr.CutoffSearches);
+        Assert.Equal(env.Now, new RequestStore(env.DataDir, () => env.Now).LastCutoffSearchAt);
+    }
+
+    [Fact]
+    public async Task Reconcile_InManualMode_DoesNotQueueTheCutoffUnmetSearch()
+    {
+        using var env = new TestEnv(FulfillmentMode.Manual);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+
+        Assert.Equal(0, env.Lidarr.CutoffSearches);
+    }
+
+    [Fact]
     public async Task Import_WhenTheLibraryNeverShowsTheAlbum_StillNotifiesWithoutALink_AndNeverFavourites()
     {
         var (env, request) = await Requested();
@@ -810,6 +839,9 @@ public class RequestServiceTests
 
             public Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
                 => queueOnly ? inner!.GetAlbumFolderAsync(albumId, ct) : throw Down();
+
+            public Task CutoffUnmetSearchAsync(CancellationToken ct = default)
+                => queueOnly ? inner!.CutoffUnmetSearchAsync(ct) : throw Down();
         }
     }
 }

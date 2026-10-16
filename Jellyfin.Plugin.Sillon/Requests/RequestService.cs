@@ -52,6 +52,9 @@ public sealed record RequestTiming
     /// <summary>Gets the minimum time between two scans of the same album folder while the library does not show the album.</summary>
     public TimeSpan FolderRefreshEvery { get; init; } = TimeSpan.FromMinutes(10);
 
+    /// <summary>Gets the minimum time between two Lidarr cutoff-unmet searches.</summary>
+    public TimeSpan CutoffSearchEvery { get; init; } = TimeSpan.FromDays(7);
+
     /// <summary>Gets how long an available request that never reached its requester's library is retried.</summary>
     public TimeSpan ResumeWindow { get; init; } = TimeSpan.FromHours(24);
 }
@@ -389,6 +392,8 @@ public sealed class RequestService
             return;
         }
 
+        await CutoffSearchAsync(ct).ConfigureAwait(false);
+
         var live = _store.ListByStatus(RequestStatus.Requested, RequestStatus.Downloading);
         if (live.Count == 0)
         {
@@ -465,6 +470,28 @@ public sealed class RequestService
                 await ReSearchAsync(request, lidarr, (int)lidarrId, ct).ConfigureAwait(false);
             }
         }
+    }
+
+    // once a week, so a better release found later (FLAC over MP3, when the quality profile allows the upgrade) replaces what was imported
+    private async Task CutoffSearchAsync(CancellationToken ct)
+    {
+        if (_store.LastCutoffSearchAt is { } last && _now() - last < _timing.CutoffSearchEvery)
+        {
+            return;
+        }
+
+        try
+        {
+            await _lidarr.Create().CutoffUnmetSearchAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("Reconcile: queueing the cutoff-unmet search failed: {Message}", ex.Message);
+            return;
+        }
+
+        _store.MarkCutoffSearched();
+        _logger.LogInformation("Cutoff-unmet search queued in Lidarr");
     }
 
     // monitors the album again and queues a new search when the last one is old and the last automatic one older still

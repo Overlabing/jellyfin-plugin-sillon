@@ -15,6 +15,7 @@ public sealed class RequestStore
 {
     private readonly object _lock = new();
     private readonly string _path;
+    private readonly string _statePath;
     private readonly Func<DateTimeOffset> _now;
     private readonly List<RequestRecord> _requests;
 
@@ -24,12 +25,34 @@ public sealed class RequestStore
     public RequestStore(string directory, Func<DateTimeOffset>? now = null)
     {
         _path = Path.Combine(directory, "requests.json");
+        _statePath = Path.Combine(directory, "state.json");
         _now = now ?? (() => DateTimeOffset.UtcNow);
         _requests = JsonFile.Read<RequestsDocument>(_path)?.Requests ?? new List<RequestRecord>();
     }
 
     /// <summary>Gets the current time of the store.</summary>
     public DateTimeOffset Now => _now();
+
+    /// <summary>Gets when the reconcile last queued the Lidarr cutoff-unmet search, from <c>state.json</c>; null when it never did.</summary>
+    public DateTimeOffset? LastCutoffSearchAt
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return JsonFile.Read<StateDocument>(_statePath)?.LastCutoffSearchAt;
+            }
+        }
+    }
+
+    /// <summary>Records that the cutoff-unmet search was just queued.</summary>
+    public void MarkCutoffSearched()
+    {
+        lock (_lock)
+        {
+            JsonFile.Write(_statePath, new StateDocument { LastCutoffSearchAt = _now() });
+        }
+    }
 
     /// <summary>Records a new request (status requested).</summary>
     /// <param name="seed">The request; id, status and times are set here.</param>
@@ -260,6 +283,11 @@ public sealed class RequestStore
     }
 
     private void Persist() => JsonFile.Write(_path, new RequestsDocument { Requests = _requests });
+
+    private sealed class StateDocument
+    {
+        public DateTimeOffset? LastCutoffSearchAt { get; init; }
+    }
 
     private sealed class RequestsDocument
     {

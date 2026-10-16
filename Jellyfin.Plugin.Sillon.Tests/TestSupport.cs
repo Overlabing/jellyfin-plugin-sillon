@@ -115,6 +115,13 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
     public Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
         => Task.FromResult(PathMap.AlbumFolder(Files.TryGetValue(albumId, out var f) ? f.Select(x => x.Path) : Array.Empty<string>()));
 
+    public int CutoffSearches { get; private set; }
+
+    public Task CutoffUnmetSearchAsync(CancellationToken ct = default)
+    {
+        CutoffSearches++;
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class FakeLibrary : IJellyfinLibrary

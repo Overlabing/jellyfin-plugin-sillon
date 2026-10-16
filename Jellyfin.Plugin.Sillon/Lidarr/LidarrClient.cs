@@ -104,6 +104,11 @@ public interface ILidarrApi
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The folder, or null when Lidarr holds no file for the album.</returns>
     Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default);
+
+    /// <summary>Queues a CutoffUnmetAlbumSearch command: a search for every monitored album below its quality cutoff.</summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    Task CutoffUnmetSearchAsync(CancellationToken ct = default);
 }
 
 /// <summary>Minimal Lidarr API client. Never logs or echoes the API key.</summary>
@@ -199,6 +204,10 @@ public sealed class LidarrClient : ILidarrApi
     /// <inheritdoc />
     public async Task<string?> GetAlbumFolderAsync(int albumId, CancellationToken ct = default)
         => PathMap.AlbumFolder((await GetTrackFilesAsync(albumId, ct).ConfigureAwait(false)).Select(f => f.Path));
+
+    /// <inheritdoc />
+    public Task CutoffUnmetSearchAsync(CancellationToken ct = default)
+        => SendAsync<JsonElement>(HttpMethod.Post, "/api/v1/command", new { name = "CutoffUnmetAlbumSearch" }, Normal, ct, allowEmpty: true);
 
     private async Task<T> SendAsync<T>(
         HttpMethod method, string path, object? body, TimeSpan timeout, CancellationToken ct, bool allowEmpty = false)

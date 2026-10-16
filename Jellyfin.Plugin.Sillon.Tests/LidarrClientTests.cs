@@ -32,6 +32,25 @@ public class LidarrClientTests
     }
 
     [Fact]
+    public async Task CutoffUnmetSearch_PostsTheCommand()
+    {
+        string? body = null;
+        var client = new LidarrClient(
+            new HttpClient(new FakeHandler(r =>
+            {
+                body = r.Content!.ReadAsStringAsync().Result;
+                Assert.Equal("/api/v1/command", r.RequestUri!.AbsolutePath);
+                return new HttpResponseMessage(HttpStatusCode.Created) { Content = new StringContent("{}") };
+            })),
+            "http://lidarr:8686",
+            "k");
+
+        await client.CutoffUnmetSearchAsync();
+
+        Assert.Equal("{\"name\":\"CutoffUnmetAlbumSearch\"}", body);
+    }
+
+    [Fact]
     public async Task GetAlbumFolder_IsTheParentOfTheDiscFolders()
     {
         var client = new LidarrClient(
