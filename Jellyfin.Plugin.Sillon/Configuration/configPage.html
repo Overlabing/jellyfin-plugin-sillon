@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Sillon</title>
+</head>
+<body>
+<div id="SillonConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="SillonConfigForm">
+                <h2>Sillon</h2>
+
+                <fieldset class="verticalSection-extrabottompadding">
+                    <legend>Traitement des demandes</legend>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="FulfillmentMode">Mode</label>
+                        <select is="emby-select" id="FulfillmentMode" name="FulfillmentMode" class="emby-select-withcolor emby-select">
+                            <option value="Manual">Manuel</option>
+                            <option value="Lidarr">Lidarr</option>
+                        </select>
+                    </div>
+                </fieldset>
+
+                <fieldset class="verticalSection-extrabottompadding">
+                    <legend>Lidarr</legend>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LidarrUrl">URL de Lidarr</label>
+                        <input is="emby-input" type="text" id="LidarrUrl" name="LidarrUrl" />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="LidarrApiKey">Clé API</label>
+                        <input is="emby-input" type="password" id="LidarrApiKey" name="LidarrApiKey" autocomplete="off" />
+                    </div>
+                    <div>
+                        <button is="emby-button" type="button" id="LidarrTest" class="raised">
+                            <span>Tester la connexion</span>
+                        </button>
+                        <div id="LidarrTestResult" class="fieldDescription"></div>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LidarrQualityProfileId">Profil de qualité</label>
+                        <select is="emby-select" id="LidarrQualityProfileId" name="LidarrQualityProfileId" class="emby-select-withcolor emby-select"></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LidarrMetadataProfileId">Profil de métadonnées</label>
+                        <select is="emby-select" id="LidarrMetadataProfileId" name="LidarrMetadataProfileId" class="emby-select-withcolor emby-select"></select>
+                    </div>
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LidarrRootFolder">Dossier racine</label>
+                        <select is="emby-select" id="LidarrRootFolder" name="LidarrRootFolder" class="emby-select-withcolor emby-select"></select>
+                    </div>
+                </fieldset>
+
+                <fieldset class="verticalSection-extrabottompadding">
+                    <legend>Webhook</legend>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">URL à renseigner dans Lidarr (Connect, Webhook)</label>
+                        <input is="emby-input" type="text" id="WebhookUrl" readonly />
+                    </div>
+                    <button is="emby-button" type="button" id="WebhookCopy" class="raised">
+                        <span>Copier</span>
+                    </button>
+                </fieldset>
+
+                <fieldset class="verticalSection-extrabottompadding" disabled>
+                    <legend>Notifications push (bientôt)</legend>
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label class="emby-checkbox-label">
+                            <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" disabled />
+                            <span>Activer les notifications push</span>
+                        </label>
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsKeyId">Identifiant de clé</label>
+                        <input is="emby-input" type="text" id="ApnsKeyId" disabled />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsTeamId">Identifiant d'équipe</label>
+                        <input is="emby-input" type="text" id="ApnsTeamId" disabled />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsTopic">Topic</label>
+                        <input is="emby-input" type="text" id="ApnsTopic" disabled />
+                    </div>
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="ApnsPrivateKey">Clé privée</label>
+                        <input is="emby-input" type="password" id="ApnsPrivateKey" disabled />
+                    </div>
+                </fieldset>
+
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                        <span>Enregistrer</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var PluginId = '1daed904-1b05-483c-8544-16cb6dcced54';
+            var page = document.querySelector('#SillonConfigPage');
+            var config = {};
+
+            function el(id) { return page.querySelector('#' + id); }
+
+            function getJson(path) {
+                return ApiClient.fetch({ url: ApiClient.getUrl(path), type: 'GET', dataType: 'json' });
+            }
+
+            function fillSelect(id, items, valueOf, labelOf, selected) {
+                var select = el(id);
+                select.innerHTML = '';
+                items.forEach(function (item) {
+                    var option = document.createElement('option');
+                    option.value = String(valueOf(item));
+                    option.textContent = labelOf(item);
+                    if (option.value === String(selected)) { option.selected = true; }
+                    select.appendChild(option);
+                });
+            }
+
+            function loadLists() {
+                return Promise.all([
+                    getJson('Sillon/Lidarr/QualityProfiles'),
+                    getJson('Sillon/Lidarr/MetadataProfiles'),
+                    getJson('Sillon/Lidarr/RootFolders')
+                ]).then(function (r) {
+                    fillSelect('LidarrQualityProfileId', r[0], function (p) { return p.id; }, function (p) { return p.name; }, config.LidarrQualityProfileId);
+                    fillSelect('LidarrMetadataProfileId', r[1], function (p) { return p.id; }, function (p) { return p.name; }, config.LidarrMetadataProfileId);
+                    fillSelect('LidarrRootFolder', r[2], function (f) { return f.path; }, function (f) { return f.path; }, config.LidarrRootFolder);
+                });
+            }
+
+            function showResult(text, isError) {
+                var box = el('LidarrTestResult');
+                box.textContent = text;
+                box.style.color = isError ? '#e55' : '#4c4';
+            }
+
+            function errorText(err) {
+                if (err && typeof err.json === 'function') {
+                    return err.json().then(function (b) { return (b && b.message) || 'Échec de la connexion.'; }, function () { return 'Échec de la connexion.'; });
+                }
+                return Promise.resolve('Échec de la connexion.');
+            }
+
+            function readForm() {
+                config.FulfillmentMode = el('FulfillmentMode').value;
+                config.LidarrUrl = el('LidarrUrl').value;
+                config.LidarrApiKey = el('LidarrApiKey').value;
+                config.LidarrQualityProfileId = parseInt(el('LidarrQualityProfileId').value, 10) || 0;
+                config.LidarrMetadataProfileId = parseInt(el('LidarrMetadataProfileId').value, 10) || 0;
+                config.LidarrRootFolder = el('LidarrRootFolder').value || '';
+            }
+
+            page.addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(PluginId).then(function (c) {
+                    config = c;
+                    el('FulfillmentMode').value = c.FulfillmentMode;
+                    el('LidarrUrl').value = c.LidarrUrl;
+                    el('LidarrApiKey').value = c.LidarrApiKey;
+                    el('WebhookUrl').value = ApiClient.serverAddress() + '/Sillon/webhooks/lidarr?secret=' + encodeURIComponent(c.WebhookSecret);
+                    el('ApnsEnabled').checked = !!c.ApnsEnabled;
+                    el('ApnsKeyId').value = c.ApnsKeyId;
+                    el('ApnsTeamId').value = c.ApnsTeamId;
+                    el('ApnsTopic').value = c.ApnsTopic;
+                    el('ApnsPrivateKey').value = c.ApnsPrivateKey;
+                    if (c.LidarrApiKey) {
+                        return loadLists().catch(function () { /* the user can test again */ });
+                    }
+                }).then(function () { Dashboard.hideLoadingMsg(); }, function () { Dashboard.hideLoadingMsg(); });
+            });
+
+            el('LidarrTest').addEventListener('click', function () {
+                showResult('Test en cours…', false);
+                ApiClient.ajax({
+                    url: ApiClient.getUrl('Sillon/Lidarr/Test'),
+                    type: 'POST',
+                    data: JSON.stringify({ url: el('LidarrUrl').value, apiKey: el('LidarrApiKey').value }),
+                    contentType: 'application/json',
+                    dataType: 'json'
+                }).then(function (r) {
+                    showResult('Connecté, Lidarr ' + r.version, false);
+                    // the list endpoints read the saved configuration, so save the connection first
+                    readForm();
+                    return ApiClient.updatePluginConfiguration(PluginId, config).then(loadLists);
+                }).catch(function (err) {
+                    errorText(err).then(function (m) { showResult(m, true); });
+                });
+            });
+
+            el('WebhookCopy').addEventListener('click', function () {
+                var input = el('WebhookUrl');
+                input.select();
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(input.value);
+                } else {
+                    document.execCommand('copy');
+                }
+            });
+
+            el('SillonConfigForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+                readForm();
+                ApiClient.updatePluginConfiguration(PluginId, config).then(function (result) {
+                    Dashboard.processPluginConfigurationUpdateResult(result);
+                });
+                return false;
+            });
+        })();
+    </script>
+</div>
+</body>
+</html>

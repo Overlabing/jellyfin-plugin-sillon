@@ -1,0 +1,14 @@
+---
+name: "Sillon"
+guid: "1daed904-1b05-483c-8544-16cb6dcced54"
+version: "0.1.0.0"
+targetAbi: "12.2.0.0"
+framework: "net10.0"
+owner: "Overlabing"
+overview: "Music requests for the Sillon app."
+description: >
+  Sillon connects Jellyfin to Lidarr so music requests made from the Sillon app
+  can be fulfilled automatically.
+category: "Music"
+artifacts:
+  - "Jellyfin.Plugin.Sillon.dll"
