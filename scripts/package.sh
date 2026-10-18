@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-version="0.6.2.0"
+version="0.6.3.0"
 target_abi="12.2.0.0"
 guid="1daed904-1b05-483c-8544-16cb6dcced54"
 
