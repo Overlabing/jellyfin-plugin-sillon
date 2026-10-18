@@ -122,7 +122,16 @@ public sealed class RequestStore
     public void SetLidarrAlbum(long id, long lidarrAlbumId)
     {
         var now = _now();
-        Update(id, r => r.IsActive, r => r with { LidarrAlbumId = lidarrAlbumId, LastSearchAt = now });
+        Update(id, r => r.IsActive, r => r with { LidarrAlbumId = lidarrAlbumId, LastSearchAt = now, Error = string.Empty });
+    }
+
+    /// <summary>Records a failed Lidarr add on a live request that has no Lidarr album id yet; it stays requested so the reconcile retries.</summary>
+    /// <param name="id">The id.</param>
+    /// <param name="error">The error text.</param>
+    public void MarkAddFailed(long id, string error)
+    {
+        var now = _now();
+        Update(id, r => r.IsActive && r.LidarrAlbumId is null, r => r with { Error = error, AddAttempts = r.AddAttempts + 1, LastAddAttemptAt = now });
     }
 
     /// <summary>Records a new Lidarr search for a request the user asked to retry; a failed request goes back to requested.</summary>

@@ -61,15 +61,25 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
     public Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByForeignIdAsync(string foreignAlbumId, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<LidarrAlbum>>(Existing.TryGetValue(foreignAlbumId, out var a) ? new[] { a } : Array.Empty<LidarrAlbum>());
 
-    public Task<LidarrAlbum> AddAlbumAsync(LidarrAddAlbum album, CancellationToken ct = default)
+    public TaskCompletionSource? AddGate { get; set; }
+
+    public CancellationToken? AddToken { get; private set; }
+
+    public async Task<LidarrAlbum> AddAlbumAsync(LidarrAddAlbum album, CancellationToken ct = default)
     {
+        AddToken = ct;
+        if (AddGate is not null)
+        {
+            await AddGate.Task.WaitAsync(ct);
+        }
+
         if (AddError is not null)
         {
             throw AddError;
         }
 
         Added.Add(album);
-        return Task.FromResult(new LidarrAlbum { Id = 100 + Added.Count, ForeignAlbumId = album.ForeignAlbumId });
+        return new LidarrAlbum { Id = 100 + Added.Count, ForeignAlbumId = album.ForeignAlbumId };
     }
 
     public Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default)

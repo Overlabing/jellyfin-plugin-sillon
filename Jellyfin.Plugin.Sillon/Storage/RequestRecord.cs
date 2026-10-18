@@ -81,6 +81,12 @@ public sealed record RequestRecord
     /// <summary>Gets when Lidarr was last asked to search for the album.</summary>
     public DateTimeOffset? LastSearchAt { get; init; }
 
+    /// <summary>Gets how many times adding the album to Lidarr failed while the request had no Lidarr album id.</summary>
+    public int AddAttempts { get; init; }
+
+    /// <summary>Gets when the last failed Lidarr add ended.</summary>
+    public DateTimeOffset? LastAddAttemptAt { get; init; }
+
     /// <summary>Gets when the reconcile last searched the album again on its own; absent in records written before 0.5.1.0.</summary>
     public DateTimeOffset? LastReSearchAt { get; init; }
 

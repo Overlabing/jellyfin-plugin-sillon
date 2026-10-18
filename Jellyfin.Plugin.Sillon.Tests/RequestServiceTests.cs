@@ -643,17 +643,62 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task Reconcile_RetriesAnAddThatNeverHappened_AfterTenMinutes()
+    public async Task Create_WhenTheClientHangsUp_TheLidarrAddStillCompletes()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.AddGate = new TaskCompletionSource();
+        using var client = new CancellationTokenSource();
+
+        var pending = env.Service.CreateAsync(TestEnv.Input(), client.Token);
+        client.Cancel();
+        var returned = await pending;
+
+        Assert.Equal(RequestStatus.Requested, returned.Status);
+        Assert.False(env.Lidarr.AddToken!.Value.IsCancellationRequested);
+        env.Lidarr.AddGate.SetResult();
+        await env.Service.WaitAsync();
+
+        var stored = env.Store.Get(returned.Id)!;
+        Assert.Equal(101, stored.LidarrAlbumId);
+        Assert.NotNull(stored.LastSearchAt);
+        Assert.Contains(101, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Create_WhenTheClientHangsUpAndLidarrFails_TheRequestStaysRequestedWithTheError()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.AddGate = new TaskCompletionSource();
+        env.Lidarr.AddError = new LidarrException("boom");
+        using var client = new CancellationTokenSource();
+
+        var pending = env.Service.CreateAsync(TestEnv.Input(), client.Token);
+        client.Cancel();
+        var returned = await pending;
+        env.Lidarr.AddGate.SetResult();
+        await env.Service.WaitAsync();
+
+        var stored = env.Store.Get(returned.Id)!;
+        Assert.Equal(RequestStatus.Requested, stored.Status);
+        Assert.Null(stored.LidarrAlbumId);
+        Assert.Equal("ajout Lidarr refusé", stored.Error);
+        Assert.Equal(1, stored.AddAttempts);
+    }
+
+    [Fact]
+    public async Task Reconcile_RetriesAnAddThatNeverHappened_AfterOneMinute()
     {
         using var env = new TestEnv();
         var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1", Title = "T", Artist = "A" });
 
-        env.Now = env.Now.AddMinutes(9);
+        env.Now = env.Now.AddSeconds(30);
         await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
         Assert.Empty(env.Lidarr.Added);
 
-        env.Now = env.Now.AddMinutes(2);
+        env.Now = env.Now.AddMinutes(1);
         await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
 
         Assert.Single(env.Lidarr.Added);
         Assert.Equal(101, env.Store.Get(orphan.Id)!.LidarrAlbumId);
@@ -661,18 +706,83 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task Reconcile_ASecondFailedAdd_EndsTheRequest()
+    public async Task Reconcile_AFailedAdd_IsRetriedWithABackoffAndTheRequestStaysRequested()
     {
         using var env = new TestEnv();
         var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1" });
         env.Lidarr.AddError = new LidarrException("boom");
-        env.Now = env.Now.AddMinutes(11);
 
+        env.Now = env.Now.AddMinutes(2);
         await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+        var first = env.Store.Get(orphan.Id)!;
+        Assert.Equal(RequestStatus.Requested, first.Status);
+        Assert.Equal("ajout Lidarr refusé", first.Error);
+        Assert.Equal(1, first.AddAttempts);
 
-        var stored = env.Store.Get(orphan.Id)!;
-        Assert.Equal(RequestStatus.Failed, stored.Status);
-        Assert.Equal("ajout Lidarr refusé", stored.Error);
+        // inside the backoff (two minutes after the first failure): Lidarr is left alone
+        env.Now = env.Now.AddMinutes(1);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+        Assert.Equal(1, env.Store.Get(orphan.Id)!.AddAttempts);
+
+        // after it, and Lidarr is back: the add goes through and the error is cleared
+        env.Lidarr.AddError = null;
+        env.Now = env.Now.AddMinutes(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+        var done = env.Store.Get(orphan.Id)!;
+        Assert.Equal(101, done.LidarrAlbumId);
+        Assert.Equal(string.Empty, done.Error);
+    }
+
+    [Fact]
+    public async Task Reconcile_RetryReusesAnAlbumLidarrAlreadyHas_WithoutDuplicating()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.Existing["alb-9"] = new LidarrAlbum { Id = 55, ForeignAlbumId = "alb-9", Monitored = true };
+        var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1" });
+
+        env.Now = env.Now.AddMinutes(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Empty(env.Lidarr.Added);
+        Assert.Equal(55, env.Store.Get(orphan.Id)!.LidarrAlbumId);
+        Assert.DoesNotContain("monitor", env.Lidarr.Calls);
+        Assert.Contains(55, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Reconcile_RetryMonitorsAndSearchesAnExistingAlbumThatIsNotMonitored()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.Existing["alb-9"] = new LidarrAlbum { Id = 55, ForeignAlbumId = "alb-9", Monitored = false };
+        var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1" });
+
+        env.Now = env.Now.AddMinutes(2);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Empty(env.Lidarr.Added);
+        Assert.Equal(55, env.Store.Get(orphan.Id)!.LidarrAlbumId);
+        Assert.True(env.Lidarr.Monitored[55]);
+        Assert.Contains(55, env.Lidarr.Searched);
+    }
+
+    [Fact]
+    public async Task Reconcile_AnAddThatNeverSucceeds_TimesOutLikeAnyRequest()
+    {
+        using var env = new TestEnv();
+        var orphan = env.Store.Create(new RequestRecord { UserId = TestEnv.User, ForeignAlbumId = "alb-9", ForeignArtistId = "artist-1" });
+        env.Lidarr.AddError = new LidarrException("boom");
+
+        env.Now = env.Now.AddDays(15);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(orphan.Id)!.Status);
+        Assert.Empty(env.Lidarr.Added);
     }
 
     [Fact]

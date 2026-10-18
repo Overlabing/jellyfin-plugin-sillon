@@ -12,6 +12,8 @@ using MediaBrowser.Common.Api;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Sillon.Api;
 
@@ -135,6 +137,10 @@ public sealed partial class RequestsController : ControllerBase
         {
             return ApiJson.Error(ex.StatusCode, ex.Message);
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return ClientLeft("catalog search");
+        }
     }
 
     /// <summary>Lists an artist's albums.</summary>
@@ -153,6 +159,10 @@ public sealed partial class RequestsController : ControllerBase
         catch (CatalogException ex)
         {
             return ApiJson.Error(ex.StatusCode, ex.Message);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return ClientLeft("catalog artist");
         }
     }
 
@@ -355,6 +365,15 @@ public sealed partial class RequestsController : ControllerBase
 
         _devices.Delete(token, caller.Id);
         return ApiJson.Result(new AckBody(true));
+    }
+
+    // the app cancels a search when the user types on: not an error, so it must not reach Jellyfin's exception middleware (which logs it as ERR)
+    private ActionResult ClientLeft(string what)
+    {
+        HttpContext?.RequestServices.GetService<ILoggerFactory>()
+            ?.CreateLogger<RequestsController>()
+            .LogDebug("The client cancelled the {What} request", what);
+        return StatusCode(499);
     }
 
     [GeneratedRegex("^[0-9a-fA-F]{1,200}$")]

@@ -22,8 +22,14 @@ public sealed record NewRequest(
 /// <summary>The delays of the request service.</summary>
 public sealed record RequestTiming
 {
-    /// <summary>Gets how long a live request may sit without a Lidarr album id before the reconcile retries the add.</summary>
-    public TimeSpan AddRetryAfter { get; init; } = TimeSpan.FromMinutes(10);
+    /// <summary>Gets how long a live request may sit without a Lidarr album id before the reconcile retries the add (so it does not race an add still in flight); it doubles after each failed attempt.</summary>
+    public TimeSpan AddRetryAfter { get; init; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>Gets the longest wait between two retries of the Lidarr add of the same request.</summary>
+    public TimeSpan AddRetryMax { get; init; } = TimeSpan.FromHours(6);
+
+    /// <summary>Gets how long one Lidarr add may run; it is not tied to the HTTP request that started it.</summary>
+    public TimeSpan AddTimeout { get; init; } = TimeSpan.FromMinutes(2);
 
     /// <summary>Gets how often Lidarr is asked whether it has finished refreshing a new album.</summary>
     public TimeSpan RefreshPollEvery { get; init; } = TimeSpan.FromSeconds(2);
@@ -81,6 +87,7 @@ public sealed class RequestService
     private readonly object _lock = new();
     private readonly HashSet<long> _finalizing = new();
     private readonly List<Task> _background = new();
+    private readonly Dictionary<long, Task<int>> _adding = new();
     private bool _rechecking;
 
     /// <summary>Initializes a new instance of the <see cref="RequestService"/> class.</summary>
@@ -172,19 +179,22 @@ public sealed class RequestService
             return created;
         }
 
-        int lidarrId;
         try
         {
-            lidarrId = await AddToLidarrAsync(created, ct).ConfigureAwait(false);
+            // the add runs on its own token: the client hanging up (the app's URLSession timeout) must not abort it half-way
+            await StartAdd(created).WaitAsync(ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            _logger.LogError("Adding the album to Lidarr failed request={Id}: {Message}", created.Id, ex.Message);
+            _logger.LogInformation("Client left before Lidarr answered, the add goes on in the background request={Id}", created.Id);
+            return _store.Get(created.Id) ?? created;
+        }
+        catch (Exception)
+        {
             _store.Transition(created.Id, RequestStatus.Live, RequestStatus.Failed, LidarrAddException.Text);
             throw new LidarrAddException();
         }
 
-        _store.SetLidarrAlbum(created.Id, lidarrId);
         _logger.LogInformation("Album requested request={Id} user={User} artist={Artist} title={Title}", created.Id, created.UserName, created.Artist, created.Title);
         return _store.Get(created.Id) ?? created;
     }
@@ -259,11 +269,15 @@ public sealed class RequestService
         int lidarrId;
         try
         {
-            lidarrId = await AddToLidarrAsync(request, ct).ConfigureAwait(false);
+            lidarrId = await StartAdd(request).WaitAsync(ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            _logger.LogError("Retrying the Lidarr search failed request={Id}: {Message}", id, ex.Message);
+            _logger.LogInformation("Client left before Lidarr answered, the retry goes on in the background request={Id}", id);
+            throw;
+        }
+        catch (Exception)
+        {
             throw new LidarrUnavailableException();
         }
 
@@ -431,7 +445,7 @@ public sealed class RequestService
             var age = _now() - request.CreatedAt;
             if (request.LidarrAlbumId is not { } lidarrId)
             {
-                await RetryAddAsync(request, age, ct).ConfigureAwait(false);
+                await RetryAddAsync(request, age, limit, days, ct).ConfigureAwait(false);
                 continue;
             }
 
@@ -647,7 +661,11 @@ public sealed class RequestService
         }
 
         await WaitForRefreshAsync(lidarr, id, ct).ConfigureAwait(false);
-        await lidarr.MonitorAlbumsAsync(new[] { id }, true, ct).ConfigureAwait(false);
+        if (existing.Count == 0 || existing[0].Monitored != true)
+        {
+            await lidarr.MonitorAlbumsAsync(new[] { id }, true, ct).ConfigureAwait(false);
+        }
+
         await lidarr.AlbumSearchAsync(new[] { id }, ct).ConfigureAwait(false);
         return id;
     }
@@ -946,23 +964,90 @@ public sealed class RequestService
             ct).ConfigureAwait(false);
     }
 
-    // re-runs the Lidarr add of a request that never got its album id (the plugin stopped between the insert and the add); a second failure ends it
-    private async Task RetryAddAsync(RequestRecord request, TimeSpan age, CancellationToken ct)
+    // re-runs, in the background, the Lidarr add of a request that never got its album id (the client hung up, Lidarr was slow or down, the plugin stopped);
+    // the add is idempotent (an album Lidarr already has is reused), the wait between attempts doubles, and the request times out like any other
+    private async Task RetryAddAsync(RequestRecord request, TimeSpan age, TimeSpan limit, int days, CancellationToken ct)
     {
+        if (age > limit)
+        {
+            await TimeoutAsync(request, days, ct).ConfigureAwait(false);
+            return;
+        }
+
         if (age < _timing.AddRetryAfter)
         {
             return;
         }
 
-        try
+        if (request.LastAddAttemptAt is { } last && _now() - last < AddBackoff(request.AddAttempts))
         {
-            var id = await AddToLidarrAsync(request, ct).ConfigureAwait(false);
-            _store.SetLidarrAlbum(request.Id, id);
+            return;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+
+        _logger.LogInformation("Retrying the Lidarr add request={Id} attempts={Attempts}", request.Id, request.AddAttempts);
+        _ = StartAdd(request);
+    }
+
+    private TimeSpan AddBackoff(int attempts)
+    {
+        var factor = Math.Pow(2, Math.Clamp(attempts, 0, 20));
+        var ticks = Math.Min(_timing.AddRetryAfter.Ticks * factor, _timing.AddRetryMax.Ticks);
+        return TimeSpan.FromTicks((long)ticks);
+    }
+
+    // starts (or joins) the Lidarr add of a request on a token the HTTP caller cannot cancel: the server's lifetime plus its own timeout;
+    // success stores the Lidarr id, failure records the error on the request, which stays requested for the reconcile to retry
+    private Task<int> StartAdd(RequestRecord request)
+    {
+        lock (_lock)
         {
-            _logger.LogError("Retrying the Lidarr add failed request={Id}: {Message}", request.Id, ex.Message);
-            _store.Transition(request.Id, RequestStatus.Live, RequestStatus.Failed, LidarrAddException.Text);
+            if (_adding.TryGetValue(request.Id, out var running))
+            {
+                return running;
+            }
+
+            var task = Task.Run(async () =>
+            {
+                try
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(_shutdown);
+                    cts.CancelAfter(_timing.AddTimeout);
+                    var id = await AddToLidarrAsync(request, cts.Token).ConfigureAwait(false);
+                    if (request.Status == RequestStatus.Failed)
+                    {
+                        _store.MarkRetried(request.Id, id);
+                    }
+                    else
+                    {
+                        _store.SetLidarrAlbum(request.Id, id);
+                    }
+
+                    return id;
+                }
+                catch (Exception ex)
+                {
+                    if (_shutdown.IsCancellationRequested)
+                    {
+                        _logger.LogInformation("The Lidarr add stopped with the server request={Id}", request.Id);
+                        throw;
+                    }
+
+                    var reason = ex is OperationCanceledException ? "timed out" : ex.Message;
+                    _logger.LogWarning("Adding the album to Lidarr failed request={Id}: {Message}", request.Id, reason);
+                    _store.MarkAddFailed(request.Id, LidarrAddException.Text);
+                    throw;
+                }
+                finally
+                {
+                    lock (_lock)
+                    {
+                        _adding.Remove(request.Id);
+                    }
+                }
+            });
+            _adding[request.Id] = task;
+            _background.Add(task.ContinueWith(_ => { }, TaskScheduler.Default));
+            return task;
         }
     }
 
