@@ -321,7 +321,7 @@ public sealed partial class RequestsController : ControllerBase
 
     /// <summary>Registers a device token.</summary>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>An acknowledgement.</returns>
+    /// <returns>An acknowledgement, or 409 when another user owns the token.</returns>
     [HttpPost("v1/devices")]
     [Authorize]
     public async Task<ActionResult> PutDevice(CancellationToken ct)
@@ -350,7 +350,11 @@ public sealed partial class RequestsController : ControllerBase
         }
 
         var env = body.Env is "development" or "production" ? body.Env : string.Empty;
-        _devices.Upsert(token, caller.Id, body.Platform, env);
+        if (!_devices.Upsert(token, caller.Id, body.Platform, env))
+        {
+            return ApiJson.Error(StatusCodes.Status409Conflict, "Cet appareil est déjà enregistré pour un autre compte");
+        }
+
         return ApiJson.Result(new AckBody(true));
     }
 

@@ -321,6 +321,67 @@ public class ControllerTests
         Assert.Single(env.Devices.For(TestEnv.User));
     }
 
+    private static async Task<int> Register(TestEnv env, string userId, string token, string platform = "ios", string deviceEnv = "production")
+    {
+        Json(await Requests(env, Principal(userId), $"{{\"token\":\"{token}\",\"platform\":\"{platform}\",\"env\":\"{deviceEnv}\"}}").PutDevice(CancellationToken.None), out var status);
+        return status;
+    }
+
+    [Fact]
+    public async Task Device_SameUserRegisteringAgain_UpdatesPlatformAndEnv()
+    {
+        using var env = new TestEnv();
+
+        Assert.Equal(200, await Register(env, TestEnv.User, "abc123", "ios", "production"));
+        var created = env.Devices.For(TestEnv.User).Single().CreatedAt;
+        Assert.Equal(200, await Register(env, TestEnv.User, "abc123", "macos", "development"));
+
+        var device = env.Devices.For(TestEnv.User).Single();
+        Assert.Equal("macos", device.Platform);
+        Assert.Equal("development", device.Env);
+        Assert.Equal(created, device.CreatedAt);
+    }
+
+    [Fact]
+    public async Task Device_OwnedByAnotherUser_IsRefusedWith409_AndLeftUntouched()
+    {
+        using var env = new TestEnv();
+        await Register(env, TestEnv.User, "abc123", "ios", "production");
+
+        var status = await Register(env, Other, "abc123", "macos", "development");
+
+        Assert.Equal(409, status);
+        Assert.Empty(env.Devices.For(Other));
+        var device = env.Devices.For(TestEnv.User).Single();
+        Assert.Equal("ios", device.Platform);
+        Assert.Equal("production", device.Env);
+    }
+
+    [Fact]
+    public async Task Device_IsFreeOnceItsOwnerDeletedIt_SoTheNextAccountOnThePhoneCanTakeIt()
+    {
+        using var env = new TestEnv();
+        await Register(env, TestEnv.User, "abc123");
+        Requests(env, Principal(TestEnv.User)).DeleteDevice("abc123");
+
+        Assert.Equal(200, await Register(env, Other, "abc123"));
+
+        Assert.Empty(env.Devices.For(TestEnv.User));
+        Assert.Single(env.Devices.For(Other));
+    }
+
+    [Fact]
+    public async Task Device_DeleteByANonOwner_ChangesNothing()
+    {
+        using var env = new TestEnv();
+        await Register(env, TestEnv.User, "abc123");
+
+        Json(Requests(env, Principal(Other)).DeleteDevice("abc123"), out var status);
+
+        Assert.Equal(200, status);
+        Assert.Equal(TestEnv.User, env.Devices.All().Single().UserId);
+    }
+
     [Fact]
     public async Task CatalogSearch_NeedsAQuery_AndIsUnavailableInManualMode()
     {

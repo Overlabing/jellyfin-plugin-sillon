@@ -18,17 +18,28 @@ public sealed class DeviceStore
         _devices = JsonFile.Read<DevicesDocument>(_path)?.Devices ?? new List<DeviceRecord>();
     }
 
-    /// <summary>Registers a token for a user; a token moves to its latest user.</summary>
+    /// <summary>
+    /// Registers a token for a user, or refreshes it when that user already owns it. A token owned by another user is never moved:
+    /// anyone who learns a token (it is a bearer address for that user's notifications) could otherwise take it over. The legitimate
+    /// hand-over is explicit: the app deletes its token on sign-out, which frees it for the next account. After a reinstall without
+    /// sign-out APNs issues a new token, and the old one is dropped when APNs answers 410/BadDeviceToken (see ApnsNotifier).
+    /// </summary>
     /// <param name="token">The token.</param>
     /// <param name="userId">The user.</param>
     /// <param name="platform">The platform.</param>
     /// <param name="env">The APNs environment, or empty for the default.</param>
-    public void Upsert(string token, string userId, string platform, string env)
+    /// <returns><c>false</c>, and nothing changes, when another user owns the token.</returns>
+    public bool Upsert(string token, string userId, string platform, string env)
     {
         lock (_lock)
         {
             var now = _now();
             var index = _devices.FindIndex(d => d.Token == token);
+            if (index >= 0 && _devices[index].UserId != userId)
+            {
+                return false;
+            }
+
             var created = index >= 0 ? _devices[index].CreatedAt : now;
             var device = new DeviceRecord { Token = token, UserId = userId, Platform = platform, Env = env, CreatedAt = created, UpdatedAt = now };
             if (index >= 0)
@@ -41,6 +52,7 @@ public sealed class DeviceStore
             }
 
             Persist();
+            return true;
         }
     }
 

@@ -126,23 +126,20 @@ public class RequestStoreTests
     }
 
     [Fact]
-    public void Devices_UpsertMovesATokenToItsLatestUser_AndDeleteChecksTheOwner()
+    public void Devices_UpsertNeverMovesATokenToAnotherUser_AndDeleteChecksTheOwner()
     {
         using var env = new TestEnv();
-        env.Devices.Upsert("abc", "u1", "ios", "development");
-        var created = env.Devices.For("u1").Single().CreatedAt;
+        Assert.True(env.Devices.Upsert("abc", "u1", "ios", "development"));
         env.Now = env.Now.AddMinutes(1);
-        env.Devices.Upsert("abc", "u2", "ios", "production");
+        Assert.False(env.Devices.Upsert("abc", "u2", "ios", "production"));
 
-        Assert.Empty(env.Devices.For("u1"));
-        var device = env.Devices.For("u2").Single();
-        Assert.Equal("production", device.Env);
-        Assert.Equal(created, device.CreatedAt);
-
-        env.Devices.Delete("abc", "u1");
-        Assert.Single(env.Devices.For("u2"));
-        env.Devices.Delete("abc", "u2");
         Assert.Empty(env.Devices.For("u2"));
+        Assert.Equal("development", env.Devices.For("u1").Single().Env);
+
+        env.Devices.Delete("abc", "u2");
+        Assert.Single(env.Devices.For("u1"));
+        env.Devices.Delete("abc", "u1");
+        Assert.Empty(env.Devices.For("u1"));
 
         env.Devices.Upsert("def", "u1", "ios", string.Empty);
         Assert.Equal("def", new DeviceStore(env.DataDir).For("u1").Single().Token);
