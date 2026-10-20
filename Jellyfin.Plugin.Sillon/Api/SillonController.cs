@@ -73,11 +73,42 @@ public class SillonController : ControllerBase
         }
 
         // the page never knows the stored key: the mask means "use the saved one"
-        var key = request.ApiKey is null or PluginConfiguration.MaskedSecret ? _config().LidarrApiKey : request.ApiKey;
+        var key = string.IsNullOrEmpty(request.ApiKey) || request.ApiKey == PluginConfiguration.MaskedSecret ? _config().LidarrApiKey : request.ApiKey;
         return Run(new LidarrClient(Http(), url, key), async c =>
         {
             var status = await c.GetStatusAsync(ct).ConfigureAwait(false);
             return new { version = status.Version };
+        });
+    }
+
+    /// <summary>Tests a Lidarr URL and API key and lists what the configuration page lets the administrator choose from, without saving anything.</summary>
+    /// <param name="request">The URL and key; the mask or no key means the saved key.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The version, quality profiles, metadata profiles and root folders.</returns>
+    [HttpPost("Lidarr/Options")]
+    [Authorize(Policy = Policies.RequiresElevation)]
+    public Task<ActionResult> LidarrOptions([FromBody] LidarrTestRequest request, CancellationToken ct)
+    {
+        var url = (request.Url ?? string.Empty).Trim();
+        if (url.Length == 0 || !PluginConfiguration.IsValidLidarrUrl(url))
+        {
+            return Task.FromResult<ActionResult>(new JsonResult(new { message = "Enter an http:// or https:// URL." }) { StatusCode = StatusCodes.Status400BadRequest });
+        }
+
+        var key = string.IsNullOrEmpty(request.ApiKey) || request.ApiKey == PluginConfiguration.MaskedSecret ? _config().LidarrApiKey : request.ApiKey;
+        return Run(new LidarrClient(Http(), url, key), async c =>
+        {
+            var status = await c.GetStatusAsync(ct).ConfigureAwait(false);
+            var quality = await c.GetQualityProfilesAsync(ct).ConfigureAwait(false);
+            var metadata = await c.GetMetadataProfilesAsync(ct).ConfigureAwait(false);
+            var folders = await c.GetRootFoldersAsync(ct).ConfigureAwait(false);
+            return new
+            {
+                version = status.Version,
+                qualityProfiles = quality.Select(p => new { id = p.Id, name = p.Name }).ToList(),
+                metadataProfiles = metadata.Select(p => new { id = p.Id, name = p.Name }).ToList(),
+                rootFolders = folders.Select(f => new { path = f.Path }).ToList()
+            };
         });
     }
 

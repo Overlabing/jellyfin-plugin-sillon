@@ -1,403 +1,901 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <title>Sillon</title>
 </head>
 <body>
-<div id="SillonConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+<div id="SillonConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox,emby-textarea">
     <div data-role="content">
         <div class="content-primary">
-            <form id="SillonConfigForm">
-                <h2>Sillon</h2>
+            <style>
+                #SillonConfigPage .sillon-shell { display: flex; flex-wrap: wrap; gap: 1em 2.5em; align-items: flex-start; padding-bottom: 5em; }
+                #SillonConfigPage .sillon-header { flex-basis: 100%; }
+                #SillonConfigPage .sillon-header h1 { margin: 0 0 .2em; }
+                #SillonConfigPage .sillon-nav { flex: none; display: flex; flex-direction: column; border-inline-start: 1px solid rgba(128, 128, 128, .35); min-width: 11em; }
+                #SillonConfigPage .sillon-nav button { all: unset; box-sizing: border-box; cursor: pointer; padding: .55em 1.2em .55em 1em; margin-inline-start: -2px; border-inline-start: 3px solid transparent; opacity: .75; white-space: nowrap; }
+                #SillonConfigPage .sillon-nav button:hover { opacity: 1; background: rgba(128, 128, 128, .12); }
+                #SillonConfigPage .sillon-nav button:focus-visible { outline: 2px solid #00a4dc; outline-offset: -2px; }
+                #SillonConfigPage .sillon-nav button[aria-current="page"] { opacity: 1; font-weight: 600; border-inline-start-color: #00a4dc; }
+                #SillonConfigPage .sillon-main { flex: 1 1 0; min-width: 0; max-width: 56em; }
+                #SillonConfigPage .sillon-section[hidden] { display: none; }
+                #SillonConfigPage .sillon-section h2 { margin-top: 0; }
+                #SillonConfigPage .sillon-group { margin: 0 0 2em; }
+                #SillonConfigPage .sillon-group > h3 { margin: 0 0 .6em; font-weight: 600; }
+                #SillonConfigPage .sillon-row { display: flex; gap: .6em; align-items: flex-end; }
+                #SillonConfigPage .sillon-row > .inputContainer { flex: 1 1 auto; margin-bottom: 0; }
+                #SillonConfigPage .sillon-actions { display: flex; flex-wrap: wrap; gap: .6em; align-items: center; margin: .8em 0; }
+                #SillonConfigPage .sillon-list { list-style: none; margin: .6em 0 0; padding: 0; }
+                #SillonConfigPage .sillon-list li { display: flex; justify-content: space-between; align-items: center; gap: 1em; padding: .35em .2em; border-bottom: 1px solid rgba(128, 128, 128, .25); font-family: monospace; }
+                #SillonConfigPage .sillon-empty { opacity: .6; padding: .5em 0; font-style: italic; }
+                #SillonConfigPage .sillon-error { color: #e55; min-height: 1em; font-size: .9em; }
+                #SillonConfigPage .sillon-ok { color: #4c4; }
+                #SillonConfigPage .sillon-table { width: 100%; border-collapse: collapse; }
+                #SillonConfigPage .sillon-table th { text-align: start; font-weight: 600; opacity: .75; padding: .5em .6em; border-bottom: 1px solid rgba(128, 128, 128, .45); white-space: nowrap; }
+                #SillonConfigPage .sillon-table td { padding: .55em .6em; border-bottom: 1px solid rgba(128, 128, 128, .2); vertical-align: top; }
+                #SillonConfigPage .sillon-table .sub { opacity: .65; font-size: .9em; }
+                #SillonConfigPage .sillon-table .actions { white-space: nowrap; text-align: end; }
+                #SillonConfigPage .sillon-table .actions button { margin-inline-start: .3em; }
+                #SillonConfigPage .sillon-scroll { overflow-x: auto; }
+                #SillonConfigPage .sillon-pill { display: inline-block; padding: .1em .65em; border-radius: 1em; font-size: .85em; background: rgba(128, 128, 128, .25); }
+                #SillonConfigPage .sillon-pill.requested { background: rgba(240, 173, 78, .25); }
+                #SillonConfigPage .sillon-pill.downloading { background: rgba(0, 164, 220, .25); }
+                #SillonConfigPage .sillon-pill.available { background: rgba(76, 175, 80, .25); }
+                #SillonConfigPage .sillon-pill.failed { background: rgba(229, 85, 85, .28); }
+                #SillonConfigPage .sillon-pill.ok { background: rgba(76, 175, 80, .25); }
+                #SillonConfigPage .sillon-pill.bad { background: rgba(229, 85, 85, .28); }
+                #SillonConfigPage .sillon-kv { display: grid; grid-template-columns: max-content 1fr; gap: .45em 1.5em; margin: 0; }
+                #SillonConfigPage .sillon-kv dt { opacity: .7; }
+                #SillonConfigPage .sillon-kv dd { margin: 0; }
+                #SillonConfigPage .sillon-filter { display: flex; flex-wrap: wrap; gap: 1em; align-items: flex-end; }
+                #SillonConfigPage .sillon-filter > div { margin-bottom: 0; min-width: 12em; }
+                #SillonConfigPage .sillon-footer { position: fixed; inset-inline: 0; bottom: 0; z-index: 10; display: none; align-items: center; justify-content: flex-end; gap: 1.5em; padding: .8em 1em; border-top: 1px solid rgba(128, 128, 128, .4); }
+                #SillonConfigPage .sillon-footer.visible { display: flex; }
+                @media (min-width: 900px) { #SillonConfigPage .sillon-footer { inset-inline-start: 240px; } }
+                @media (max-width: 700px) {
+                    #SillonConfigPage .sillon-nav { flex-direction: row; overflow-x: auto; border-inline-start: 0; border-bottom: 1px solid rgba(128, 128, 128, .35); width: 100%; }
+                    #SillonConfigPage .sillon-nav button { border-inline-start: 0; border-bottom: 3px solid transparent; margin: 0 0 -1px; }
+                    #SillonConfigPage .sillon-nav button[aria-current="page"] { border-bottom-color: #00a4dc; }
+                }
+            </style>
 
-                <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Traitement de la liste d'envies</legend>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="FulfillmentMode">Mode</label>
-                        <select is="emby-select" id="FulfillmentMode" name="FulfillmentMode" class="emby-select-withcolor emby-select">
-                            <option value="Manual">Manuel</option>
-                            <option value="Lidarr">Lidarr</option>
-                        </select>
-                        <div class="fieldDescription">Manuel : les envies sont enregistrées et vous les marquez ajoutées vous-même (section « Liste d'envies »). Lidarr : elles sont transmises à Lidarr.</div>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Délai avant échec d'une envie (jours)</label>
-                        <input is="emby-input" type="number" min="1" id="RequestTimeoutDays" name="RequestTimeoutDays" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="CatalogAllowList">Albums autorisés dans le catalogue (MBID de release-group, un par ligne ; vide = tout le catalogue)</label>
-                        <textarea is="emby-textarea" id="CatalogAllowList" name="CatalogAllowList" rows="6" class="emby-textarea"></textarea>
-                    </div>
-                </fieldset>
+            <div class="sillon-shell">
+                <header class="sillon-header">
+                    <h1>Sillon Configuration</h1>
+                </header>
 
-                <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Applications</legend>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input is="emby-checkbox" type="checkbox" id="ExposeToApps" name="ExposeToApps" />
-                            <span>Proposer la liste d'envies aux applications Sillon</span>
-                        </label>
-                        <div class="fieldDescription checkboxFieldDescription">Désactivé, les applications ne voient pas la fonctionnalité (utile pendant une migration).</div>
-                    </div>
-                </fieldset>
+                <nav class="sillon-nav" aria-label="Settings sections">
+                    <button type="button" data-tab="general">General</button>
+                    <button type="button" data-tab="lidarr">Lidarr</button>
+                    <button type="button" data-tab="requests">Requests</button>
+                    <button type="button" data-tab="notifications">Notifications</button>
+                    <button type="button" data-tab="information">Information</button>
+                </nav>
 
-                <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Lidarr</legend>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="LidarrUrl">URL de Lidarr</label>
-                        <input is="emby-input" type="text" id="LidarrUrl" name="LidarrUrl" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="LidarrApiKey">Clé API</label>
-                        <input is="emby-input" type="password" id="LidarrApiKey" name="LidarrApiKey" autocomplete="off" />
-                    </div>
-                    <div>
-                        <button is="emby-button" type="button" id="LidarrTest" class="raised">
-                            <span>Tester la connexion</span>
-                        </button>
-                        <div id="LidarrTestResult" class="fieldDescription"></div>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="LidarrQualityProfileId">Profil de qualité</label>
-                        <select is="emby-select" id="LidarrQualityProfileId" name="LidarrQualityProfileId" class="emby-select-withcolor emby-select"></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="LidarrMetadataProfileId">Profil de métadonnées</label>
-                        <select is="emby-select" id="LidarrMetadataProfileId" name="LidarrMetadataProfileId" class="emby-select-withcolor emby-select"></select>
-                    </div>
-                    <div class="selectContainer">
-                        <label class="selectLabel" for="LidarrRootFolder">Dossier racine</label>
-                        <select is="emby-select" id="LidarrRootFolder" name="LidarrRootFolder" class="emby-select-withcolor emby-select"></select>
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="LidarrPathPrefix">Dossier de musique vu par Lidarr</label>
-                        <input is="emby-input" type="text" id="LidarrPathPrefix" name="LidarrPathPrefix" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="JellyfinPathPrefix">Le même dossier vu par Jellyfin</label>
-                        <input is="emby-input" type="text" id="JellyfinPathPrefix" name="JellyfinPathPrefix" />
-                        <div class="fieldDescription">Sert à dire à Jellyfin où chercher un album que Lidarr vient d'importer.</div>
-                    </div>
-                </fieldset>
+                <main class="sillon-main">
+                    <!-- General -->
+                    <section class="sillon-section" id="tab-general" hidden>
+                        <h2>General</h2>
+                        <div class="sillon-group">
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="ExposeToApps" />
+                                    <span>Enable the wishlist</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">When off, the Sillon apps do not offer the wishlist. Existing requests are kept.</div>
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="FulfillmentMode">How requests are fulfilled</label>
+                                <select is="emby-select" id="FulfillmentMode" class="emby-select-withcolor emby-select">
+                                    <option value="Manual">Manually</option>
+                                    <option value="Lidarr">With Lidarr</option>
+                                </select>
+                                <div class="fieldDescription">Manually: requests are recorded and an administrator marks them as added. With Lidarr: the album is added to Lidarr, searched, and followed until it is in the library.</div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="RequestTimeoutDays">Days before a request fails</label>
+                                <input is="emby-input" type="number" min="1" max="365" id="RequestTimeoutDays" />
+                                <div class="fieldDescription">A request still waiting for a release after this many days is marked as failed.</div>
+                                <div class="sillon-error" data-error-for="RequestTimeoutDays"></div>
+                            </div>
+                        </div>
 
-                <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Webhook</legend>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">URL à renseigner dans Lidarr (Connect, Webhook)</label>
-                        <input is="emby-input" type="text" id="WebhookUrl" readonly />
-                    </div>
-                    <button is="emby-button" type="button" id="WebhookCopy" class="raised">
-                        <span>Copier</span>
-                    </button>
-                </fieldset>
+                        <div class="sillon-group">
+                            <h3>Music folders</h3>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="JellyfinPathPrefix">Music root folder, as Jellyfin sees it</label>
+                                <input is="emby-input" type="text" id="JellyfinPathPrefix" placeholder="/data/music" />
+                                <div class="fieldDescription">Used to find an album Lidarr has just imported. Leave both folders empty when Lidarr and Jellyfin see the same paths.</div>
+                                <div class="sillon-error" data-error-for="JellyfinPathPrefix"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="LidarrPathPrefix">The same folder, as Lidarr sees it</label>
+                                <input is="emby-input" type="text" id="LidarrPathPrefix" placeholder="/music" />
+                                <div class="fieldDescription">Different when Lidarr and Jellyfin run in separate containers that mount the library at different paths.</div>
+                                <div class="sillon-error" data-error-for="LidarrPathPrefix"></div>
+                            </div>
+                        </div>
 
-                <fieldset class="verticalSection-extrabottompadding">
-                    <legend>Notifications push</legend>
-                    <div class="checkboxContainer checkboxContainer-withDescription">
-                        <label class="emby-checkbox-label">
-                            <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" name="ApnsEnabled" />
-                            <span>Activer</span>
-                        </label>
-                    </div>
-                    <div id="ApnsStatus" class="fieldDescription"></div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsKeyId">Identifiant de clé (Key ID)</label>
-                        <input is="emby-input" type="text" id="ApnsKeyId" name="ApnsKeyId" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsTeamId">Identifiant d'équipe (Team ID)</label>
-                        <input is="emby-input" type="text" id="ApnsTeamId" name="ApnsTeamId" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsTopic">Topic</label>
-                        <input is="emby-input" type="text" id="ApnsTopic" name="ApnsTopic" />
-                    </div>
-                    <div class="inputContainer">
-                        <label class="inputLabel inputLabelUnfocused" for="ApnsPrivateKey">Clé privée (.p8)</label>
-                        <textarea is="emby-textarea" id="ApnsPrivateKey" name="ApnsPrivateKey" rows="4" class="emby-textarea" autocomplete="off" spellcheck="false" style="-webkit-text-security: disc; font-family: monospace;"></textarea>
-                        <div class="fieldDescription">Enregistrée, la clé s'affiche <code>***</code> ; la laisser telle quelle la conserve. Les variables d'environnement <code>SILLON_APNS_*</code> du serveur l'emportent.</div>
-                    </div>
-                    <div>
-                        <button is="emby-button" type="button" id="ApnsTest" class="raised">
-                            <span>Envoyer une notification de test</span>
-                        </button>
-                        <div id="ApnsTestResult" class="fieldDescription"></div>
-                    </div>
-                </fieldset>
+                        <div class="sillon-group">
+                            <h3>Catalogue allow-list</h3>
+                            <div class="fieldDescription" style="margin-bottom: .6em;">Limit the albums people can request to these MusicBrainz release groups. With no entry, the whole catalogue is offered.</div>
+                            <div class="sillon-row">
+                                <div class="inputContainer">
+                                    <label class="inputLabel inputLabelUnfocused" for="AllowInput">MusicBrainz release group ID</label>
+                                    <input is="emby-input" type="text" id="AllowInput" autocomplete="off" placeholder="00000000-0000-0000-0000-000000000000" />
+                                </div>
+                                <button is="emby-button" type="button" class="raised" id="AllowAdd"><span>Add</span></button>
+                            </div>
+                            <div class="sillon-error" id="AllowError"></div>
+                            <ul class="sillon-list" id="AllowList"></ul>
+                            <div class="sillon-empty" id="AllowEmpty">No entries</div>
+                        </div>
+                    </section>
 
-                <div>
-                    <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-                        <span>Enregistrer</span>
-                    </button>
-                </div>
-            </form>
+                    <!-- Lidarr -->
+                    <section class="sillon-section" id="tab-lidarr" hidden>
+                        <h2>Lidarr</h2>
+                        <div class="sillon-group">
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="LidarrUrl">Lidarr URL</label>
+                                <input is="emby-input" type="text" id="LidarrUrl" placeholder="http://lidarr:8686" />
+                                <div class="sillon-error" data-error-for="LidarrUrl"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="LidarrApiKey">API key</label>
+                                <input is="emby-input" type="password" id="LidarrApiKey" autocomplete="new-password" spellcheck="false" />
+                                <div class="fieldDescription" id="LidarrKeyHint">Found in Lidarr under Settings, General. It is stored on the server and never shown again.</div>
+                            </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription" id="LidarrClearKeyBox" hidden>
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="LidarrClearKey" />
+                                    <span>Remove the saved API key</span>
+                                </label>
+                            </div>
+                            <div class="sillon-actions">
+                                <button is="emby-button" type="button" class="raised" id="LidarrTest"><span>Test connection</span></button>
+                                <span id="LidarrTestResult" role="status"></span>
+                            </div>
+                        </div>
 
-            <fieldset id="SillonRequests" class="verticalSection-extrabottompadding">
-                <legend>Liste d'envies</legend>
-                <div>
-                    <button is="emby-button" type="button" id="RequestsRefresh" class="raised">
-                        <span>Actualiser</span>
-                    </button>
-                    <div id="RequestsResult" class="fieldDescription"></div>
-                </div>
-                <table class="detailTable" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th style="text-align: left;">Utilisateur</th>
-                            <th style="text-align: left;">Artiste</th>
-                            <th style="text-align: left;">Album</th>
-                            <th style="text-align: left;">Statut</th>
-                            <th style="text-align: left;">Date</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="RequestsBody"></tbody>
-                </table>
-            </fieldset>
+                        <div class="sillon-group">
+                            <h3>Defaults for added albums</h3>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="LidarrQualityProfileId">Quality profile</label>
+                                <select is="emby-select" id="LidarrQualityProfileId" class="emby-select-withcolor emby-select"></select>
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="LidarrMetadataProfileId">Metadata profile</label>
+                                <select is="emby-select" id="LidarrMetadataProfileId" class="emby-select-withcolor emby-select"></select>
+                            </div>
+                            <div class="selectContainer">
+                                <label class="selectLabel" for="LidarrRootFolder">Root folder</label>
+                                <select is="emby-select" id="LidarrRootFolder" class="emby-select-withcolor emby-select"></select>
+                                <div class="fieldDescription">The choices come from Lidarr: test the connection to load them.</div>
+                            </div>
+                        </div>
+
+                        <div class="sillon-group">
+                            <h3>Webhook</h3>
+                            <div class="fieldDescription" style="margin-bottom: .6em;">In Lidarr, open Settings, Connect, add a Webhook with this URL and the POST method, and tick On Grab, On Release Import and On Import Failure.</div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="WebhookBase">Jellyfin address, as Lidarr reaches it</label>
+                                <input is="emby-input" type="text" id="WebhookBase" />
+                                <div class="fieldDescription">Not the address in your browser if Lidarr lives elsewhere, for example <code>http://jellyfin:8096</code> between containers.</div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="WebhookUrl">Webhook URL</label>
+                                <input is="emby-input" type="text" id="WebhookUrl" readonly />
+                                <div class="fieldDescription">The URL carries a secret: treat it like a password.</div>
+                            </div>
+                            <div class="sillon-actions">
+                                <button is="emby-button" type="button" class="raised" id="WebhookCopy"><span>Copy URL</span></button>
+                                <span id="WebhookCopied" role="status" class="sillon-ok"></span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Requests -->
+                    <section class="sillon-section" id="tab-requests" hidden>
+                        <h2>Requests</h2>
+                        <div class="sillon-group">
+                            <h3>Policy</h3>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="RequireApproval" disabled />
+                                    <span>Require administrator approval</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">Not available yet: the server adds every request at once. It needs a pending status and approve and deny actions in the plugin.</div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="MaxActiveRequestsPerUser">Requests in progress per user</label>
+                                <input is="emby-input" type="number" min="0" max="1000" id="MaxActiveRequestsPerUser" />
+                                <div class="fieldDescription">How many requests one user can have waiting or downloading at once. 0 means no limit.</div>
+                                <div class="sillon-error" data-error-for="MaxActiveRequestsPerUser"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="MaxRequestsPerUserPerDay">Requests per user per day</label>
+                                <input is="emby-input" type="number" min="0" max="1000" id="MaxRequestsPerUserPerDay" />
+                                <div class="fieldDescription">How many requests one user can make in 24 hours, cancelled ones included. 0 means no limit.</div>
+                                <div class="sillon-error" data-error-for="MaxRequestsPerUserPerDay"></div>
+                            </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="ExemptAdminsFromLimits" />
+                                    <span>Administrators are not limited</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="sillon-group">
+                            <h3>Wishlist</h3>
+                            <div class="sillon-filter">
+                                <div class="selectContainer">
+                                    <label class="selectLabel" for="ReqStatus">Status</label>
+                                    <select is="emby-select" id="ReqStatus" class="emby-select-withcolor emby-select">
+                                        <option value="">All</option>
+                                        <option value="active">In progress</option>
+                                        <option value="requested">Waiting</option>
+                                        <option value="downloading">Downloading</option>
+                                        <option value="available">Available</option>
+                                        <option value="failed">Failed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div class="inputContainer">
+                                    <label class="inputLabel inputLabelUnfocused" for="ReqSearch">Search user, artist or album</label>
+                                    <input is="emby-input" type="text" id="ReqSearch" autocomplete="off" />
+                                </div>
+                                <button is="emby-button" type="button" class="raised" id="ReqRefresh"><span>Refresh</span></button>
+                            </div>
+                            <div class="sillon-error" id="ReqMessage" role="status"></div>
+                            <div class="sillon-scroll">
+                                <table class="sillon-table">
+                                    <thead>
+                                        <tr><th>Album</th><th>User</th><th>Status</th><th>Requested</th><th></th></tr>
+                                    </thead>
+                                    <tbody id="ReqBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="sillon-empty" id="ReqEmpty" hidden>No requests</div>
+                            <div class="sillon-actions">
+                                <label for="PurgeDays">Remove finished requests older than</label>
+                                <input is="emby-input" type="number" min="1" max="3650" id="PurgeDays" value="90" style="width: 6em; display: inline-block;" />
+                                <span>days</span>
+                                <button is="emby-button" type="button" class="raised" id="PurgeRun"><span>Remove</span></button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Notifications -->
+                    <section class="sillon-section" id="tab-notifications" hidden>
+                        <h2>Notifications</h2>
+                        <div class="sillon-group">
+                            <dl class="sillon-kv" id="PushStatus"></dl>
+                        </div>
+                        <div class="sillon-group">
+                            <h3>Apple Push Notification service</h3>
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" />
+                                    <span>Send a notification when a requested album is available</span>
+                                </label>
+                                <div class="fieldDescription checkboxFieldDescription">Needs an APNs key for the app's bundle id. The server's <code>SILLON_APNS_*</code> environment variables take precedence over the fields below.</div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="ApnsKeyId">Key ID</label>
+                                <input is="emby-input" type="text" id="ApnsKeyId" autocomplete="off" maxlength="10" />
+                                <div class="sillon-error" data-error-for="ApnsKeyId"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="ApnsTeamId">Team ID</label>
+                                <input is="emby-input" type="text" id="ApnsTeamId" autocomplete="off" maxlength="10" />
+                                <div class="sillon-error" data-error-for="ApnsTeamId"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="ApnsTopic">Topic (the app's bundle ID)</label>
+                                <input is="emby-input" type="text" id="ApnsTopic" autocomplete="off" />
+                                <div class="sillon-error" data-error-for="ApnsTopic"></div>
+                            </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="ApnsPrivateKey">Private key (.p8)</label>
+                                <textarea is="emby-textarea" id="ApnsPrivateKey" rows="4" class="emby-textarea" autocomplete="off" spellcheck="false" style="-webkit-text-security: disc; font-family: monospace;"></textarea>
+                                <div class="fieldDescription" id="ApnsKeyHint">Paste the content of the .p8 file. It is stored on the server and never shown again.</div>
+                                <div class="sillon-error" data-error-for="ApnsPrivateKey"></div>
+                            </div>
+                            <div class="checkboxContainer checkboxContainer-withDescription" id="ApnsClearKeyBox" hidden>
+                                <label class="emby-checkbox-label">
+                                    <input is="emby-checkbox" type="checkbox" id="ApnsClearKey" />
+                                    <span>Remove the saved private key</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="sillon-group">
+                            <h3>Registered devices</h3>
+                            <div class="sillon-actions">
+                                <button is="emby-button" type="button" class="raised" id="PushTestMe"><span>Send a test notification to me</span></button>
+                                <button is="emby-button" type="button" class="raised" id="DevicesRefresh"><span>Refresh</span></button>
+                                <span id="PushTestResult" role="status"></span>
+                            </div>
+                            <div class="sillon-scroll">
+                                <table class="sillon-table">
+                                    <thead>
+                                        <tr><th>User</th><th>Platform</th><th>Environment</th><th>Token</th><th>Registered</th><th></th></tr>
+                                    </thead>
+                                    <tbody id="DevicesBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="sillon-empty" id="DevicesEmpty" hidden>No devices. They register when someone opens the Sillon app signed in to this server.</div>
+                        </div>
+                    </section>
+
+                    <!-- Information -->
+                    <section class="sillon-section" id="tab-information" hidden>
+                        <h2>Information</h2>
+                        <div class="sillon-group">
+                            <dl class="sillon-kv" id="InfoBody"></dl>
+                        </div>
+                        <div class="sillon-group">
+                            <h3>Requests</h3>
+                            <dl class="sillon-kv" id="InfoRequests"></dl>
+                        </div>
+                        <div class="sillon-group">
+                            <h3>Links</h3>
+                            <div class="sillon-actions">
+                                <a is="emby-linkbutton" class="button-link" href="https://github.com/Overlabing/jellyfin-plugin-sillon" target="_blank" rel="noopener noreferrer">Source code</a>
+                                <a is="emby-linkbutton" class="button-link" href="https://github.com/Overlabing/jellyfin-plugin-sillon/issues" target="_blank" rel="noopener noreferrer">Report an issue</a>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+
+            <div class="sillon-footer" id="SaveBar">
+                <span id="SaveMessage" role="status" aria-live="polite"></span>
+                <span id="DirtyMark">Unsaved changes</span>
+                <button is="emby-button" type="button" class="raised button-submit" id="SaveButton"><span>Save</span></button>
+            </div>
         </div>
     </div>
 
     <script type="text/javascript">
         (function () {
             var PluginId = '1daed904-1b05-483c-8544-16cb6dcced54';
+            var MASK = '***';
+            var TABS = ['general', 'lidarr', 'requests', 'notifications', 'information'];
+            var SAVEABLE = { general: true, lidarr: true, requests: true, notifications: true };
             var page = document.querySelector('#SillonConfigPage');
             var config = {};
+            var dirty = false;
+            var current = 'general';
+            var allowComments = [];
+            var allowEntries = [];
+            var requests = [];
 
             function el(id) { return page.querySelector('#' + id); }
+            function all(sel) { return Array.prototype.slice.call(page.querySelectorAll(sel)); }
 
-            function getJson(path) {
-                return ApiClient.fetch({ url: ApiClient.getUrl(path), type: 'GET', dataType: 'json' });
+            function h(tag, attrs, children) {
+                var node = document.createElement(tag);
+                Object.keys(attrs || {}).forEach(function (k) {
+                    if (k === 'class') { node.className = attrs[k]; } else if (k === 'text') { node.textContent = attrs[k]; } else { node.setAttribute(k, attrs[k]); }
+                });
+                (children || []).forEach(function (c) { node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+                return node;
             }
 
-            function fillSelect(id, items, valueOf, labelOf, selected) {
+            function api(method, path, body) {
+                var options = { url: ApiClient.getUrl(path), type: method, dataType: 'json' };
+                if (body !== undefined) { options.data = JSON.stringify(body); options.contentType = 'application/json'; }
+                return ApiClient.ajax(options);
+            }
+
+            function errorText(err, fallback) {
+                if (err && typeof err.json === 'function') {
+                    return err.json().then(function (b) { return (b && (b.message || b.error)) || fallback; }, function () { return fallback; });
+                }
+                return Promise.resolve(fallback);
+            }
+
+            function say(id, text, kind) {
+                var box = el(id);
+                box.textContent = text || '';
+                box.className = kind === 'ok' ? 'sillon-ok' : (kind === 'error' ? 'sillon-error' : '');
+                box.style.display = kind ? '' : '';
+            }
+
+            function fmtDate(value) {
+                if (!value) { return ''; }
+                var d = new Date(value);
+                return isNaN(d.getTime()) ? '' : d.toLocaleString();
+            }
+
+            function setDirty(value) {
+                dirty = value;
+                el('DirtyMark').style.display = value ? '' : 'none';
+                updateFooter();
+            }
+
+            function updateFooter() {
+                var show = dirty || el('SaveMessage').textContent !== '';
+                el('SaveBar').classList.toggle('visible', show && !!SAVEABLE[current]);
+            }
+
+            // ---- tabs
+
+            function showTab(name) {
+                if (TABS.indexOf(name) < 0) { name = 'general'; }
+                current = name;
+                all('.sillon-section').forEach(function (s) { s.hidden = s.id !== 'tab-' + name; });
+                all('.sillon-nav button').forEach(function (b) {
+                    if (b.getAttribute('data-tab') === name) { b.setAttribute('aria-current', 'page'); } else { b.removeAttribute('aria-current'); }
+                });
+                try { sessionStorage.setItem('sillon-tab', name); } catch (e) { /* storage may be blocked */ }
+                updateFooter();
+                if (name === 'requests') { loadRequests(); }
+                if (name === 'notifications') { loadNotifications(); }
+                if (name === 'information') { loadInformation(); }
+            }
+
+            // ---- configuration
+
+            function option(value, label, selected) {
+                var o = document.createElement('option');
+                o.value = String(value);
+                o.textContent = label;
+                o.selected = !!selected;
+                return o;
+            }
+
+            function fillSelect(id, items, valueOf, labelOf, selected, emptyLabel) {
                 var select = el(id);
                 select.innerHTML = '';
+                select.appendChild(option('', emptyLabel, String(selected || '') === ''));
+                var found = false;
                 items.forEach(function (item) {
-                    var option = document.createElement('option');
-                    option.value = String(valueOf(item));
-                    option.textContent = labelOf(item);
-                    if (option.value === String(selected)) { option.selected = true; }
-                    select.appendChild(option);
+                    var isSel = String(valueOf(item)) === String(selected);
+                    found = found || isSel;
+                    select.appendChild(option(valueOf(item), labelOf(item), isSel));
                 });
-            }
-
-            function loadLists() {
-                return Promise.all([
-                    getJson('Sillon/Lidarr/QualityProfiles'),
-                    getJson('Sillon/Lidarr/MetadataProfiles'),
-                    getJson('Sillon/Lidarr/RootFolders')
-                ]).then(function (r) {
-                    fillSelect('LidarrQualityProfileId', r[0], function (p) { return p.id; }, function (p) { return p.name; }, config.LidarrQualityProfileId);
-                    fillSelect('LidarrMetadataProfileId', r[1], function (p) { return p.id; }, function (p) { return p.name; }, config.LidarrMetadataProfileId);
-                    fillSelect('LidarrRootFolder', r[2], function (f) { return f.path; }, function (f) { return f.path; }, config.LidarrRootFolder);
-                });
-            }
-
-            function showResult(text, isError) {
-                var box = el('LidarrTestResult');
-                box.textContent = text;
-                box.style.color = isError ? '#e55' : '#4c4';
-            }
-
-            function errorText(err) {
-                if (err && typeof err.json === 'function') {
-                    return err.json().then(function (b) { return (b && b.message) || 'Échec de la connexion.'; }, function () { return 'Échec de la connexion.'; });
+                if (!found && selected) {
+                    select.appendChild(option(selected, 'Current: ' + selected + ' (test the connection to see names)', true));
                 }
-                return Promise.resolve('Échec de la connexion.');
             }
 
-            var statusLabels = {
-                requested: 'En attente',
-                downloading: 'En cours',
-                available: 'Ajouté',
-                failed: 'Non disponible',
-                cancelled: 'Retiré'
-            };
-
-            function setRequestsMessage(text, isError) {
-                var box = el('RequestsResult');
-                box.textContent = text;
-                box.style.color = isError ? '#e55' : '';
-            }
-
-            function cell(text) {
-                var td = document.createElement('td');
-                td.textContent = text;
-                return td;
-            }
-
-            function renderRequests(list) {
-                var body = el('RequestsBody');
-                body.innerHTML = '';
-                var manual = el('FulfillmentMode').value === 'Manual';
-                list.forEach(function (r) {
-                    var tr = document.createElement('tr');
-                    tr.appendChild(cell(r.userName));
-                    tr.appendChild(cell(r.artist));
-                    tr.appendChild(cell(r.title));
-                    tr.appendChild(cell((statusLabels[r.status] || r.status) + (r.error ? ' (' + r.error + ')' : '')));
-                    tr.appendChild(cell(new Date(r.createdAt).toLocaleString()));
-                    var action = document.createElement('td');
-                    if (manual && (r.status === 'requested' || r.status === 'downloading')) {
-                        var button = document.createElement('button');
-                        button.type = 'button';
-                        button.className = 'raised';
-                        button.textContent = 'Marquer comme ajouté';
-                        button.addEventListener('click', function () { markAvailable(r.id); });
-                        action.appendChild(button);
-                    }
-                    tr.appendChild(action);
-                    body.appendChild(tr);
-                });
-                setRequestsMessage(list.length ? '' : 'Aucun album dans la liste d\'envies.', false);
-            }
-
-            function loadRequests() {
-                return getJson('Sillon/v1/requests').then(function (r) {
-                    renderRequests(r.requests || []);
-                }, function () {
-                    setRequestsMessage('Impossible de charger la liste d\'envies.', true);
+            function parseAllowList(text) {
+                allowComments = [];
+                allowEntries = [];
+                String(text || '').split('\n').forEach(function (line) {
+                    var entry = line.trim();
+                    if (entry === '') { return; }
+                    if (entry.charAt(0) === '#') { allowComments.push(entry); } else { allowEntries.push(entry); }
                 });
             }
 
-            function markAvailable(id) {
-                ApiClient.ajax({
-                    url: ApiClient.getUrl('Sillon/v1/requests/' + id + '/available'),
-                    type: 'POST',
-                    dataType: 'json'
-                }).then(loadRequests, function () {
-                    setRequestsMessage('Impossible de marquer cet album comme ajouté.', true);
+            function renderAllowList() {
+                var list = el('AllowList');
+                list.innerHTML = '';
+                allowEntries.forEach(function (entry) {
+                    var remove = h('button', { type: 'button', class: 'raised', 'aria-label': 'Remove ' + entry, text: 'Remove' });
+                    remove.setAttribute('is', 'emby-button');
+                    remove.addEventListener('click', function () {
+                        allowEntries = allowEntries.filter(function (e) { return e !== entry; });
+                        renderAllowList();
+                        setDirty(true);
+                    });
+                    list.appendChild(h('li', {}, [h('span', { text: entry }), remove]));
                 });
+                el('AllowEmpty').hidden = allowEntries.length > 0;
             }
 
-            var apnsSources = {
-                environment: 'Clé fournie par l\'environnement du serveur',
-                config: 'Clé fournie ci-dessous',
-                none: 'Aucune clé'
-            };
-
-            function loadApnsStatus() {
-                return getJson('Sillon/Push/Status').then(function (r) {
-                    el('ApnsStatus').textContent = (apnsSources[r.source] || apnsSources.none) + (r.enabled ? ' (notifications actives)' : ' (notifications inactives)');
-                }, function () {
-                    el('ApnsStatus').textContent = '';
-                });
+            function addAllowEntry() {
+                var input = el('AllowInput');
+                var value = input.value.trim().toLowerCase();
+                var error = el('AllowError');
+                if (value === '') { error.textContent = 'Enter a release group ID before adding it.'; return; }
+                if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)) { error.textContent = 'This is not a MusicBrainz ID (a UUID like 3bd1e8c2-...).'; return; }
+                if (allowEntries.map(function (e) { return e.toLowerCase(); }).indexOf(value) >= 0) { error.textContent = 'This entry is already listed.'; return; }
+                allowEntries.push(value);
+                input.value = '';
+                error.textContent = '';
+                renderAllowList();
+                setDirty(true);
+                input.focus();
             }
 
-            function showApnsTest(text, isError) {
-                var box = el('ApnsTestResult');
-                box.textContent = text;
-                box.style.color = isError ? '#e55' : '#4c4';
+            function webhookUrl() {
+                var base = el('WebhookBase').value.trim().replace(/\/+$/, '');
+                return base + '/Sillon/webhooks/lidarr?secret=' + encodeURIComponent(config.WebhookSecret || '');
+            }
+
+            function fillForm(c) {
+                config = c;
+                el('ExposeToApps').checked = c.ExposeToApps !== false;
+                el('FulfillmentMode').value = c.FulfillmentMode || 'Manual';
+                el('RequestTimeoutDays').value = c.RequestTimeoutDays;
+                el('JellyfinPathPrefix').value = c.JellyfinPathPrefix || '';
+                el('LidarrPathPrefix').value = c.LidarrPathPrefix || '';
+                parseAllowList(c.CatalogAllowList);
+                renderAllowList();
+
+                el('LidarrUrl').value = c.LidarrUrl || '';
+                var hasKey = c.LidarrApiKey === MASK;
+                el('LidarrApiKey').value = '';
+                el('LidarrApiKey').placeholder = hasKey ? 'A key is saved. Leave empty to keep it.' : '';
+                el('LidarrClearKeyBox').hidden = !hasKey;
+                el('LidarrClearKey').checked = false;
+                fillSelect('LidarrQualityProfileId', [], function (p) { return p.id; }, function (p) { return p.name; }, c.LidarrQualityProfileId || '', 'Not selected');
+                fillSelect('LidarrMetadataProfileId', [], function (p) { return p.id; }, function (p) { return p.name; }, c.LidarrMetadataProfileId || '', 'Not selected');
+                fillSelect('LidarrRootFolder', [], function (f) { return f.path; }, function (f) { return f.path; }, c.LidarrRootFolder || '', 'Not selected');
+                el('WebhookBase').value = ApiClient.serverAddress().replace(/\/+$/, '');
+                el('WebhookUrl').value = webhookUrl();
+
+                el('MaxActiveRequestsPerUser').value = c.MaxActiveRequestsPerUser || 0;
+                el('MaxRequestsPerUserPerDay').value = c.MaxRequestsPerUserPerDay || 0;
+                el('ExemptAdminsFromLimits').checked = c.ExemptAdminsFromLimits !== false;
+
+                el('ApnsEnabled').checked = !!c.ApnsEnabled;
+                el('ApnsKeyId').value = c.ApnsKeyId || '';
+                el('ApnsTeamId').value = c.ApnsTeamId || '';
+                el('ApnsTopic').value = c.ApnsTopic || '';
+                var hasApnsKey = c.ApnsPrivateKey === MASK;
+                el('ApnsPrivateKey').value = '';
+                el('ApnsPrivateKey').placeholder = hasApnsKey ? 'A key is saved. Leave empty to keep it.' : '';
+                el('ApnsClearKeyBox').hidden = !hasApnsKey;
+                el('ApnsClearKey').checked = false;
+                setDirty(false);
             }
 
             function readForm() {
-                config.FulfillmentMode = el('FulfillmentMode').value;
                 config.ExposeToApps = el('ExposeToApps').checked;
-                config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10) || 14;
-                config.CatalogAllowList = el('CatalogAllowList').value;
-                config.LidarrPathPrefix = el('LidarrPathPrefix').value;
-                config.JellyfinPathPrefix = el('JellyfinPathPrefix').value;
-                config.LidarrUrl = el('LidarrUrl').value;
-                config.LidarrApiKey = el('LidarrApiKey').value;
+                config.FulfillmentMode = el('FulfillmentMode').value;
+                config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10);
+                config.JellyfinPathPrefix = el('JellyfinPathPrefix').value.trim();
+                config.LidarrPathPrefix = el('LidarrPathPrefix').value.trim();
+                config.CatalogAllowList = allowComments.concat(allowEntries).join('\n');
+
+                config.LidarrUrl = el('LidarrUrl').value.trim();
+                var typedKey = el('LidarrApiKey').value.trim();
+                var hasKey = !el('LidarrClearKeyBox').hidden;
+                config.LidarrApiKey = el('LidarrClearKey').checked ? '' : (typedKey || (hasKey ? MASK : ''));
                 config.LidarrQualityProfileId = parseInt(el('LidarrQualityProfileId').value, 10) || 0;
                 config.LidarrMetadataProfileId = parseInt(el('LidarrMetadataProfileId').value, 10) || 0;
                 config.LidarrRootFolder = el('LidarrRootFolder').value || '';
+
+                config.MaxActiveRequestsPerUser = parseInt(el('MaxActiveRequestsPerUser').value, 10) || 0;
+                config.MaxRequestsPerUserPerDay = parseInt(el('MaxRequestsPerUserPerDay').value, 10) || 0;
+                config.ExemptAdminsFromLimits = el('ExemptAdminsFromLimits').checked;
+
                 config.ApnsEnabled = el('ApnsEnabled').checked;
-                config.ApnsKeyId = el('ApnsKeyId').value;
-                config.ApnsTeamId = el('ApnsTeamId').value;
-                config.ApnsTopic = el('ApnsTopic').value;
-                config.ApnsPrivateKey = el('ApnsPrivateKey').value;
+                config.ApnsKeyId = el('ApnsKeyId').value.trim();
+                config.ApnsTeamId = el('ApnsTeamId').value.trim();
+                config.ApnsTopic = el('ApnsTopic').value.trim();
+                var typedApns = el('ApnsPrivateKey').value.trim();
+                var hasApns = !el('ApnsClearKeyBox').hidden;
+                config.ApnsPrivateKey = el('ApnsClearKey').checked ? '' : (typedApns || (hasApns ? MASK : ''));
             }
 
-            page.addEventListener('pageshow', function () {
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(PluginId).then(function (c) {
-                    config = c;
-                    el('FulfillmentMode').value = c.FulfillmentMode;
-                    el('RequestTimeoutDays').value = c.RequestTimeoutDays;
-                    el('CatalogAllowList').value = c.CatalogAllowList || '';
-                    el('ExposeToApps').checked = c.ExposeToApps !== false;
-                    el('LidarrPathPrefix').value = c.LidarrPathPrefix;
-                    el('JellyfinPathPrefix').value = c.JellyfinPathPrefix;
-                    el('LidarrUrl').value = c.LidarrUrl;
-                    el('LidarrApiKey').value = c.LidarrApiKey;
-                    el('WebhookUrl').value = ApiClient.serverAddress() + '/Sillon/webhooks/lidarr?secret=' + encodeURIComponent(c.WebhookSecret);
-                    el('ApnsEnabled').checked = !!c.ApnsEnabled;
-                    el('ApnsKeyId').value = c.ApnsKeyId;
-                    el('ApnsTeamId').value = c.ApnsTeamId;
-                    el('ApnsTopic').value = c.ApnsTopic;
-                    el('ApnsPrivateKey').value = c.ApnsPrivateKey;
-                    loadApnsStatus();
-                    loadRequests();
-                    if (c.LidarrApiKey) {
-                        return loadLists().catch(function () { /* the user can test again */ });
-                    }
-                }).then(function () { Dashboard.hideLoadingMsg(); }, function () { Dashboard.hideLoadingMsg(); });
-            });
+            function validate() {
+                var problems = [];
+                function bad(id, message, tab) { problems.push({ id: id, message: message, tab: tab }); }
+                var url = el('LidarrUrl').value.trim();
+                if (url !== '' && !/^https?:\/\/\S+$/i.test(url)) { bad('LidarrUrl', 'Enter an http:// or https:// URL.', 'lidarr'); }
+                var hasKey = el('LidarrApiKey').value.trim() !== '' || (!el('LidarrClearKeyBox').hidden && !el('LidarrClearKey').checked);
+                if (el('FulfillmentMode').value === 'Lidarr' && (url === '' || !hasKey)) { bad('LidarrUrl', 'Fulfilling with Lidarr needs its URL and API key.', 'lidarr'); }
 
-            el('LidarrTest').addEventListener('click', function () {
-                showResult('Test en cours…', false);
-                ApiClient.ajax({
-                    url: ApiClient.getUrl('Sillon/Lidarr/Test'),
-                    type: 'POST',
-                    data: JSON.stringify({ url: el('LidarrUrl').value, apiKey: el('LidarrApiKey').value }),
-                    contentType: 'application/json',
-                    dataType: 'json'
-                }).then(function (r) {
-                    showResult('Connecté, Lidarr ' + r.version, false);
-                    // the list endpoints read the saved configuration, so save the connection first
-                    readForm();
-                    return ApiClient.updatePluginConfiguration(PluginId, config).then(loadLists);
-                }).catch(function (err) {
-                    errorText(err).then(function (m) { showResult(m, true); });
-                });
-            });
-
-            el('ApnsTest').addEventListener('click', function () {
-                showApnsTest('Envoi en cours…', false);
-                // the test reads the saved configuration, so save the form first
-                readForm();
-                ApiClient.updatePluginConfiguration(PluginId, config).then(function () {
-                    return ApiClient.ajax({ url: ApiClient.getUrl('Sillon/Push/Test'), type: 'POST', dataType: 'json' });
-                }).then(function (r) {
-                    var devices = r.devices || [];
-                    if (!devices.length) {
-                        showApnsTest('Aucun appareil enregistré pour votre compte : ouvrez l\'application Sillon connectée à ce serveur.', true);
-                        return;
-                    }
-                    var failed = devices.some(function (d) { return d.result !== 'sent'; });
-                    showApnsTest(devices.map(function (d) {
-                        return (d.platform || 'appareil') + (d.env ? ' (' + d.env + ')' : '') + ' : ' + d.result + (d.reason ? ' ' + d.reason : '');
-                    }).join(' ; '), failed);
-                    return loadApnsStatus();
-                }).catch(function (err) {
-                    errorText(err).then(function (m) { showApnsTest(m, true); });
-                });
-            });
-
-            el('RequestsRefresh').addEventListener('click', loadRequests);
-            el('FulfillmentMode').addEventListener('change', loadRequests);
-
-            el('WebhookCopy').addEventListener('click', function () {
-                var input = el('WebhookUrl');
-                input.select();
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(input.value);
-                } else {
-                    document.execCommand('copy');
+                function intIn(id, min, max, tab) {
+                    var raw = el(id).value.trim();
+                    var n = Number(raw);
+                    if (raw === '' || !isFinite(n) || Math.floor(n) !== n || n < min || n > max) { bad(id, 'Enter a whole number from ' + min + ' to ' + max + '.', tab); }
                 }
-            });
+                intIn('RequestTimeoutDays', 1, 365, 'general');
+                intIn('MaxActiveRequestsPerUser', 0, 1000, 'requests');
+                intIn('MaxRequestsPerUserPerDay', 0, 1000, 'requests');
 
-            el('SillonConfigForm').addEventListener('submit', function (e) {
-                e.preventDefault();
-                Dashboard.showLoadingMsg();
+                var jf = el('JellyfinPathPrefix').value.trim();
+                var ld = el('LidarrPathPrefix').value.trim();
+                if (jf !== '' && jf.charAt(0) !== '/') { bad('JellyfinPathPrefix', 'Use an absolute path starting with /.', 'general'); }
+                if (ld !== '' && ld.charAt(0) !== '/') { bad('LidarrPathPrefix', 'Use an absolute path starting with /.', 'general'); }
+                if ((jf === '') !== (ld === '')) { bad(jf === '' ? 'JellyfinPathPrefix' : 'LidarrPathPrefix', 'Set both folders, or neither.', 'general'); }
+
+                if (el('ApnsEnabled').checked) {
+                    var hasApns = el('ApnsPrivateKey').value.trim() !== '' || (!el('ApnsClearKeyBox').hidden && !el('ApnsClearKey').checked);
+                    if (!hasApns) { bad('ApnsPrivateKey', 'Add the private key, or turn notifications off.', 'notifications'); }
+                    if (!/^[A-Za-z0-9]{10}$/.test(el('ApnsKeyId').value.trim())) { bad('ApnsKeyId', 'A key ID has 10 letters and digits.', 'notifications'); }
+                    if (!/^[A-Za-z0-9]{10}$/.test(el('ApnsTeamId').value.trim())) { bad('ApnsTeamId', 'A team ID has 10 letters and digits.', 'notifications'); }
+                    if (el('ApnsTopic').value.trim() === '') { bad('ApnsTopic', 'Enter the app\'s bundle ID.', 'notifications'); }
+                }
+                return problems;
+            }
+
+            function showProblems(problems) {
+                all('[data-error-for]').forEach(function (box) { box.textContent = ''; });
+                problems.forEach(function (p) {
+                    var box = page.querySelector('[data-error-for="' + p.id + '"]');
+                    if (box && box.textContent === '') { box.textContent = p.message; }
+                });
+            }
+
+            function save() {
+                var problems = validate();
+                showProblems(problems);
+                if (problems.length) {
+                    say('SaveMessage', problems.length + (problems.length === 1 ? ' field needs' : ' fields need') + ' attention.', 'error');
+                    if (current !== problems[0].tab && !page.querySelector('#tab-' + current + ' .sillon-error:not(:empty)')) { showTab(problems[0].tab); }
+                    updateFooter();
+                    return;
+                }
+                say('SaveMessage', 'Saving…');
                 readForm();
+                el('SaveButton').disabled = true;
                 ApiClient.updatePluginConfiguration(PluginId, config).then(function (result) {
                     Dashboard.processPluginConfigurationUpdateResult(result);
-                    loadRequests();
+                    return ApiClient.getPluginConfiguration(PluginId);
+                }).then(function (c) {
+                    fillForm(c);
+                    say('SaveMessage', 'Changes saved', 'ok');
+                    setTimeout(function () { if (!dirty) { say('SaveMessage', ''); updateFooter(); } }, 3000);
+                }, function () {
+                    say('SaveMessage', 'Saving failed', 'error');
+                }).then(function () { el('SaveButton').disabled = false; updateFooter(); });
+            }
+
+            // ---- Lidarr
+
+            function testLidarr() {
+                var url = el('LidarrUrl').value.trim();
+                if (!/^https?:\/\/\S+$/i.test(url)) { say('LidarrTestResult', 'Enter an http:// or https:// URL first.', 'error'); return; }
+                say('LidarrTestResult', 'Testing…');
+                var typed = el('LidarrApiKey').value.trim();
+                api('POST', 'Sillon/Lidarr/Options', { url: url, apiKey: typed || MASK }).then(function (r) {
+                    say('LidarrTestResult', 'Connected to Lidarr ' + r.version, 'ok');
+                    fillSelect('LidarrQualityProfileId', r.qualityProfiles, function (p) { return p.id; }, function (p) { return p.name; }, el('LidarrQualityProfileId').value || config.LidarrQualityProfileId, 'Not selected');
+                    fillSelect('LidarrMetadataProfileId', r.metadataProfiles, function (p) { return p.id; }, function (p) { return p.name; }, el('LidarrMetadataProfileId').value || config.LidarrMetadataProfileId, 'Not selected');
+                    fillSelect('LidarrRootFolder', r.rootFolders, function (f) { return f.path; }, function (f) { return f.path; }, el('LidarrRootFolder').value || config.LidarrRootFolder, 'Not selected');
+                }, function (err) {
+                    errorText(err, 'Could not reach Lidarr.').then(function (m) { say('LidarrTestResult', m, 'error'); });
                 });
-                return false;
+            }
+
+            function copyWebhook() {
+                var input = el('WebhookUrl');
+                input.select();
+                var done = function () { say('WebhookCopied', 'Copied', 'ok'); setTimeout(function () { say('WebhookCopied', ''); }, 2500); };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand('copy'); done(); });
+                } else {
+                    document.execCommand('copy');
+                    done();
+                }
+            }
+
+            // ---- requests
+
+            var statusLabels = { requested: 'Waiting', downloading: 'Downloading', available: 'Available', failed: 'Failed', cancelled: 'Cancelled' };
+
+            function isActive(r) { return r.status === 'requested' || r.status === 'downloading'; }
+
+            function actionButton(label, handler, danger) {
+                var b = h('button', { type: 'button', class: 'raised', text: label });
+                b.setAttribute('is', 'emby-button');
+                if (danger) { b.style.color = '#e55'; }
+                b.addEventListener('click', handler);
+                return b;
+            }
+
+            function runAction(method, path, body, okText) {
+                say('ReqMessage', 'Working…');
+                return api(method, path, body).then(function () {
+                    say('ReqMessage', okText, 'ok');
+                    return loadRequests(true);
+                }, function (err) {
+                    return errorText(err, 'The action failed.').then(function (m) { say('ReqMessage', m, 'error'); });
+                });
+            }
+
+            function renderRequests() {
+                var statusFilter = el('ReqStatus').value;
+                var text = el('ReqSearch').value.trim().toLowerCase();
+                var lidarrMode = config.FulfillmentMode === 'Lidarr';
+                var rows = requests.filter(function (r) {
+                    if (statusFilter === 'active' && !isActive(r)) { return false; }
+                    if (statusFilter && statusFilter !== 'active' && r.status !== statusFilter) { return false; }
+                    return !text || (r.userName + ' ' + r.artist + ' ' + r.title).toLowerCase().indexOf(text) >= 0;
+                });
+                var body = el('ReqBody');
+                body.innerHTML = '';
+                rows.forEach(function (r) {
+                    var album = h('td', {}, [h('div', { text: r.title || '(untitled)' }), h('div', { class: 'sub', text: (r.artist || '') + (r.year ? ' · ' + r.year : '') })]);
+                    var status = h('td', {}, [h('span', { class: 'sillon-pill ' + r.status, text: statusLabels[r.status] || r.status })]);
+                    if (r.tracksTotal) { status.appendChild(h('div', { class: 'sub', text: (r.tracksImported || 0) + '/' + r.tracksTotal + ' tracks' })); }
+                    if (r.error) { status.appendChild(h('div', { class: 'sub', text: r.error })); }
+                    var actions = h('td', { class: 'actions' });
+                    var id = r.id;
+                    if (lidarrMode && (isActive(r) || r.status === 'failed')) {
+                        actions.appendChild(actionButton('Retry', function () { runAction('POST', 'Sillon/v1/requests/' + id + '/retry', undefined, 'Search started again.'); }));
+                    }
+                    if (!lidarrMode && isActive(r)) {
+                        actions.appendChild(actionButton('Mark as added', function () { runAction('POST', 'Sillon/v1/requests/' + id + '/available', undefined, 'Marked as added.'); }));
+                    }
+                    if (isActive(r)) {
+                        actions.appendChild(actionButton('Cancel', function () {
+                            if (confirm('Cancel this request? In Lidarr mode the album stops being monitored.')) { runAction('DELETE', 'Sillon/v1/requests/' + id, undefined, 'Request cancelled.'); }
+                        }));
+                    } else {
+                        actions.appendChild(actionButton('Delete', function () {
+                            if (confirm('Remove this request from the list?')) { runAction('DELETE', 'Sillon/Admin/Requests/' + id, undefined, 'Request removed.'); }
+                        }, true));
+                    }
+                    body.appendChild(h('tr', {}, [album, h('td', { text: r.userName }), status, h('td', { text: fmtDate(r.createdAt) }), actions]));
+                });
+                el('ReqEmpty').hidden = rows.length > 0;
+                el('ReqEmpty').textContent = requests.length ? 'No request matches' : 'No requests';
+            }
+
+            function loadRequests(keepMessage) {
+                if (!keepMessage) { say('ReqMessage', ''); }
+                return api('GET', 'Sillon/v1/requests').then(function (r) {
+                    requests = r.requests || [];
+                    renderRequests();
+                }, function () {
+                    say('ReqMessage', 'Could not load the requests.', 'error');
+                });
+            }
+
+            function purge() {
+                var days = parseInt(el('PurgeDays').value, 10);
+                if (!(days >= 1 && days <= 3650)) { say('ReqMessage', 'Enter a number of days from 1 to 3650.', 'error'); return; }
+                if (!confirm('Remove every finished request older than ' + days + ' days?')) { return; }
+                api('POST', 'Sillon/Admin/Requests/Purge', { olderThanDays: days }).then(function (r) {
+                    say('ReqMessage', r.removed + (r.removed === 1 ? ' request removed.' : ' requests removed.'), 'ok');
+                    return loadRequests(true);
+                }, function (err) {
+                    errorText(err, 'The purge failed.').then(function (m) { say('ReqMessage', m, 'error'); });
+                });
+            }
+
+            // ---- notifications
+
+            function kv(list, rows) {
+                list.innerHTML = '';
+                rows.forEach(function (row) {
+                    list.appendChild(h('dt', { text: row[0] }));
+                    var dd = h('dd');
+                    if (row[1] && row[1].pill) { dd.appendChild(h('span', { class: 'sillon-pill ' + row[1].pill, text: row[1].text })); } else { dd.textContent = row[1]; }
+                    list.appendChild(dd);
+                });
+            }
+
+            function yesNo(value, yes, no) { return { pill: value ? 'ok' : 'bad', text: value ? yes : no }; }
+
+            var keySources = { none: 'None', config: 'Plugin configuration', environment: 'Server environment variables' };
+
+            function loadNotifications() {
+                return Promise.all([api('GET', 'Sillon/Admin/Health'), api('GET', 'Sillon/Admin/Devices')]).then(function (r) {
+                    var p = r[0].push;
+                    kv(el('PushStatus'), [
+                        ['Delivery', yesNo(p.enabled, 'Ready', 'Not sending')],
+                        ['Switched on', yesNo(p.turnedOn, 'Yes', 'No')],
+                        ['Key', keySources[p.keySource] || p.keySource],
+                        ['Key ID', yesNo(p.hasKeyId, 'Set', 'Missing')],
+                        ['Team ID', yesNo(p.hasTeamId, 'Set', 'Missing')],
+                        ['Topic', p.topic],
+                        ['Registered devices', String(p.devices)]
+                    ]);
+                    renderDevices(r[1].users || []);
+                }, function () {
+                    say('PushTestResult', 'Could not load the notification state.', 'error');
+                });
+            }
+
+            function renderDevices(users) {
+                var body = el('DevicesBody');
+                body.innerHTML = '';
+                var count = 0;
+                users.forEach(function (u) {
+                    u.devices.forEach(function (d, index) {
+                        count++;
+                        var who = index === 0 ? (u.userName || '(deleted user)') : '';
+                        var cells = [h('td', { text: who }), h('td', { text: d.platform || '' }), h('td', { text: d.env || 'default' }), h('td', { text: '…' + d.tokenHint }), h('td', { text: fmtDate(d.createdAt) })];
+                        var actions = h('td', { class: 'actions' });
+                        if (index === 0) {
+                            actions.appendChild(actionButton('Send test', function () { sendTest(u.userId); }));
+                        }
+                        actions.appendChild(actionButton('Remove', function () {
+                            if (!confirm('Unregister this device? It registers again the next time the app opens.')) { return; }
+                            api('DELETE', 'Sillon/Admin/Devices/' + d.id).then(loadNotifications, function (err) {
+                                errorText(err, 'Could not remove the device.').then(function (m) { say('PushTestResult', m, 'error'); });
+                            });
+                        }, true));
+                        cells.push(actions);
+                        body.appendChild(h('tr', {}, cells));
+                    });
+                });
+                el('DevicesEmpty').hidden = count > 0;
+            }
+
+            function sendTest(userId) {
+                if (dirty) { say('PushTestResult', 'Save your changes first: the test uses the saved settings.', 'error'); return; }
+                say('PushTestResult', 'Sending…');
+                api('POST', 'Sillon/Push/Test' + (userId ? '?userId=' + encodeURIComponent(userId) : '')).then(function (r) {
+                    var devices = r.devices || [];
+                    if (!devices.length) { say('PushTestResult', 'No registered device for this user.', 'error'); return; }
+                    var failed = devices.some(function (d) { return d.result !== 'sent'; });
+                    say('PushTestResult', devices.map(function (d) { return (d.platform || 'device') + (d.env ? ' (' + d.env + ')' : '') + ': ' + d.result + (d.reason ? ' ' + d.reason : ''); }).join('; '), failed ? 'error' : 'ok');
+                    return loadNotifications();
+                }, function (err) {
+                    errorText(err, 'The test failed.').then(function (m) { say('PushTestResult', m, 'error'); });
+                });
+            }
+
+            // ---- information
+
+            function loadInformation() {
+                return api('GET', 'Sillon/Admin/Health').then(function (r) {
+                    var l = r.lidarr;
+                    var lidarr = r.mode === 'manual' && !l.configured ? { pill: '', text: 'Not used (manual mode)' }
+                        : (!l.configured ? { pill: 'bad', text: 'Not configured' } : (l.reachable ? { pill: 'ok', text: 'Reachable, version ' + l.version } : { pill: 'bad', text: 'Unreachable: ' + (l.message || 'no answer') }));
+                    kv(el('InfoBody'), [
+                        ['Plugin version', r.version],
+                        ['Fulfilment', r.mode === 'lidarr' ? 'With Lidarr' : 'Manual'],
+                        ['Lidarr', lidarr],
+                        ['Notifications', yesNo(r.push.enabled, 'Configured', r.push.turnedOn ? 'Switched on, but no key' : 'Off')],
+                        ['Registered devices', String(r.push.devices)]
+                    ]);
+                    kv(el('InfoRequests'), [
+                        ['Waiting', String(r.requests.requested || 0)],
+                        ['Downloading', String(r.requests.downloading || 0)],
+                        ['Available', String(r.requests.available || 0)],
+                        ['Failed', String(r.requests.failed || 0)],
+                        ['Cancelled', String(r.requests.cancelled || 0)]
+                    ]);
+                }, function () {
+                    kv(el('InfoBody'), [['Status', { pill: 'bad', text: 'Could not load the health report' }]]);
+                });
+            }
+
+            // ---- wiring
+
+            all('.sillon-nav button').forEach(function (b) {
+                b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+            });
+
+            ['input', 'change'].forEach(function (type) {
+                page.querySelector('.sillon-main').addEventListener(type, function (e) {
+                    var t = e.target;
+                    if (!t || !t.id || ['ReqStatus', 'ReqSearch', 'PurgeDays', 'AllowInput', 'WebhookBase', 'WebhookUrl'].indexOf(t.id) >= 0) { return; }
+                    if (['INPUT', 'SELECT', 'TEXTAREA'].indexOf(t.tagName) >= 0) { setDirty(true); }
+                });
+            });
+            el('WebhookBase').addEventListener('input', function () { el('WebhookUrl').value = webhookUrl(); });
+            el('AllowAdd').addEventListener('click', addAllowEntry);
+            el('AllowInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addAllowEntry(); } });
+            el('LidarrTest').addEventListener('click', testLidarr);
+            el('WebhookCopy').addEventListener('click', copyWebhook);
+            el('ReqRefresh').addEventListener('click', function () { loadRequests(); });
+            el('ReqStatus').addEventListener('change', renderRequests);
+            el('ReqSearch').addEventListener('input', renderRequests);
+            el('PurgeRun').addEventListener('click', purge);
+            el('PushTestMe').addEventListener('click', function () { sendTest(null); });
+            el('DevicesRefresh').addEventListener('click', loadNotifications);
+            el('SaveButton').addEventListener('click', save);
+            el('FulfillmentMode').addEventListener('change', renderRequests);
+
+            page.addEventListener('pageshow', function () {
+                var bg = window.getComputedStyle(document.body).backgroundColor;
+                el('SaveBar').style.background = bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : '#101010';
+                Dashboard.showLoadingMsg();
+                var tab = 'general';
+                try { tab = sessionStorage.getItem('sillon-tab') || 'general'; } catch (e) { /* storage may be blocked */ }
+                ApiClient.getPluginConfiguration(PluginId).then(function (c) {
+                    fillForm(c);
+                    say('SaveMessage', '');
+                    showTab(tab);
+                    Dashboard.hideLoadingMsg();
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    say('SaveMessage', 'Could not load the configuration.', 'error');
+                });
             });
         })();
     </script>
