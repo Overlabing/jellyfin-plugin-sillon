@@ -205,6 +205,7 @@ public class ApnsTests
         env.Config.ApnsEnabled = enabled;
         env.Config.ApnsPrivateKeyValue = "config-key";
         env.Config.ApnsKeyId = "CFGKEY";
+        env.Config.ApnsTeamId = "CFGTEAM";
         var sender = new FakeSender();
         var notifier = new ApnsNotifier(env.Devices, sender, () => env.Config, name => vars is not null && vars.TryGetValue(name, out var v) ? v : null, NullLogger<ApnsNotifier>.Instance);
         return (notifier, env, sender);
@@ -318,19 +319,20 @@ public class ApnsTests
     }
 
     [Fact]
-    public void Credentials_FallBackToTheConfigurationThenTheDefaults()
+    public void Credentials_FallBackToTheDefaultTopic_ButNeverToATeamId()
     {
-        var config = new PluginConfiguration { ApnsPrivateKeyValue = "cfg-key", ApnsKeyId = "CFGKEY", ApnsTeamId = " ", ApnsTopic = string.Empty };
+        var config = new PluginConfiguration { ApnsPrivateKeyValue = "cfg-key", ApnsKeyId = "CFGKEY", ApnsTeamId = "TEAM", ApnsTopic = string.Empty };
 
         var credentials = ApnsCredentialResolver.Resolve(config, _ => null);
 
-        Assert.Equal(new ApnsCredentials("cfg-key", "CFGKEY", "XXXXXXXXXX", "com.overglass.sillon", ApnsKeySource.Config), credentials);
+        Assert.Equal(new ApnsCredentials("cfg-key", "CFGKEY", "TEAM", "com.overglass.sillon", ApnsKeySource.Config), credentials);
+        Assert.Null(ApnsCredentialResolver.Resolve(new PluginConfiguration { ApnsPrivateKeyValue = "cfg-key", ApnsKeyId = "CFGKEY", ApnsTeamId = " " }, _ => null));
     }
 
     [Fact]
     public void Credentials_MixTheEnvironmentKeyWithConfigurationFields()
     {
-        var config = new PluginConfiguration { ApnsKeyId = "CFGKEY" };
+        var config = new PluginConfiguration { ApnsKeyId = "CFGKEY", ApnsTeamId = "T" };
 
         var credentials = ApnsCredentialResolver.Resolve(config, n => n == "SILLON_APNS_KEY" ? "env-key" : null);
 
@@ -343,7 +345,7 @@ public class ApnsTests
     [InlineData("key", "")]
     public void Credentials_AreMissingWithoutAKeyOrItsId(string key, string keyId)
     {
-        var config = new PluginConfiguration { ApnsPrivateKeyValue = key, ApnsKeyId = keyId };
+        var config = new PluginConfiguration { ApnsPrivateKeyValue = key, ApnsKeyId = keyId, ApnsTeamId = "T" };
 
         Assert.Null(ApnsCredentialResolver.Resolve(config, _ => null));
     }
@@ -438,12 +440,12 @@ public class ApnsTests
         sender.Outcomes["aa02"] = PushResult.DeviceGone(410, "Unregistered");
         var controller = Push(notifier, TestEnv.User);
 
-        var result = await controller.Test(default);
+        var result = await controller.Test(null, default);
 
         var json = JsonDocument.Parse(JsonSerializer.Serialize(Assert.IsType<JsonResult>(result).Value)).RootElement;
         var devices = json.GetProperty("devices").EnumerateArray().ToList();
         Assert.Equal(new[] { "sent", "devicegone" }, devices.Select(d => d.GetProperty("result").GetString()).ToArray());
-        Assert.All(sender.Calls, c => Assert.Equal("Sillon : notifications actives", c.Message.Body));
+        Assert.All(sender.Calls, c => Assert.Equal("Sillon: notifications are working", c.Message.Body));
         Assert.Null(sender.Calls[0].Message.Title);
         Assert.Equal(new[] { "aa01" }, env.Devices.For(TestEnv.User).Select(d => d.Token).ToArray());
     }
@@ -455,7 +457,7 @@ public class ApnsTests
         using var _ = env;
         env.Devices.Upsert("aa01", TestEnv.User, "ios", "production");
 
-        var result = await Push(notifier, TestEnv.User).Test(default);
+        var result = await Push(notifier, TestEnv.User).Test(null, default);
 
         Assert.Equal(409, Assert.IsType<JsonResult>(result).StatusCode);
         Assert.Empty(sender.Calls);

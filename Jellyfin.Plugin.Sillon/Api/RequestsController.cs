@@ -214,7 +214,7 @@ public sealed partial class RequestsController : ControllerBase
         try
         {
             var created = await _requests.CreateAsync(
-                new NewRequest(caller.Id, caller.Name, body.ForeignAlbumId, body.ForeignArtistId, body.Title, body.Artist, body.Year, body.CoverUrl),
+                new NewRequest(caller.Id, caller.Name, body.ForeignAlbumId, body.ForeignArtistId, body.Title, body.Artist, body.Year, body.CoverUrl, caller.IsAdmin),
                 ct).ConfigureAwait(false);
             return ApiJson.Result(RequestDto.From(created));
         }
@@ -228,6 +228,10 @@ public sealed partial class RequestsController : ControllerBase
         catch (AlbumNotAllowedException ex)
         {
             return ApiJson.Error(StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (RequestLimitException ex)
+        {
+            return ApiJson.Error(StatusCodes.Status429TooManyRequests, ex.Message);
         }
         catch (LidarrAddException ex)
         {

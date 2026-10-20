@@ -48,9 +48,9 @@ public static class ApnsCredentialResolver
         var key = envKey.Length > 0 ? envKey : Clean(config.ApnsPrivateKeyValue);
         var source = envKey.Length > 0 ? ApnsKeySource.Environment : key.Length > 0 ? ApnsKeySource.Config : ApnsKeySource.None;
         var keyId = First(environment(KeyIdVariable), config.ApnsKeyId);
-        var teamId = First(environment(TeamIdVariable), config.ApnsTeamId, PluginConfiguration.DefaultApnsTeamId);
+        var teamId = First(environment(TeamIdVariable), config.ApnsTeamId);
         var topic = First(environment(TopicVariable), config.ApnsTopic, PluginConfiguration.DefaultApnsTopic);
-        return source == ApnsKeySource.None || keyId.Length == 0
+        return source == ApnsKeySource.None || keyId.Length == 0 || teamId.Length == 0
             ? null
             : new ApnsCredentials(key, keyId, teamId, topic, source);
     }

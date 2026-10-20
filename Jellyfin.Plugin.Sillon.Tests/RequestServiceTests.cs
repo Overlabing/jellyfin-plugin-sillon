@@ -971,6 +971,8 @@ public class RequestServiceTests
         {
             private static LidarrException Down() => new("Lidarr injoignable");
 
+            public Task<LidarrStatus> GetStatusAsync(CancellationToken ct = default) => throw Down();
+
             public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
                 => queueOnly ? inner!.SearchAsync(term, ct) : throw Down();
 

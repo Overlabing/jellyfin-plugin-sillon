@@ -16,8 +16,9 @@ namespace Jellyfin.Plugin.Sillon.Requests;
 /// <param name="Artist">The artist name.</param>
 /// <param name="Year">The release year, 0 when unknown.</param>
 /// <param name="CoverUrl">The cover URL.</param>
+/// <param name="IsAdmin">Whether the requester is an administrator (the limits may exempt them).</param>
 public sealed record NewRequest(
-    string UserId, string UserName, string ForeignAlbumId, string ForeignArtistId, string Title, string Artist, int Year, string CoverUrl);
+    string UserId, string UserName, string ForeignAlbumId, string ForeignArtistId, string Title, string Artist, int Year, string CoverUrl, bool IsAdmin = false);
 
 /// <summary>The delays of the request service.</summary>
 public sealed record RequestTiming
@@ -152,6 +153,7 @@ public sealed class RequestService
     /// <returns>The stored request.</returns>
     /// <exception cref="AlbumNotAllowedException">The catalogue allow-list is set and does not list the album.</exception>
     /// <exception cref="ActiveRequestException">The album already has a live request.</exception>
+    /// <exception cref="RequestLimitException">The requester reached a limit set by the administrator.</exception>
     /// <exception cref="LidarrAddException">Lidarr refused the album; the request is kept as failed so the user can ask again.</exception>
     public async Task<RequestRecord> CreateAsync(NewRequest input, CancellationToken ct)
     {
@@ -160,6 +162,8 @@ public sealed class RequestService
         {
             throw new AlbumNotAllowedException();
         }
+
+        RequestLimits.Check(_config(), _store, input.UserId, input.IsAdmin, _now());
 
         var created = _store.Create(new RequestRecord
         {

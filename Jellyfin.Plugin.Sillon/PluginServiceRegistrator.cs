@@ -1,3 +1,4 @@
+using Jellyfin.Plugin.Sillon.Api;
 using Jellyfin.Plugin.Sillon.Catalog;
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
@@ -36,6 +37,14 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             Environment.GetEnvironmentVariable,
             sp.GetRequiredService<ILogger<ApnsNotifier>>()));
         serviceCollection.AddSingleton<INotifier>(sp => sp.GetRequiredService<ApnsNotifier>());
+        serviceCollection.AddSingleton(sp => new AdminService(
+            sp.GetRequiredService<RequestStore>(),
+            sp.GetRequiredService<DeviceStore>(),
+            sp.GetRequiredService<IJellyfinLibrary>(),
+            sp.GetRequiredService<ILidarrProvider>(),
+            sp.GetRequiredService<ApnsNotifier>(),
+            sp.GetRequiredService<Func<PluginConfiguration>>(),
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? string.Empty));
         serviceCollection.AddSingleton<CatalogService>();
         serviceCollection.AddSingleton(sp => new RequestService(
             sp.GetRequiredService<RequestStore>(),

@@ -216,6 +216,63 @@ public sealed class RequestStore
         }
     }
 
+    /// <summary>Counts a user's requests that are still being worked on.</summary>
+    /// <param name="userId">The user.</param>
+    /// <returns>The count.</returns>
+    public int CountActive(string userId)
+    {
+        lock (_lock)
+        {
+            return _requests.Count(r => r.UserId == userId && r.IsActive);
+        }
+    }
+
+    /// <summary>Counts the requests a user made since a time, whatever became of them.</summary>
+    /// <param name="userId">The user.</param>
+    /// <param name="since">The start of the window.</param>
+    /// <returns>The count.</returns>
+    public int CountCreatedSince(string userId, DateTimeOffset since)
+    {
+        lock (_lock)
+        {
+            return _requests.Count(r => r.UserId == userId && r.CreatedAt >= since);
+        }
+    }
+
+    /// <summary>Removes a finished request from the list; a live one is left alone (cancel it first).</summary>
+    /// <param name="id">The id.</param>
+    /// <returns><c>true</c> when the request was removed.</returns>
+    public bool DeleteFinished(long id)
+    {
+        lock (_lock)
+        {
+            if (_requests.RemoveAll(r => r.Id == id && !r.IsActive) == 0)
+            {
+                return false;
+            }
+
+            Persist();
+            return true;
+        }
+    }
+
+    /// <summary>Removes every finished request last changed before a time.</summary>
+    /// <param name="before">The cut-off.</param>
+    /// <returns>How many requests were removed.</returns>
+    public int DeleteFinishedBefore(DateTimeOffset before)
+    {
+        lock (_lock)
+        {
+            var removed = _requests.RemoveAll(r => !r.IsActive && r.UpdatedAt < before);
+            if (removed > 0)
+            {
+                Persist();
+            }
+
+            return removed;
+        }
+    }
+
     /// <summary>Lists the requests in any of the given states, oldest first.</summary>
     /// <param name="statuses">The states.</param>
     /// <returns>The requests.</returns>

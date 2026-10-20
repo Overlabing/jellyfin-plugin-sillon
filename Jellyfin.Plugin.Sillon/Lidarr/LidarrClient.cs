@@ -40,6 +40,11 @@ public sealed class LidarrException : Exception
 /// <summary>What the plugin needs of Lidarr; implemented by <see cref="LidarrClient"/>.</summary>
 public interface ILidarrApi
 {
+    /// <summary>Gets the system status.</summary>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The status.</returns>
+    Task<LidarrStatus> GetStatusAsync(CancellationToken ct = default);
+
     /// <summary>The combined artist and album lookup.</summary>
     /// <param name="term">The search term.</param>
     /// <param name="ct">Cancellation token.</param>
@@ -146,9 +151,7 @@ public sealed class LidarrClient : ILidarrApi
         _apiKey = apiKey ?? string.Empty;
     }
 
-    /// <summary>Gets the system status.</summary>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The status.</returns>
+    /// <inheritdoc />
     public Task<LidarrStatus> GetStatusAsync(CancellationToken ct = default)
         => SendAsync<LidarrStatus>(HttpMethod.Get, "/api/v1/system/status", null, Quick, ct);
 

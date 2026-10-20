@@ -26,26 +26,27 @@ public sealed class PushController : ControllerBase
     public ActionResult Status()
         => new JsonResult(new { enabled = _notifier.Enabled, source = _notifier.KeySource().ToString().ToLowerInvariant() });
 
-    /// <summary>Sends a test notification to the calling administrator's devices.</summary>
+    /// <summary>Sends a test notification to the devices of the calling administrator, or of the given user.</summary>
+    /// <param name="userId">The user to notify; the caller when omitted.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>One result per device.</returns>
     [HttpPost("Test")]
     [Authorize(Policy = Policies.RequiresElevation)]
-    public async Task<ActionResult> Test(CancellationToken ct)
+    public async Task<ActionResult> Test([FromQuery] string? userId, CancellationToken ct)
     {
-        if (!Guid.TryParse(User.FindFirst("Jellyfin-UserId")?.Value, out var id))
+        if (!Guid.TryParse(string.IsNullOrEmpty(userId) ? User.FindFirst("Jellyfin-UserId")?.Value : userId, out var id))
         {
-            return Unauthorized();
+            return string.IsNullOrEmpty(userId) ? Unauthorized() : BadRequest(new { message = "Invalid user id." });
         }
 
         if (!_notifier.Enabled)
         {
-            return new JsonResult(new { message = "Les notifications ne sont pas actives (case décochée ou aucune clé)." }) { StatusCode = StatusCodes.Status409Conflict };
+            return new JsonResult(new { message = "Notifications are not active (turned off, or no key configured)." }) { StatusCode = StatusCodes.Status409Conflict };
         }
 
         var results = await _notifier.SendAsync(
             id.ToString("N"),
-            new PushMessage(null, "Sillon : notifications actives", new Dictionary<string, object>()),
+            new PushMessage(null, "Sillon: notifications are working", new Dictionary<string, object>()),
             ct).ConfigureAwait(false);
         return new JsonResult(new
         {

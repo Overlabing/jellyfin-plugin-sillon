@@ -46,6 +46,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             incoming.CarryOverSecrets(Configuration);
         }
 
+        (configuration as PluginConfiguration)?.Sanitize();
         base.UpdateConfiguration(configuration);
     }
 
@@ -55,6 +56,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         yield return new PluginPageInfo
         {
             Name = Name,
+            DisplayName = "Sillon",
+            EnableInMainMenu = true,
+            MenuSection = "server",
+            MenuIcon = "library_music",
             EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
         };
     }

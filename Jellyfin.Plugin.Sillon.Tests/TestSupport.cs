@@ -39,6 +39,11 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
 
     public ILidarrApi Create() => this;
 
+    public Exception? StatusError { get; set; }
+
+    public Task<LidarrStatus> GetStatusAsync(CancellationToken ct = default)
+        => StatusError is null ? Task.FromResult(new LidarrStatus("2.9.6.4552")) : Task.FromException<LidarrStatus>(StatusError);
+
     public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
     {
         SearchTerms.Add(term);
@@ -252,6 +257,8 @@ internal sealed class TestEnv : IDisposable
             LidarrQualityProfileId = 2,
             LidarrMetadataProfileId = 1,
             LidarrRootFolder = "/data/media/music",
+            LidarrPathPrefix = "/data/media/music",
+            JellyfinPathPrefix = "/data/music",
             WebhookSecret = "s3cret"
         };
         Now = new DateTimeOffset(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);

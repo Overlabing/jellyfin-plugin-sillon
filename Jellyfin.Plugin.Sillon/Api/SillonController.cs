@@ -65,11 +65,21 @@ public class SillonController : ControllerBase
     [HttpPost("Lidarr/Test")]
     [Authorize(Policy = Policies.RequiresElevation)]
     public Task<ActionResult> TestLidarr([FromBody] LidarrTestRequest request, CancellationToken ct)
-        => Run(new LidarrClient(Http(), request.Url ?? string.Empty, request.ApiKey ?? string.Empty), async c =>
+    {
+        var url = (request.Url ?? string.Empty).Trim();
+        if (url.Length == 0 || !PluginConfiguration.IsValidLidarrUrl(url))
+        {
+            return Task.FromResult<ActionResult>(new JsonResult(new { message = "Enter an http:// or https:// URL." }) { StatusCode = StatusCodes.Status400BadRequest });
+        }
+
+        // the page never knows the stored key: the mask means "use the saved one"
+        var key = request.ApiKey is null or PluginConfiguration.MaskedSecret ? _config().LidarrApiKey : request.ApiKey;
+        return Run(new LidarrClient(Http(), url, key), async c =>
         {
             var status = await c.GetStatusAsync(ct).ConfigureAwait(false);
             return new { version = status.Version };
         });
+    }
 
     /// <summary>Lists Lidarr quality profiles using the saved configuration.</summary>
     /// <param name="ct">Cancellation token.</param>

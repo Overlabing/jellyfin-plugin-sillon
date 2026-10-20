@@ -130,4 +130,12 @@ public sealed record DeviceRecord
 
     /// <summary>Gets the last change time.</summary>
     public DateTimeOffset UpdatedAt { get; init; }
+
+    /// <summary>Gets an id safe to show and to pass around: the first 16 hex digits of the token's SHA-256, never the token.</summary>
+    [JsonIgnore]
+    public string PublicId => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Token)))[..16].ToLowerInvariant();
+
+    /// <summary>Gets the last 6 characters of the token, to tell devices apart.</summary>
+    [JsonIgnore]
+    public string TokenHint => Token.Length <= 6 ? Token : Token[^6..];
 }

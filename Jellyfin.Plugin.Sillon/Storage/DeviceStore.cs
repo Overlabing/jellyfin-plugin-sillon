@@ -69,6 +69,33 @@ public sealed class DeviceStore
         }
     }
 
+    /// <summary>Lists every device, oldest first.</summary>
+    /// <returns>The devices.</returns>
+    public IReadOnlyList<DeviceRecord> All()
+    {
+        lock (_lock)
+        {
+            return _devices.OrderBy(d => d.CreatedAt).ToList();
+        }
+    }
+
+    /// <summary>Removes a device by its public id (see <see cref="DeviceRecord.PublicId"/>).</summary>
+    /// <param name="publicId">The id.</param>
+    /// <returns><c>true</c> when a device was removed.</returns>
+    public bool DeleteByPublicId(string publicId)
+    {
+        lock (_lock)
+        {
+            if (_devices.RemoveAll(d => string.Equals(d.PublicId, publicId, StringComparison.OrdinalIgnoreCase)) == 0)
+            {
+                return false;
+            }
+
+            Persist();
+            return true;
+        }
+    }
+
     private void Persist() => JsonFile.Write(_path, new DevicesDocument { Devices = _devices });
 
     private sealed class DevicesDocument

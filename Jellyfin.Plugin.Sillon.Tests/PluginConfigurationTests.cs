@@ -11,7 +11,8 @@ public class PluginConfigurationTests
         var config = new PluginConfiguration();
 
         Assert.Equal(FulfillmentMode.Manual, config.FulfillmentMode);
-        Assert.Equal("http://lidarr:8686", config.LidarrUrl);
+        Assert.Equal(string.Empty, config.LidarrUrl);
+        Assert.Equal(string.Empty, config.ApnsTeamId);
         Assert.False(config.ApnsEnabled);
         Assert.True(config.ExposeToApps);
         Assert.Equal(string.Empty, config.WebhookSecret);
@@ -69,8 +70,11 @@ public class PluginConfigurationTests
         var config = new PluginConfiguration();
 
         Assert.Equal(14, config.RequestTimeoutDays);
-        Assert.Equal("/data/media/music", config.LidarrPathPrefix);
-        Assert.Equal("/data/music", config.JellyfinPathPrefix);
+        Assert.Equal(string.Empty, config.LidarrPathPrefix);
+        Assert.Equal(string.Empty, config.JellyfinPathPrefix);
+        Assert.Equal(0, config.MaxActiveRequestsPerUser);
+        Assert.Equal(0, config.MaxRequestsPerUserPerDay);
+        Assert.True(config.ExemptAdminsFromLimits);
     }
 
     [Theory]
@@ -83,5 +87,71 @@ public class PluginConfigurationTests
         var config = new PluginConfiguration { FulfillmentMode = mode, LidarrUrl = url, LidarrApiKey = key };
 
         Assert.Equal(expected, config.RequestsEnabled());
+    }
+
+    [Fact]
+    public void LidarrApiKey_IsNeverInTheJson_AndKeptWhenTheMaskComesBack()
+    {
+        var stored = new PluginConfiguration { LidarrApiKey = "real-key" };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(stored);
+
+        Assert.DoesNotContain("real-key", json, StringComparison.Ordinal);
+        Assert.Contains("\"LidarrApiKey\":\"***\"", json, StringComparison.Ordinal);
+
+        var posted = System.Text.Json.JsonSerializer.Deserialize<PluginConfiguration>("{\"LidarrApiKey\":\"***\",\"LidarrUrl\":\"http://l\"}")!;
+        posted.CarryOverSecrets(stored);
+        Assert.Equal("real-key", posted.LidarrApiKey);
+
+        var replaced = System.Text.Json.JsonSerializer.Deserialize<PluginConfiguration>("{\"LidarrApiKey\":\" new-key \"}")!;
+        replaced.CarryOverSecrets(stored);
+        Assert.Equal("new-key", replaced.LidarrApiKey);
+
+        var cleared = System.Text.Json.JsonSerializer.Deserialize<PluginConfiguration>("{\"LidarrApiKey\":\"\"}")!;
+        cleared.CarryOverSecrets(stored);
+        Assert.Equal(string.Empty, cleared.LidarrApiKey);
+    }
+
+    [Fact]
+    public void LidarrApiKey_StaysUnderItsOldElementInTheXmlFile()
+    {
+        var serializer = new System.Xml.Serialization.XmlSerializer(typeof(PluginConfiguration));
+        using var writer = new StringWriter();
+        serializer.Serialize(writer, new PluginConfiguration { LidarrApiKey = "real-key" });
+
+        Assert.Contains("<LidarrApiKey>real-key</LidarrApiKey>", writer.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sanitize_ClampsNumbersAndTrimsText()
+    {
+        var config = new PluginConfiguration
+        {
+            RequestTimeoutDays = 0,
+            MaxActiveRequestsPerUser = -3,
+            MaxRequestsPerUserPerDay = 99999,
+            LidarrUrl = "  http://lidarr:8686/ ",
+            ApnsTeamId = " ABC "
+        };
+
+        config.Sanitize();
+
+        Assert.Equal(1, config.RequestTimeoutDays);
+        Assert.Equal(0, config.MaxActiveRequestsPerUser);
+        Assert.Equal(1000, config.MaxRequestsPerUserPerDay);
+        Assert.Equal("http://lidarr:8686", config.LidarrUrl);
+        Assert.Equal("ABC", config.ApnsTeamId);
+    }
+
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("http://lidarr:8686", true)]
+    [InlineData("https://lidarr.example.com/base", true)]
+    [InlineData("lidarr:8686", false)]
+    [InlineData("ftp://lidarr", false)]
+    [InlineData("javascript:alert(1)", false)]
+    public void IsValidLidarrUrl_AcceptsOnlyHttpUrls(string url, bool expected)
+    {
+        Assert.Equal(expected, PluginConfiguration.IsValidLidarrUrl(url));
     }
 }

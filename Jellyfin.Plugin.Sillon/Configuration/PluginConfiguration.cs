@@ -32,11 +32,6 @@ public class PluginConfiguration : BasePluginConfiguration
     public const string MaskedSecret = "***";
 
     /// <summary>
-    /// The default APNs team id.
-    /// </summary>
-    public const string DefaultApnsTeamId = "XXXXXXXXXX";
-
-    /// <summary>
     /// The default APNs topic.
     /// </summary>
     public const string DefaultApnsTopic = "com.overglass.sillon";
@@ -51,12 +46,57 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>
     /// Gets or sets the Lidarr base URL.
     /// </summary>
-    public string LidarrUrl { get; set; } = "http://lidarr:8686";
+    public string LidarrUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the Lidarr API key.
+    /// Gets or sets the Lidarr API key as stored in the plugin's XML file; not part of the configuration API.
     /// </summary>
+    [JsonIgnore]
     public string LidarrApiKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the Lidarr API key as the configuration API shows it: <c>***</c> when a key is stored, never the key.
+    /// Setting <c>***</c> keeps the stored key (see <see cref="CarryOverSecrets"/>), anything else replaces it.
+    /// </summary>
+    [XmlIgnore]
+    [JsonPropertyName("LidarrApiKey")]
+    public string LidarrApiKeyMasked
+    {
+        get => string.IsNullOrEmpty(LidarrApiKey) ? string.Empty : MaskedSecret;
+        set
+        {
+            if (value == MaskedSecret)
+            {
+                KeepLidarrApiKey = true;
+                return;
+            }
+
+            KeepLidarrApiKey = false;
+            LidarrApiKey = value?.Trim() ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a saved configuration asked to keep the stored Lidarr API key.
+    /// </summary>
+    [JsonIgnore]
+    [XmlIgnore]
+    public bool KeepLidarrApiKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many requests a user may have in progress at once; 0 is no limit.
+    /// </summary>
+    public int MaxActiveRequestsPerUser { get; set; }
+
+    /// <summary>
+    /// Gets or sets how many requests a user may make in 24 hours; 0 is no limit.
+    /// </summary>
+    public int MaxRequestsPerUserPerDay { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether administrators are exempt from the request limits.
+    /// </summary>
+    public bool ExemptAdminsFromLimits { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the Lidarr quality profile id.
@@ -76,12 +116,12 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>
     /// Gets or sets the music folder as Lidarr sees it.
     /// </summary>
-    public string LidarrPathPrefix { get; set; } = "/data/media/music";
+    public string LidarrPathPrefix { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the same folder as Jellyfin sees it.
     /// </summary>
-    public string JellyfinPathPrefix { get; set; } = "/data/music";
+    public string JellyfinPathPrefix { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets a value indicating whether the wishlist is offered to the apps through <c>features</c>.
@@ -116,7 +156,7 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <summary>
     /// Gets or sets the APNs team id.
     /// </summary>
-    public string ApnsTeamId { get; set; } = DefaultApnsTeamId;
+    public string ApnsTeamId { get; set; } = string.Empty;
 
     /// <summary>
     /// Gets or sets the APNs topic (the app's bundle id).
@@ -163,12 +203,43 @@ public class PluginConfiguration : BasePluginConfiguration
     /// <param name="previous">The configuration being replaced.</param>
     public void CarryOverSecrets(PluginConfiguration previous)
     {
+        if (KeepLidarrApiKey)
+        {
+            LidarrApiKey = previous.LidarrApiKey;
+            KeepLidarrApiKey = false;
+        }
+
         if (KeepApnsPrivateKey)
         {
             ApnsPrivateKeyValue = previous.ApnsPrivateKeyValue;
             KeepApnsPrivateKey = false;
         }
     }
+
+    /// <summary>
+    /// Clamps the values an administrator typed to sane ranges and trims the text ones.
+    /// </summary>
+    public void Sanitize()
+    {
+        RequestTimeoutDays = Math.Clamp(RequestTimeoutDays, 1, 365);
+        MaxActiveRequestsPerUser = Math.Clamp(MaxActiveRequestsPerUser, 0, 1000);
+        MaxRequestsPerUserPerDay = Math.Clamp(MaxRequestsPerUserPerDay, 0, 1000);
+        LidarrUrl = (LidarrUrl ?? string.Empty).Trim().TrimEnd('/');
+        LidarrPathPrefix = (LidarrPathPrefix ?? string.Empty).Trim();
+        JellyfinPathPrefix = (JellyfinPathPrefix ?? string.Empty).Trim();
+        ApnsKeyId = (ApnsKeyId ?? string.Empty).Trim();
+        ApnsTeamId = (ApnsTeamId ?? string.Empty).Trim();
+        ApnsTopic = (ApnsTopic ?? string.Empty).Trim();
+    }
+
+    /// <summary>
+    /// Checks that a Lidarr URL is empty or an absolute http(s) URL.
+    /// </summary>
+    /// <param name="url">The URL.</param>
+    /// <returns><c>true</c> when it is acceptable.</returns>
+    public static bool IsValidLidarrUrl(string? url)
+        => string.IsNullOrWhiteSpace(url)
+            || (Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https");
 
     /// <summary>
     /// Gets a value indicating whether album requests can be taken: always in manual mode, in Lidarr mode once Lidarr is set up.
