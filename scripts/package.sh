@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-version="0.6.3.0"
+version="0.7.0.0"
 target_abi="12.2.0.0"
 guid="1daed904-1b05-483c-8544-16cb6dcced54"
 
@@ -26,6 +26,7 @@ cat > "$stage/meta.json" <<JSON
   "category": "Music",
   "overview": "Music requests for the Sillon app.",
   "description": "Connects Jellyfin to Lidarr so music requests made from the Sillon app can be fulfilled automatically.",
+  "changelog": "Redesigned administration page (tabs, guided Lidarr setup, request list with covers). Device tokens are bound to their owner: registering a token held by another user is refused (409). New relay notification mode (relay / direct / off): notifications are end-to-end encrypted, the relay cannot read their content. The catalogue prefers the album over a same-title single or EP of the same artist.",
   "status": "Active",
   "autoUpdate": false
 }
