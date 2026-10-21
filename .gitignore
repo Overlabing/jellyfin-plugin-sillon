@@ -4,3 +4,4 @@ dist/
 .vs/
 .idea/
 *.user
+__pycache__/

@@ -3,11 +3,14 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -18,15 +21,25 @@ jobs:
       - name: Test
         run: dotnet test -c Release
 
-      - name: Publish
-        run: dotnet publish Jellyfin.Plugin.Sillon/Jellyfin.Plugin.Sillon.csproj -c Release -o publish
-
-      - name: Stage plugin folder
+      # The same zip as a local release: dll + meta.json, version from scripts/package.sh.
+      - name: Package
+        id: package
         run: |
-          mkdir -p Sillon_0.6.2.0
-          cp publish/Jellyfin.Plugin.Sillon.dll Sillon_0.6.2.0/
+          scripts/package.sh
+          zip=$(ls dist/Sillon_*.zip)
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$zip" .zip)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Sillon_0.6.2.0
-          path: Sillon_0.6.2.0/Jellyfin.Plugin.Sillon.dll
+          name: ${{ steps.package.outputs.name }}
+          path: ${{ steps.package.outputs.zip }}
+
+      # A tag vX.Y.Z.W publishes the zip as a GitHub release; the tag must match the packaged version.
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "Sillon_${GITHUB_REF_NAME#v}" = "${{ steps.package.outputs.name }}" || { echo "tag $GITHUB_REF_NAME does not match ${{ steps.package.outputs.name }}"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" "${{ steps.package.outputs.zip }}" --title "Sillon $GITHUB_REF_NAME" --notes "$(jq -r .changelog dist/stage/meta.json)"
