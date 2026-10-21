@@ -400,4 +400,79 @@ public class CatalogServiceTests
     [InlineData("abcd-01-01", 0)]
     public void YearOf_ReadsTheFirstFourDigits(string? date, int expected)
         => Assert.Equal(expected, CatalogService.YearOf(date));
+
+    private static LidarrAlbum Rel(string id, string title, string type, int tracks, string date = "2014-09-29", string artist = "gilmour", string[]? secondary = null)
+        => Album("{\"id\":0,\"title\":" + JsonSerializer.Serialize(title) + ",\"foreignAlbumId\":\"" + id + "\",\"releaseDate\":\"" + date + "\",\"albumType\":\"" + type + "\","
+            + "\"secondaryTypes\":" + JsonSerializer.Serialize(secondary ?? Array.Empty<string>()) + ","
+            + "\"releases\":[{\"mediumCount\":1,\"trackCount\":" + tracks + ",\"status\":\"Official\"}],"
+            + "\"artist\":{\"artistName\":\"David Gilmour\",\"foreignArtistId\":\"" + artist + "\"}}");
+
+    private static async Task<IReadOnlyList<string>> SearchIds(params LidarrAlbum[] found)
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => found.Select(a => new LidarrSearchItem { Album = a }).ToList();
+        return (await catalog.SearchAsync("rattle", CancellationToken.None)).Albums.Select(a => a.Mbid).ToList();
+    }
+
+    [Fact]
+    public async Task Search_ASingleAndAnAlbumWithTheSameTitle_OffersTheAlbum_InEitherOrder()
+    {
+        var single = Rel("single", "Rattle That Lock", "Single", 1);
+        var album = Rel("album", "Rattle That Lock", "Album", 14, "2015-09-18");
+
+        Assert.Equal(new[] { "album" }, await SearchIds(single, album));
+        Assert.Equal(new[] { "album" }, await SearchIds(album, single));
+    }
+
+    [Fact]
+    public async Task Search_ASingleWithoutASameTitleAlbum_StaysVisible()
+    {
+        var ids = await SearchIds(Rel("single", "Yes, I Have Ghosts", "Single", 1), Rel("album", "Rattle That Lock", "Album", 14));
+
+        Assert.Equal(new[] { "single", "album" }, ids);
+    }
+
+    [Fact]
+    public async Task Search_TitlesFoldCaseDiacriticsAndPunctuation()
+    {
+        var ids = await SearchIds(Rel("single", "RATTLE, that lock!", "Single", 1), Rel("album", "Rättle That Lock", "Album", 14));
+
+        Assert.Equal(new[] { "album" }, ids);
+    }
+
+    [Fact]
+    public async Task Search_TheSameTitleFromAnotherArtist_IsKept()
+    {
+        var ids = await SearchIds(Rel("single", "Rattle That Lock", "Single", 1), Rel("other", "Rattle That Lock", "Album", 10, artist: "someone-else"));
+
+        Assert.Equal(new[] { "single", "other" }, ids);
+    }
+
+    [Fact]
+    public async Task Search_RanksAlbumThenAlbumWithSecondaryTypesThenEpThenSingle_TiesByTracksThenDate()
+    {
+        Assert.Equal(new[] { "live" }, await SearchIds(Rel("ep", "X", "EP", 5), Rel("single", "X", "Single", 1), Rel("live", "X", "Album", 8, secondary: new[] { "Live" })));
+        Assert.Equal(new[] { "plain" }, await SearchIds(Rel("live", "X", "Album", 20, secondary: new[] { "Live" }), Rel("plain", "X", "Album", 8)));
+        Assert.Equal(new[] { "ep" }, await SearchIds(Rel("single", "X", "Single", 3), Rel("ep", "X", "EP", 3)));
+        Assert.Equal(new[] { "long" }, await SearchIds(Rel("short", "X", "Album", 9), Rel("long", "X", "Album", 14)));
+        Assert.Equal(new[] { "early" }, await SearchIds(Rel("late", "X", "Album", 9, "2020-01-01"), Rel("early", "X", "Album", 9, "2010-01-01")));
+    }
+
+    [Fact]
+    public async Task Search_WithAnAllowListHoldingOnlyTheSingle_KeepsTheSingle()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Config.CatalogAllowList = "single";
+        env.Lidarr.OnSearch = _ => new[]
+        {
+            new LidarrSearchItem { Album = Rel("single", "Rattle That Lock", "Single", 1) },
+            new LidarrSearchItem { Album = Rel("album", "Rattle That Lock", "Album", 14) },
+        };
+
+        var result = await catalog.SearchAsync("rattle", CancellationToken.None);
+
+        Assert.Equal(new[] { "single" }, result.Albums.Select(a => a.Mbid));
+    }
 }

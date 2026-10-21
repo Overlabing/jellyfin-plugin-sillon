@@ -137,7 +137,7 @@ public sealed class CatalogService
             artists.RemoveAll(a => !offered.Contains(a.Mbid));
         }
 
-        return new CatalogSearchResult(artists, ToAlbums(albums, null));
+        return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null));
     }
 
     /// <summary>Lists an artist's albums. Resolution, in order: Lidarr's id lookup (<c>lidarr:&lt;mbid&gt;</c>) gives the artist; if Lidarr already holds the artist, all of its albums; else (or when that is empty) a search by the artist's name filtered to the albums of that artist. The name comes from the id lookup, or from the optional hint when that found nothing.</summary>
@@ -287,6 +287,105 @@ public sealed class CatalogService
     /// <returns>The year, 0 when unreadable.</returns>
     public static int YearOf(string? date)
         => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
+
+    /// <summary>
+    /// Among entries of one artist that share a normalized title (case, diacritics and punctuation folded), keeps the fullest release:
+    /// Album, then Album with secondary types, EP, Single, anything else; a tie goes to more tracks, then to the earlier release.
+    /// Entries without a same-title sibling, and entries without an artist id, are untouched; the order of the survivors is kept.
+    /// </summary>
+    /// <param name="albums">The albums found by a search.</param>
+    /// <returns>The albums without the same-title lesser releases.</returns>
+    public static IReadOnlyList<LidarrAlbum> PreferFullRelease(IReadOnlyList<LidarrAlbum> albums)
+    {
+        var best = new Dictionary<(string Artist, string Title), LidarrAlbum>();
+        foreach (var album in albums)
+        {
+            if (album.Artist is not { ForeignArtistId.Length: > 0 } artist || NormalizeTitle(album.Title).Length == 0)
+            {
+                continue;
+            }
+
+            var key = (artist.ForeignArtistId, NormalizeTitle(album.Title));
+            if (!best.TryGetValue(key, out var current) || IsBetter(album, current))
+            {
+                best[key] = album;
+            }
+        }
+
+        return albums
+            .Where(a => a.Artist is not { ForeignArtistId.Length: > 0 } artist
+                || NormalizeTitle(a.Title).Length == 0
+                || ReferenceEquals(best[(artist.ForeignArtistId, NormalizeTitle(a.Title))], a))
+            .ToList();
+    }
+
+    private static bool IsBetter(LidarrAlbum candidate, LidarrAlbum current)
+    {
+        var (rc, rn) = (ReleaseRank(candidate), ReleaseRank(current));
+        if (rc != rn)
+        {
+            return rc < rn;
+        }
+
+        var (tc, tn) = (TrackCount(candidate), TrackCount(current));
+        if (tc != tn)
+        {
+            return tc > tn;
+        }
+
+        return DateOf(candidate) < DateOf(current);
+    }
+
+    private static int ReleaseRank(LidarrAlbum album)
+    {
+        var secondary = album.SecondaryTypes is { Count: > 0 };
+        return album.AlbumType.Trim().ToLowerInvariant() switch
+        {
+            "album" => secondary ? 1 : 0,
+            "ep" => 2,
+            "single" => 3,
+            _ => 4,
+        };
+    }
+
+    private static int TrackCount(LidarrAlbum album)
+        => album.Releases is { Count: > 0 } releases ? releases.Max(r => r.TrackCount) : 0;
+
+    private static DateTime DateOf(LidarrAlbum album)
+        => album.ReleaseDate is { Length: > 0 } text && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date)
+            ? date
+            : DateTime.MaxValue;
+
+    /// <summary>Folds a title for comparison: case, diacritics and punctuation are ignored, spaces collapsed.</summary>
+    private static string NormalizeTitle(string? title)
+    {
+        var builder = new System.Text.StringBuilder();
+        var pendingSpace = false;
+        foreach (var c in (title ?? string.Empty).Normalize(System.Text.NormalizationForm.FormKD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(c))
+            {
+                if (pendingSpace && builder.Length > 0)
+                {
+                    builder.Append(' ');
+                }
+
+                pendingSpace = false;
+                builder.Append(char.ToLowerInvariant(c));
+            }
+            else if (char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c))
+            {
+                pendingSpace = true;
+            }
+        }
+
+        return builder.ToString();
+    }
 
     private static bool Matches(string? text, string query)
         => !string.IsNullOrEmpty(text)
