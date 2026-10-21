@@ -1,6 +1,7 @@
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
 using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Push;
 using Jellyfin.Plugin.Sillon.Requests;
 using Jellyfin.Plugin.Sillon.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -229,13 +230,16 @@ internal sealed class FakeNotifier : INotifier
 {
     public List<(string UserId, string Body, IReadOnlyDictionary<string, object> Extra)> Sent { get; } = new();
 
+    public List<NotificationEvent> Events { get; } = new();
+
     public bool Result { get; set; } = true;
 
     public bool Enabled => true;
 
-    public Task<bool> NotifyAsync(string userId, string body, IReadOnlyDictionary<string, object> extra, CancellationToken ct)
+    public Task<bool> NotifyAsync(string userId, NotificationEvent notification, CancellationToken ct)
     {
-        Sent.Add((userId, body, extra));
+        Sent.Add((userId, notification.DirectBody(), notification.DirectExtra()));
+        Events.Add(notification);
         return Task.FromResult(Result);
     }
 }

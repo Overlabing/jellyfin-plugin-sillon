@@ -30,12 +30,22 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ILidarrProvider>(sp =>
             new LidarrProvider(sp.GetRequiredService<IHttpClientFactory>(), sp.GetRequiredService<Func<PluginConfiguration>>()));
         serviceCollection.AddSingleton<IPushSender>(sp => new ApnsClient(ApnsClient.CreateHttpClient(), sp.GetRequiredService<ILogger<ApnsClient>>()));
+        serviceCollection.AddSingleton(_ => new ServerKeyStore(DataFolder()));
+        serviceCollection.AddSingleton(_ => new RelayState(DataFolder()));
+        serviceCollection.AddSingleton(sp => new RelayClient(
+            RelayClient.CreateHttpClient(),
+            sp.GetRequiredService<ServerKeyStore>(),
+            sp.GetRequiredService<RelayState>(),
+            sp.GetRequiredService<DeviceStore>(),
+            sp.GetRequiredService<Func<PluginConfiguration>>(),
+            sp.GetRequiredService<ILogger<RelayClient>>()));
         serviceCollection.AddSingleton(sp => new ApnsNotifier(
             sp.GetRequiredService<DeviceStore>(),
             sp.GetRequiredService<IPushSender>(),
             sp.GetRequiredService<Func<PluginConfiguration>>(),
             Environment.GetEnvironmentVariable,
-            sp.GetRequiredService<ILogger<ApnsNotifier>>()));
+            sp.GetRequiredService<ILogger<ApnsNotifier>>(),
+            sp.GetRequiredService<RelayClient>()));
         serviceCollection.AddSingleton<INotifier>(sp => sp.GetRequiredService<ApnsNotifier>());
         serviceCollection.AddSingleton(sp => new AdminService(
             sp.GetRequiredService<RequestStore>(),

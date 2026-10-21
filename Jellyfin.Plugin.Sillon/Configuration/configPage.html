@@ -105,6 +105,7 @@
                 #SillonConfigPage .sl-search { max-width: 20em; flex: 1 1 12em; margin: 0 !important; }
 
                 /* lists */
+                #SillonConfigPage .sl-mode { margin: 0 0 .9em; }
                 #SillonConfigPage .sl-list { list-style: none; margin: 0; padding: 0; }
                 #SillonConfigPage .sl-item { display: flex; align-items: center; gap: 1em; padding: .85em .3em; border-bottom: 1px solid var(--sl-line); }
                 #SillonConfigPage .sl-item:last-child { border-bottom: 0; }
@@ -309,14 +310,52 @@
                     <p class="sl-lead" data-s="notifLead"></p>
                     <div id="NotifStatus"></div>
                     <div class="sl-card">
-                        <div class="checkboxContainer checkboxContainer-withDescription" style="margin: 0 0 1em;">
+                        <h3 id="PushModeTitle" data-s="modeTitle"></h3>
+                        <p class="sl-sub" data-s="modeSub"></p>
+                        <div role="radiogroup" aria-labelledby="PushModeTitle">
+                            <div class="sl-mode">
+                                <label class="radio-label-block">
+                                    <input is="emby-radio" type="radio" id="PushModeRelay" name="PushMode" value="relay" />
+                                    <span data-s="modeRelay"></span>
+                                </label>
+                                <div class="fieldDescription radioFieldDescription" data-s="modeRelayHelp"></div>
+                            </div>
+                            <div class="sl-mode">
+                                <label class="radio-label-block">
+                                    <input is="emby-radio" type="radio" id="PushModeDirect" name="PushMode" value="direct" />
+                                    <span data-s="modeDirect"></span>
+                                </label>
+                                <div class="fieldDescription radioFieldDescription" data-s="modeDirectHelp"></div>
+                            </div>
+                            <div class="sl-mode">
+                                <label class="radio-label-block">
+                                    <input is="emby-radio" type="radio" id="PushModeOff" name="PushMode" value="off" />
+                                    <span data-s="modeOff"></span>
+                                </label>
+                                <div class="fieldDescription radioFieldDescription" data-s="modeOffHelp"></div>
+                            </div>
+                        </div>
+                        <div id="RelayPanel" hidden>
+                            <div id="RelayInfo"></div>
+                            <details class="sl-adv">
+                                <summary data-s="relayAdvanced"></summary>
+                                <div class="sl-adv-body">
+                                    <div class="inputContainer" style="max-width: 32em;">
+                                        <input is="emby-input" type="text" id="PushRelayUrl" label="Relay address" autocomplete="off" />
+                                        <div class="fieldDescription" data-s="relayUrlHelp"></div>
+                                        <div class="sl-field-error" data-error-for="PushRelayUrl"></div>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                        <div id="DirectPanel" hidden class="checkboxContainer checkboxContainer-withDescription" style="margin: 1em 0;">
                             <label class="emby-checkbox-label">
                                 <input is="emby-checkbox" type="checkbox" id="ApnsEnabled" />
                                 <span data-s="notifToggle"></span>
                             </label>
                             <div class="fieldDescription checkboxFieldDescription" data-s="notifToggleHelp"></div>
                         </div>
-                        <div class="sl-row">
+                        <div class="sl-row" style="margin-top: 1em;">
                             <button is="emby-button" type="button" class="raised button-submit" id="PushTestMe"><span data-s="testNotif"></span></button>
                             <span id="PushTestResult" role="status"></span>
                         </div>
@@ -327,7 +366,7 @@
                         <ul class="sl-list" id="DevicesList"></ul>
                         <div id="DevicesEmpty" class="sl-empty" hidden></div>
                     </div>
-                    <details class="sl-adv">
+                    <details class="sl-adv" id="DirectAdvanced" hidden>
                         <summary data-s="appleTitle"></summary>
                         <div class="sl-adv-body">
                             <p class="sl-muted" data-s="appleHelp" style="margin-top: 0;"></p>
@@ -486,6 +525,34 @@
                 webhookSecretHelp: 'This link contains a secret. Treat it like a password.',
                 webhookCopy: 'Copy the link',
                 webhookCopied: 'Link copied',
+                modeTitle: 'How notifications reach phones',
+                modeSub: 'Pick one. You can change it at any time.',
+                modeRelay: 'Through the Sillon relay (recommended)',
+                modeRelayHelp: 'Nothing to set up. Notifications are encrypted on your server, so the relay can deliver them without being able to read them.',
+                modeDirect: 'With my own Apple key (advanced)',
+                modeDirectHelp: 'Your server talks to Apple itself, with a key from your own Apple developer account.',
+                modeOff: 'Off',
+                modeOffHelp: 'People are not told when their album is ready.',
+                relayAdvanced: 'Advanced: relay address',
+                relayUrlHelp: 'Leave the default unless you run your own relay. The official Sillon app only talks to the official relay.',
+                relayServerId: 'This server\'s ID',
+                relayServerIdHelp: 'Give this ID if you ever need to report a problem about this server.',
+                relayLast: 'Last answer from the relay',
+                relayNever: 'Nothing sent yet',
+                relayCounts: function (sent, refused) { return sent + ' sent, ' + refused + ' not delivered'; },
+                relayBanned: 'The relay has blocked this server, so notifications are not sent. Contact the relay\'s operator.',
+                relayQuota: function (when) { return 'The relay\'s daily limit for this server is used up. It resets at ' + when + '.'; },
+                relayNoPhones: 'No phone is set up for the relay yet. A phone appears below after its owner opens the Sillon app signed in to this server.',
+                testNoPhone: 'You have no phone registered for this mode. Open the Sillon app signed in as yourself first.',
+                testRelayRefused: 'The relay did not deliver the test',
+                testRelayWhy: {
+                    unknown_device: 'it does not know this phone yet. Open the Sillon app once, then try again',
+                    quota_exceeded: 'a daily limit is used up',
+                    rate_limited: 'it is busy, try again in a minute',
+                    server_banned: 'it has blocked this server',
+                    stale_timestamp: 'this server\'s clock is more than 5 minutes off',
+                    unreachable: 'it could not be reached'
+                },
                 notifToggle: 'Notify people when their album is ready',
                 notifToggleHelp: 'Needs an Apple notification key. The setup is under Advanced below.',
                 testNotif: 'Send me a test notification',
@@ -773,6 +840,10 @@
                 el('MaxRequestsPerUserPerDay').value = c.MaxRequestsPerUserPerDay || 0;
                 el('ExemptAdminsFromLimits').checked = c.ExemptAdminsFromLimits !== false;
 
+                // a configuration saved before the relay existed has no mode: it keeps sending the way it always did
+                var legacy = !!c.ApnsEnabled || c.ApnsPrivateKey === MASK || !!c.ApnsKeyId;
+                setMode(c.PushMode || (legacy ? 'direct' : 'relay'));
+                el('PushRelayUrl').value = c.PushRelayUrl || '';
                 el('ApnsEnabled').checked = !!c.ApnsEnabled;
                 el('ApnsKeyId').value = c.ApnsKeyId || '';
                 el('ApnsTeamId').value = c.ApnsTeamId || '';
@@ -807,6 +878,8 @@
                 config.MaxRequestsPerUserPerDay = parseInt(el('MaxRequestsPerUserPerDay').value, 10) || 0;
                 config.ExemptAdminsFromLimits = el('ExemptAdminsFromLimits').checked;
 
+                config.PushMode = currentMode();
+                config.PushRelayUrl = el('PushRelayUrl').value.trim();
                 config.ApnsEnabled = el('ApnsEnabled').checked;
                 config.ApnsKeyId = el('ApnsKeyId').value.trim();
                 config.ApnsTeamId = el('ApnsTeamId').value.trim();
@@ -839,7 +912,9 @@
                 if (ld !== '' && ld.charAt(0) !== '/') { bad('LidarrPathPrefix', 'Start with a slash, like /music.', 'settings'); }
                 if ((jf === '') !== (ld === '')) { bad(jf === '' ? 'JellyfinPathPrefix' : 'LidarrPathPrefix', 'Fill in both folders, or leave both empty.', 'settings'); }
 
-                if (el('ApnsEnabled').checked) {
+                var relayUrl = el('PushRelayUrl').value.trim();
+                if (currentMode() === 'relay' && !/^https?:\/\/\S+$/i.test(relayUrl)) { bad('PushRelayUrl', 'Start the address with https://', 'notifications'); }
+                if (currentMode() === 'direct' && el('ApnsEnabled').checked) {
                     var hasApns = el('ApnsPrivateKey').value.trim() !== '' || (!el('ApnsClearKeyBox').hidden && !el('ApnsClearKey').checked);
                     if (!hasApns) { bad('ApnsPrivateKey', 'Paste the key file content, or turn notifications off.', 'notifications'); }
                     if (!/^[A-Za-z0-9]{10}$/.test(el('ApnsKeyId').value.trim())) { bad('ApnsKeyId', 'A key ID is 10 letters and digits.', 'notifications'); }
@@ -912,6 +987,11 @@
 
             function notifSummary(r) {
                 var p = r.push;
+                if (p.mode === 'off') { return { chip: chip('', 'Off', 'notifications_off'), text: 'People are not told when their album is ready.', cta: 'Turn on' }; }
+                if (p.mode === 'relay') {
+                    if (p.relay && p.relay.banned) { return { chip: chip('bad', 'Blocked', 'error'), text: S.relayBanned, cta: 'See details' }; }
+                    return { chip: chip('ok', 'Working', 'check_circle'), text: 'Through the Sillon relay. ' + plural(p.devices, 'phone is', 'phones are') + ' registered to receive notifications.', cta: null };
+                }
                 if (p.enabled) { return { chip: chip('ok', 'Working', 'check_circle'), text: plural(p.devices, 'phone is', 'phones are') + ' registered to receive notifications.', cta: null }; }
                 if (p.turnedOn) { return { chip: chip('warn', 'Needs a key', 'warning'), text: 'Notifications are on, but the Apple key is missing or incomplete.', cta: 'Finish setup' }; }
                 return { chip: chip('', 'Off', 'notifications_off'), text: 'People are not told when their album is ready.', cta: 'Turn on' };
@@ -1199,12 +1279,58 @@
 
             var platformNames = { ios: 'iPhone or iPad', ipados: 'iPad', android: 'Android phone' };
 
+            function currentMode() {
+                var picked = page.querySelector('input[name="PushMode"]:checked');
+                return picked ? picked.value : 'relay';
+            }
+
+            function setMode(mode) {
+                var id = { relay: 'PushModeRelay', direct: 'PushModeDirect', off: 'PushModeOff' }[mode] || 'PushModeRelay';
+                el(id).checked = true;
+                showMode();
+            }
+
+            // only the part of the page that belongs to the chosen mode is shown
+            function showMode() {
+                var mode = currentMode();
+                el('RelayPanel').hidden = mode !== 'relay';
+                el('DirectPanel').hidden = mode !== 'direct';
+                el('DirectAdvanced').hidden = mode !== 'direct';
+                el('PushTestMe').disabled = mode === 'off';
+            }
+
+            function renderRelayInfo(p) {
+                var box = el('RelayInfo');
+                box.innerHTML = '';
+                var relay = p.relay;
+                if (!relay) { return; }
+                var rows = [
+                    h('div', { class: 'sl-small' }, [h('b', { text: S.relayServerId + ': ' }), h('code', { text: relay.kid })]),
+                    h('div', { class: 'sl-small sl-muted', text: S.relayServerIdHelp }),
+                    h('div', { class: 'sl-small', style: 'margin-top: .6em;' }, [h('b', { text: S.relayLast + ': ' }), relay.lastAt ? (relay.lastStatus + ', ' + ago(relay.lastAt) + ' (' + S.relayCounts(relay.sent, relay.refused) + ')') : S.relayNever])
+                ];
+                if (relay.banned) { rows.push(h('div', { class: 'sl-note bad', style: 'margin-top: .8em;' }, [icon('error'), h('div', { text: S.relayBanned })])); }
+                else if (relay.blockedUntil) { rows.push(h('div', { class: 'sl-note', style: 'margin-top: .8em;' }, [icon('schedule'), h('div', { text: S.relayQuota(new Date(relay.blockedUntil).toLocaleString()) })])); }
+                rows.forEach(function (row) { box.appendChild(row); });
+            }
+
             function loadNotifications() {
                 return Promise.all([fetchHealth(), api('GET', 'Sillon/Admin/Devices')]).then(function (r) {
                     var p = r[0].push;
                     var box = el('NotifStatus');
                     box.innerHTML = '';
-                    if (p.enabled) {
+                    renderRelayInfo(p);
+                    if (p.mode === 'off') {
+                        // nothing to report: the choice above says it
+                    } else if (p.mode === 'relay') {
+                        if (p.relay && p.relay.banned) {
+                            box.appendChild(h('div', { class: 'sl-note bad' }, [icon('error'), h('div', {}, [h('b', { text: 'Blocked by the relay' }), h('div', { class: 'sl-small', text: S.relayBanned })])]));
+                        } else if (!p.devices) {
+                            box.appendChild(h('div', { class: 'sl-note' }, [icon('info'), h('div', {}, [h('b', { text: 'Ready' }), h('div', { class: 'sl-small', text: S.relayNoPhones })])]));
+                        } else {
+                            box.appendChild(h('div', { class: 'sl-note ok' }, [icon('check_circle'), h('div', {}, [h('b', { text: 'Notifications are working' }), h('div', { class: 'sl-small', text: 'Send yourself a test to see one arrive.' })])]));
+                        }
+                    } else if (p.enabled) {
                         box.appendChild(h('div', { class: 'sl-note ok' }, [icon('check_circle'), h('div', {}, [h('b', { text: 'Notifications are working' }), h('div', { class: 'sl-small', text: 'Send yourself a test to see one arrive.' })])]));
                     } else if (p.turnedOn) {
                         box.appendChild(h('div', { class: 'sl-note bad' }, [icon('warning'), h('div', {}, [h('b', { text: 'Almost there' }), h('div', { class: 'sl-small', text: 'Notifications are on, but the Apple key is missing or incomplete. Open "Advanced: Apple notification key" below to finish.' })])]));
@@ -1233,7 +1359,7 @@
                         }, { danger: true, label: 'Remove ' + device + ' of ' + name });
                         list.appendChild(h('li', { class: 'sl-item' }, [
                             h('div', { class: 'sl-avatar', 'aria-hidden': 'true', text: (name.charAt(0) || '?').toUpperCase() }),
-                            h('div', { class: 'sl-main' }, [h('b', { text: name }), h('span', { text: device + ' · last seen ' + ago(d.updatedAt) })]),
+                            h('div', { class: 'sl-main' }, [h('b', { text: name }), h('span', { text: device + (d.mode === 'relay' ? ' · via the relay' : '') + ' · last seen ' + ago(d.updatedAt) })]),
                             h('div', { class: 'sl-side' }, [remove])
                         ]));
                     });
@@ -1254,12 +1380,15 @@
                 el('PushTestMe').disabled = true;
                 api('POST', 'Sillon/Push/Test').then(function (r) {
                     var devices = r.devices || [];
-                    if (!devices.length) { say('PushTestResult', 'You have no phone registered. Open the Sillon app signed in as yourself first.', 'bad'); return; }
+                    if (!devices.length) { say('PushTestResult', S.testNoPhone, 'bad'); return; }
                     var failed = devices.filter(function (d) { return d.result !== 'sent'; });
-                    if (failed.length) { say('PushTestResult', 'Apple refused the notification' + (failed[0].reason ? ' (' + failed[0].reason + ')' : '') + '. Check the key in the Advanced section.', 'bad'); } else { say('PushTestResult', 'Sent! It should arrive on your phone in a moment.', 'ok'); toast('Test notification sent.', 'ok'); }
+                    if (failed.length && r.mode === 'relay') {
+                        var why = S.testRelayWhy[failed[0].reason] || failed[0].reason;
+                        say('PushTestResult', S.testRelayRefused + (why ? ': ' + why : '') + '.', 'bad');
+                    } else if (failed.length) { say('PushTestResult', 'Apple refused the notification' + (failed[0].reason ? ' (' + failed[0].reason + ')' : '') + '. Check the key in the Advanced section.', 'bad'); } else { say('PushTestResult', 'Sent! It should arrive on your phone in a moment.', 'ok'); toast('Test notification sent.', 'ok'); }
                 }, function (err) {
                     errorText(err, 'The test failed.').then(function (m) { say('PushTestResult', m, 'bad'); });
-                }).then(function () { el('PushTestMe').disabled = false; });
+                }).then(function () { showMode(); });
             }
 
             // ---- wiring
@@ -1275,6 +1404,9 @@
                     if (!t || !t.id || ['ReqSearch', 'PurgeDays', 'AllowInput', 'WebhookBase', 'WebhookUrl'].indexOf(t.id) >= 0) { return; }
                     if (['INPUT', 'SELECT', 'TEXTAREA'].indexOf(t.tagName) >= 0) { setDirty(true); updateSteps(); }
                 });
+            });
+            page.querySelector('.sl-shell').addEventListener('change', function (e) {
+                if (e.target && e.target.name === 'PushMode') { showMode(); }
             });
             el('WebhookBase').addEventListener('input', function () { el('WebhookUrl').value = webhookUrl(); });
             el('AllowAdd').addEventListener('click', addAllowEntry);

@@ -16,15 +16,21 @@ public sealed class PushController : ControllerBase
     private readonly ApnsNotifier _notifier;
 
     /// <summary>Initializes a new instance of the <see cref="PushController"/> class.</summary>
-    /// <param name="notifier">The APNs notifier.</param>
+    /// <param name="notifier">The notifier.</param>
     public PushController(ApnsNotifier notifier) => _notifier = notifier;
 
-    /// <summary>Tells where the key comes from and whether notifications are active.</summary>
+    /// <summary>Tells the mode, where the key comes from and whether notifications are active.</summary>
     /// <returns>The status.</returns>
     [HttpGet("Status")]
     [Authorize(Policy = Policies.RequiresElevation)]
     public ActionResult Status()
-        => new JsonResult(new { enabled = _notifier.Enabled, source = _notifier.KeySource().ToString().ToLowerInvariant() });
+        => new JsonResult(new
+        {
+            enabled = _notifier.Enabled,
+            mode = _notifier.Mode(),
+            source = _notifier.KeySource().ToString().ToLowerInvariant(),
+            relay = RelayInfo()
+        });
 
     /// <summary>Sends a test notification to the devices of the calling administrator, or of the given user.</summary>
     /// <param name="userId">The user to notify; the caller when omitted.</param>
@@ -44,12 +50,14 @@ public sealed class PushController : ControllerBase
             return new JsonResult(new { message = "Notifications are not active (turned off, or no key configured)." }) { StatusCode = StatusCodes.Status409Conflict };
         }
 
+        var test = NotificationEvent.Test;
         var results = await _notifier.SendAsync(
             id.ToString("N"),
-            new PushMessage(null, "Sillon: notifications are working", new Dictionary<string, object>()),
+            new PushMessage(null, test.DirectBody(), test.DirectExtra(), test),
             ct).ConfigureAwait(false);
         return new JsonResult(new
         {
+            mode = _notifier.Mode(),
             devices = results.Select(r => new
             {
                 platform = r.Platform,
@@ -59,5 +67,25 @@ public sealed class PushController : ControllerBase
                 reason = r.Result.Reason
             }).ToList()
         });
+    }
+
+    private object? RelayInfo()
+    {
+        var relay = _notifier.Relay?.Status();
+        return relay is null
+            ? null
+            : new
+            {
+                url = relay.Url,
+                kid = relay.Kid,
+                serverPublicKey = relay.ServerPublicKey,
+                banned = relay.Banned,
+                lastStatus = relay.LastStatus,
+                lastAt = relay.LastAt,
+                sent = relay.Sent,
+                refused = relay.Refused,
+                quotaHits = relay.QuotaHits,
+                blockedUntil = relay.BlockedUntil
+            };
     }
 }

@@ -21,7 +21,10 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         Instance = this;
 
-        if (Configuration.EnsureWebhookSecret())
+        // an install that predates the relay and holds an APNs key is pinned to direct mode here, once, before anything can send
+        var changed = Configuration.EnsureWebhookSecret();
+        changed |= Configuration.EnsurePushMode(Environment.GetEnvironmentVariable);
+        if (changed)
         {
             SaveConfiguration();
         }

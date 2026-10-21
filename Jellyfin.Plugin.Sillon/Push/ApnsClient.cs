@@ -13,7 +13,8 @@ namespace Jellyfin.Plugin.Sillon.Push;
 /// <param name="Title">The alert title, or <c>null</c> for none.</param>
 /// <param name="Body">The alert body.</param>
 /// <param name="Extra">Keys placed next to <c>aps</c> in the payload (request_id, album_id).</param>
-public sealed record PushMessage(string? Title, string Body, IReadOnlyDictionary<string, object> Extra);
+/// <param name="Event">The same notification as data; the relay sends this, never the sentence.</param>
+public sealed record PushMessage(string? Title, string Body, IReadOnlyDictionary<string, object> Extra, NotificationEvent? Event = null);
 
 /// <summary>How an APNs delivery ended.</summary>
 public enum PushOutcome
@@ -25,7 +26,10 @@ public enum PushOutcome
     DeviceGone,
 
     /// <summary>Any other failure, worth retrying later.</summary>
-    Failed
+    Failed,
+
+    /// <summary>Not delivered and not worth retrying: a spent quota, a refusal, a device the relay does not know (yet).</summary>
+    Skipped
 }
 
 /// <summary>Result of one push.</summary>
@@ -48,19 +52,25 @@ public sealed record PushResult(PushOutcome Outcome, int StatusCode, string Reas
     /// <param name="reason">The reason.</param>
     /// <returns>The result.</returns>
     public static PushResult Failed(int status, string reason) => new(PushOutcome.Failed, status, reason);
+
+    /// <summary>Builds a dropped result: not delivered, not worth retrying.</summary>
+    /// <param name="status">The HTTP status, 0 when none.</param>
+    /// <param name="reason">The reason.</param>
+    /// <returns>The result.</returns>
+    public static PushResult Skipped(int status, string reason) => new(PushOutcome.Skipped, status, reason);
 }
 
 /// <summary>Sends one push to one device.</summary>
 public interface IPushSender
 {
     /// <summary>Sends an alert.</summary>
-    /// <param name="credentials">The credentials.</param>
-    /// <param name="deviceToken">The device token.</param>
+    /// <param name="credentials">The APNs credentials; <c>null</c> for the relay, which holds none.</param>
+    /// <param name="deviceToken">The device token; the device id (base64url) for the relay.</param>
     /// <param name="environment"><c>development</c> for the sandbox, anything else for production.</param>
     /// <param name="message">The message.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The result.</returns>
-    Task<PushResult> SendAsync(ApnsCredentials credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct);
+    Task<PushResult> SendAsync(ApnsCredentials? credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct);
 }
 
 /// <summary>APNs over HTTP/2 with a provider JWT (ES256), using only the framework.</summary>
@@ -106,8 +116,13 @@ public sealed class ApnsClient : IPushSender, IDisposable
     });
 
     /// <inheritdoc />
-    public async Task<PushResult> SendAsync(ApnsCredentials credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
+    public async Task<PushResult> SendAsync(ApnsCredentials? credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
     {
+        if (credentials is null)
+        {
+            return PushResult.Failed(0, "no APNs credentials");
+        }
+
         string jwt;
         try
         {

@@ -36,6 +36,20 @@ public class PluginConfiguration : BasePluginConfiguration
     /// </summary>
     public const string DefaultApnsTopic = "com.overglass.sillon";
 
+    /// <summary>
+    /// The official relay.
+    /// </summary>
+    public const string DefaultPushRelayUrl = "https://sillon-push.tailba6a9d.ts.net";
+
+    /// <summary>Notifications go through the Sillon relay.</summary>
+    public const string RelayMode = "relay";
+
+    /// <summary>Notifications go to Apple with the administrator's own key.</summary>
+    public const string DirectMode = "direct";
+
+    /// <summary>No notifications.</summary>
+    public const string OffMode = "off";
+
     private const string SecretAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
     /// <summary>
@@ -144,7 +158,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public string WebhookSecret { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets a value indicating whether APNs notifications are enabled.
+    /// Gets or sets how notifications reach the devices: <c>relay</c>, <c>direct</c> or <c>off</c>. Empty on a configuration written
+    /// before the relay existed: <see cref="EnsurePushMode"/> then decides once and stores the answer.
+    /// </summary>
+    public string PushMode { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the relay URL (relay mode only). A custom relay only works with an app built for it.
+    /// </summary>
+    public string PushRelayUrl { get; set; } = DefaultPushRelayUrl;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether APNs notifications are enabled (direct mode).
     /// </summary>
     public bool ApnsEnabled { get; set; }
 
@@ -230,6 +255,68 @@ public class PluginConfiguration : BasePluginConfiguration
         ApnsKeyId = (ApnsKeyId ?? string.Empty).Trim();
         ApnsTeamId = (ApnsTeamId ?? string.Empty).Trim();
         ApnsTopic = (ApnsTopic ?? string.Empty).Trim();
+        PushMode = NormalizePushMode(PushMode);
+        PushRelayUrl = (PushRelayUrl ?? string.Empty).Trim().TrimEnd('/');
+        if (!IsValidRelayUrl(PushRelayUrl))
+        {
+            PushRelayUrl = DefaultPushRelayUrl;
+        }
+    }
+
+    /// <summary>
+    /// Checks that a relay URL is an absolute http(s) URL.
+    /// </summary>
+    /// <param name="url">The URL.</param>
+    /// <returns><c>true</c> when it is acceptable.</returns>
+    public static bool IsValidRelayUrl(string? url)
+        => Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https";
+
+    /// <summary>
+    /// Reads the push mode the way it is stored: one of the three modes, or empty when it was never chosen.
+    /// </summary>
+    /// <param name="value">The stored text.</param>
+    /// <returns>The mode, or empty.</returns>
+    public static string NormalizePushMode(string? value)
+    {
+        var mode = (value ?? string.Empty).Trim().ToLowerInvariant();
+        return mode is RelayMode or DirectMode or OffMode ? mode : string.Empty;
+    }
+
+    /// <summary>
+    /// Gets the mode in force. An administrator's choice wins; a configuration that never chose and holds an APNs key (or the key
+    /// variable) is an install that predates the relay and stays in <c>direct</c> mode; any other is a new install: <c>relay</c>.
+    /// </summary>
+    /// <param name="environment">Reads an environment variable.</param>
+    /// <returns>One of the three modes.</returns>
+    public string ResolvePushMode(Func<string, string?> environment)
+    {
+        var chosen = NormalizePushMode(PushMode);
+        if (chosen.Length > 0)
+        {
+            return chosen;
+        }
+
+        var legacy = ApnsEnabled
+            || !string.IsNullOrWhiteSpace(ApnsPrivateKeyValue)
+            || !string.IsNullOrWhiteSpace(ApnsKeyId)
+            || !string.IsNullOrWhiteSpace(environment("SILLON_APNS_KEY"));
+        return legacy ? DirectMode : RelayMode;
+    }
+
+    /// <summary>
+    /// Stores the resolved mode when none was ever chosen, so the upgrade decision is made once and never changes behind the administrator's back.
+    /// </summary>
+    /// <param name="environment">Reads an environment variable.</param>
+    /// <returns><c>true</c> when the configuration changed and needs saving.</returns>
+    public bool EnsurePushMode(Func<string, string?> environment)
+    {
+        if (NormalizePushMode(PushMode).Length > 0)
+        {
+            return false;
+        }
+
+        PushMode = ResolvePushMode(environment);
+        return true;
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Jellyfin.Plugin.Sillon.Catalog;
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
+using Jellyfin.Plugin.Sillon.Push;
 using Jellyfin.Plugin.Sillon.Requests;
 using Jellyfin.Plugin.Sillon.Storage;
 using MediaBrowser.Common.Api;
@@ -59,6 +60,14 @@ public sealed class RegisterDeviceBody
     /// <summary>Gets the APNs environment, <c>development</c> or <c>production</c>; anything else means the default.</summary>
     [JsonPropertyName("env")]
     public string Env { get; init; } = string.Empty;
+
+    /// <summary>Gets the device public key (65 bytes, base64url) the relay protocol encrypts for.</summary>
+    [JsonPropertyName("devicePublicKey")]
+    public string? DevicePublicKey { get; init; }
+
+    /// <summary>Gets how the device wants to be notified: <c>relay</c> or <c>direct</c>; absent means direct (the former behaviour).</summary>
+    [JsonPropertyName("pushMode")]
+    public string? PushMode { get; init; }
 }
 
 /// <summary>The album-request API the Sillon app talks to (same routes and JSON as the former gateway).</summary>
@@ -76,6 +85,7 @@ public sealed partial class RequestsController : ControllerBase
     private readonly IJellyfinLibrary _library;
     private readonly INotifier _notifier;
     private readonly Func<PluginConfiguration> _config;
+    private readonly ServerKeyStore? _serverKey;
 
     /// <summary>Initializes a new instance of the <see cref="RequestsController"/> class.</summary>
     /// <param name="requests">The request service.</param>
@@ -85,6 +95,7 @@ public sealed partial class RequestsController : ControllerBase
     /// <param name="library">The Jellyfin library.</param>
     /// <param name="notifier">The notifier.</param>
     /// <param name="config">The configuration accessor.</param>
+    /// <param name="serverKey">The server's relay signing key; without it relay registrations are refused.</param>
     public RequestsController(
         RequestService requests,
         RequestStore store,
@@ -92,8 +103,10 @@ public sealed partial class RequestsController : ControllerBase
         CatalogService catalog,
         IJellyfinLibrary library,
         INotifier notifier,
-        Func<PluginConfiguration> config)
+        Func<PluginConfiguration> config,
+        ServerKeyStore? serverKey = null)
     {
+        _serverKey = serverKey;
         _requests = requests;
         _store = store;
         _devices = devices;
@@ -338,7 +351,18 @@ public sealed partial class RequestsController : ControllerBase
             return error;
         }
 
-        var token = body!.Token.Trim();
+        var pushMode = body!.PushMode?.Trim().ToLowerInvariant();
+        if (pushMode == PluginConfiguration.RelayMode)
+        {
+            return RegisterRelayDevice(caller.Id, body);
+        }
+
+        if (pushMode is not (null or "" or PluginConfiguration.DirectMode))
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "pushMode doit être relay ou direct");
+        }
+
+        var token = body.Token.Trim();
         if (token.Length == 0)
         {
             return ApiJson.Error(StatusCodes.Status400BadRequest, "token est obligatoire");
@@ -355,7 +379,67 @@ public sealed partial class RequestsController : ControllerBase
             return ApiJson.Error(StatusCodes.Status409Conflict, "Cet appareil est déjà enregistré pour un autre compte");
         }
 
+        // a body without the new fields gets the answer it always got
+        return pushMode is null or ""
+            ? ApiJson.Result(new AckBody(true))
+            : ApiJson.Result(new { ok = true, push = new { protocol = 1, mode = PluginConfiguration.DirectMode } });
+    }
+
+    /// <summary>Removes one of the caller's relay devices.</summary>
+    /// <param name="deviceId">The device id: SHA-256 of its public key, base64url.</param>
+    /// <returns>An acknowledgement.</returns>
+    [HttpDelete("v1/devices/by-id/{deviceId}")]
+    [Authorize]
+    public ActionResult DeleteDeviceById(string deviceId)
+    {
+        var caller = Caller();
+        if (caller is null)
+        {
+            return Unauthorized();
+        }
+
+        _devices.DeleteByDeviceId(deviceId, caller.Id);
         return ApiJson.Result(new AckBody(true));
+    }
+
+    // relay mode: the device sends its public key and no token; the server answers with its own public key and the relay's address
+    private ActionResult RegisterRelayDevice(string userId, RegisterDeviceBody body)
+    {
+        var config = _config();
+        if (_serverKey is null || config.ResolvePushMode(Environment.GetEnvironmentVariable) != PluginConfiguration.RelayMode)
+        {
+            return ApiJson.Error(StatusCodes.Status409Conflict, "Ce serveur n'utilise pas le relais de notifications");
+        }
+
+        if (!string.IsNullOrWhiteSpace(body.Token))
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "token doit être omis en mode relay");
+        }
+
+        var key = RelayCrypto.FromB64(body.DevicePublicKey);
+        if (key is null || !RelayCrypto.IsValidPublicKey(key))
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "devicePublicKey doit être une clé P-256 de 65 octets (X9.63) en base64url");
+        }
+
+        var env = body.Env is "development" or "production" ? body.Env : string.Empty;
+        if (!_devices.UpsertRelay(RelayCrypto.B64(key), userId, body.Platform, env))
+        {
+            return ApiJson.Error(StatusCodes.Status409Conflict, "Cet appareil est déjà enregistré pour un autre compte");
+        }
+
+        return ApiJson.Result(new
+        {
+            ok = true,
+            push = new
+            {
+                protocol = 1,
+                mode = PluginConfiguration.RelayMode,
+                serverPublicKey = _serverKey.PublicKeyText,
+                kid = _serverKey.KidText,
+                relayUrl = config.PushRelayUrl
+            }
+        });
     }
 
     /// <summary>Removes one of the caller's device tokens.</summary>

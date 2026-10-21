@@ -2,6 +2,7 @@ using System.Globalization;
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Library;
 using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Push;
 using Jellyfin.Plugin.Sillon.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -873,19 +874,7 @@ public sealed class RequestService
             return;
         }
 
-        var extra = new Dictionary<string, object> { ["request_id"] = requestId };
-        if (!string.IsNullOrEmpty(itemId))
-        {
-            extra["album_id"] = itemId;
-        }
-
-        var body = $"{request.Title} de {request.Artist} est maintenant dans la bibliothèque";
-        if (request.TracksTotal > 0 && request.TracksImported < request.TracksTotal)
-        {
-            body += string.Create(CultureInfo.InvariantCulture, $" ({request.TracksImported}/{request.TracksTotal} titres)");
-        }
-
-        if (await _notifier.NotifyAsync(request.UserId, body, extra, _shutdown).ConfigureAwait(false))
+        if (await _notifier.NotifyAsync(request.UserId, NotificationEvent.Available(request, itemId), _shutdown).ConfigureAwait(false))
         {
             _store.MarkNotified(requestId);
         }
@@ -961,11 +950,7 @@ public sealed class RequestService
         }
 
         _logger.LogInformation("Request timed out request={Id} artist={Artist} title={Title}", request.Id, request.Artist, request.Title);
-        await _notifier.NotifyAsync(
-            request.UserId,
-            $"{request.Title} de {request.Artist} est introuvable",
-            new Dictionary<string, object> { ["request_id"] = request.Id },
-            ct).ConfigureAwait(false);
+        await _notifier.NotifyAsync(request.UserId, NotificationEvent.NotFound(request), ct).ConfigureAwait(false);
     }
 
     // re-runs, in the background, the Lidarr add of a request that never got its album id (the client hung up, Lidarr was slow or down, the plugin stopped);

@@ -541,7 +541,7 @@ public class ApnsTests
 
         public Dictionary<string, PushResult> Outcomes { get; } = new();
 
-        public Task<PushResult> SendAsync(ApnsCredentials credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
+        public Task<PushResult> SendAsync(ApnsCredentials? credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
         {
             Calls.Add((deviceToken, environment, message));
             return Task.FromResult(Outcomes.GetValueOrDefault(deviceToken) ?? PushResult.Sent);

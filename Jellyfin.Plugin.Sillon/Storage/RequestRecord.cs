@@ -131,11 +131,28 @@ public sealed record DeviceRecord
     /// <summary>Gets the last change time.</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
-    /// <summary>Gets an id safe to show and to pass around: the first 16 hex digits of the token's SHA-256, never the token.</summary>
-    [JsonIgnore]
-    public string PublicId => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Token)))[..16].ToLowerInvariant();
+    /// <summary>Gets the device public key (65 bytes, base64url) of a device registered for the relay; empty for a token-only device.</summary>
+    public string DevicePublicKey { get; init; } = string.Empty;
 
-    /// <summary>Gets the last 6 characters of the token, to tell devices apart.</summary>
+    /// <summary>Gets how the device is notified: <c>relay</c> (no token, a device key) or empty for a token device (direct mode).</summary>
+    public string PushMode { get; init; } = string.Empty;
+
+    /// <summary>Gets a value indicating whether the device is notified through the relay.</summary>
     [JsonIgnore]
-    public string TokenHint => Token.Length <= 6 ? Token : Token[^6..];
+    public bool IsRelay => PushMode == "relay" && DevicePublicKey.Length > 0;
+
+    /// <summary>Gets the relay device id: the SHA-256 of the device public key, base64url; empty without a key.</summary>
+    [JsonIgnore]
+    public string DeviceId
+        => DevicePublicKey.Length == 0 ? string.Empty : Push.RelayCrypto.B64(System.Security.Cryptography.SHA256.HashData(Push.RelayCrypto.FromB64(DevicePublicKey) ?? Array.Empty<byte>()));
+
+    /// <summary>Gets an id safe to show and to pass around: the first 16 hex digits of the token's SHA-256 (of the device id for a relay device), never the token.</summary>
+    [JsonIgnore]
+    public string PublicId => IsRelay && Token.Length == 0
+        ? Convert.ToHexString(Push.RelayCrypto.FromB64(DeviceId) ?? Array.Empty<byte>())[..16].ToLowerInvariant()
+        : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(Token)))[..16].ToLowerInvariant();
+
+    /// <summary>Gets the last 6 characters of the token (of the device id for a relay device), to tell devices apart.</summary>
+    [JsonIgnore]
+    public string TokenHint => Token.Length == 0 ? (DeviceId.Length <= 6 ? DeviceId : DeviceId[..6]) : (Token.Length <= 6 ? Token : Token[^6..]);
 }

@@ -256,7 +256,7 @@ public class AdminTests
 
     private sealed class NullSender : IPushSender
     {
-        public Task<PushResult> SendAsync(ApnsCredentials credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
+        public Task<PushResult> SendAsync(ApnsCredentials? credentials, string deviceToken, string environment, PushMessage message, CancellationToken ct)
             => Task.FromResult(PushResult.Sent);
     }
 }

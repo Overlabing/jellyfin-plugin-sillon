@@ -26,6 +26,8 @@ public sealed record LidarrHealth(
 /// <param name="HasTeamId">Whether a team id is set.</param>
 /// <param name="Topic">The topic (the app's bundle id).</param>
 /// <param name="Devices">How many devices are registered.</param>
+/// <param name="Mode">The mode in force: <c>relay</c>, <c>direct</c> or <c>off</c>.</param>
+/// <param name="Relay">The relay link state when this build has a relay client.</param>
 public sealed record PushHealth(
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("turnedOn")] bool TurnedOn,
@@ -33,7 +35,32 @@ public sealed record PushHealth(
     [property: JsonPropertyName("hasKeyId")] bool HasKeyId,
     [property: JsonPropertyName("hasTeamId")] bool HasTeamId,
     [property: JsonPropertyName("topic")] string Topic,
-    [property: JsonPropertyName("devices")] int Devices);
+    [property: JsonPropertyName("devices")] int Devices,
+    [property: JsonPropertyName("mode")] string Mode = "direct",
+    [property: JsonPropertyName("relay")] RelayHealth? Relay = null);
+
+/// <summary>The relay link's state for the settings page: this server's public identity and the last answers, never content.</summary>
+/// <param name="Url">The relay URL.</param>
+/// <param name="Kid">This server's key id.</param>
+/// <param name="ServerPublicKey">This server's public key.</param>
+/// <param name="Banned">Whether the relay banned this key.</param>
+/// <param name="LastStatus">The last relay answer.</param>
+/// <param name="LastAt">When it happened.</param>
+/// <param name="Sent">Notifications accepted.</param>
+/// <param name="Refused">Notifications refused or failed.</param>
+/// <param name="QuotaHits">Times a quota stopped a notification.</param>
+/// <param name="BlockedUntil">When a spent server quota ends.</param>
+public sealed record RelayHealth(
+    [property: JsonPropertyName("url")] string Url,
+    [property: JsonPropertyName("kid")] string Kid,
+    [property: JsonPropertyName("serverPublicKey")] string ServerPublicKey,
+    [property: JsonPropertyName("banned")] bool Banned,
+    [property: JsonPropertyName("lastStatus")] string LastStatus,
+    [property: JsonPropertyName("lastAt")] DateTimeOffset? LastAt,
+    [property: JsonPropertyName("sent")] long Sent,
+    [property: JsonPropertyName("refused")] long Refused,
+    [property: JsonPropertyName("quotaHits")] long QuotaHits,
+    [property: JsonPropertyName("blockedUntil")] DateTimeOffset? BlockedUntil);
 
 /// <summary>The overview page's data.</summary>
 /// <param name="Version">The plugin version.</param>
@@ -55,13 +82,15 @@ public sealed record AdminHealth(
 /// <param name="TokenHint">The last characters of the token.</param>
 /// <param name="CreatedAt">When it registered.</param>
 /// <param name="UpdatedAt">When it last registered.</param>
+/// <param name="Mode">How it is notified: <c>relay</c> or <c>direct</c>.</param>
 public sealed record DeviceDto(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("platform")] string Platform,
     [property: JsonPropertyName("env")] string Env,
     [property: JsonPropertyName("tokenHint")] string TokenHint,
     [property: JsonPropertyName("createdAt")] DateTimeOffset CreatedAt,
-    [property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt);
+    [property: JsonPropertyName("updatedAt")] DateTimeOffset UpdatedAt,
+    [property: JsonPropertyName("mode")] string Mode = "direct");
 
 /// <summary>A user and the devices they registered.</summary>
 /// <param name="UserId">The user id.</param>
@@ -129,14 +158,18 @@ public sealed class AdminService
         }
 
         var credentials = ApnsCredentialResolver.Resolve(config, Environment.GetEnvironmentVariable);
+        var mode = _notifier.Mode();
+        var relay = _notifier.Relay?.Status();
         var push = new PushHealth(
             _notifier.Enabled,
-            config.ApnsEnabled,
+            mode == PluginConfiguration.RelayMode || (mode == PluginConfiguration.DirectMode && config.ApnsEnabled),
             _notifier.KeySource().ToString().ToLowerInvariant(),
             !string.IsNullOrWhiteSpace(credentials?.KeyId),
             !string.IsNullOrWhiteSpace(credentials?.TeamId),
             string.IsNullOrWhiteSpace(config.ApnsTopic) ? PluginConfiguration.DefaultApnsTopic : config.ApnsTopic,
-            _devices.All().Count);
+            _devices.All().Count,
+            mode,
+            relay is null ? null : new RelayHealth(relay.Url, relay.Kid, relay.ServerPublicKey, relay.Banned, relay.LastStatus, relay.LastAt, relay.Sent, relay.Refused, relay.QuotaHits, relay.BlockedUntil));
 
         return new AdminHealth(_version, config.FulfillmentMode.ToString().ToLowerInvariant(), await ProbeLidarrAsync(config, ct).ConfigureAwait(false), push, counts);
     }
@@ -149,7 +182,7 @@ public sealed class AdminService
             .Select(g => new UserDevices(
                 g.Key,
                 _library.GetUser(g.Key)?.Name ?? string.Empty,
-                g.Select(d => new DeviceDto(d.PublicId, d.Platform, d.Env, d.TokenHint, d.CreatedAt, d.UpdatedAt)).ToList()))
+                g.Select(d => new DeviceDto(d.PublicId, d.Platform, d.Env, d.TokenHint, d.CreatedAt, d.UpdatedAt, d.IsRelay ? "relay" : "direct")).ToList()))
             .OrderBy(u => u.UserName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 

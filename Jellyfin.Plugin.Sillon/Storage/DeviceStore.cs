@@ -56,6 +56,75 @@ public sealed class DeviceStore
         }
     }
 
+    /// <summary>
+    /// Registers a device for the relay: no token, only its public key. Like a token, a key owned by another user is never moved.
+    /// </summary>
+    /// <param name="devicePublicKey">The device public key, base64url.</param>
+    /// <param name="userId">The user.</param>
+    /// <param name="platform">The platform.</param>
+    /// <param name="env">The APNs environment, or empty for the default.</param>
+    /// <returns><c>false</c>, and nothing changes, when another user owns the key.</returns>
+    public bool UpsertRelay(string devicePublicKey, string userId, string platform, string env)
+    {
+        lock (_lock)
+        {
+            var now = _now();
+            var index = _devices.FindIndex(d => d.DevicePublicKey == devicePublicKey && d.IsRelay);
+            if (index >= 0 && _devices[index].UserId != userId)
+            {
+                return false;
+            }
+
+            var created = index >= 0 ? _devices[index].CreatedAt : now;
+            var device = new DeviceRecord
+            {
+                DevicePublicKey = devicePublicKey,
+                PushMode = "relay",
+                UserId = userId,
+                Platform = platform,
+                Env = env,
+                CreatedAt = created,
+                UpdatedAt = now
+            };
+            if (index >= 0)
+            {
+                _devices[index] = device;
+            }
+            else
+            {
+                _devices.Add(device);
+            }
+
+            Persist();
+            return true;
+        }
+    }
+
+    /// <summary>Finds a relay device by its id.</summary>
+    /// <param name="deviceId">The device id, base64url.</param>
+    /// <returns>The device, or <c>null</c>.</returns>
+    public DeviceRecord? FindByDeviceId(string deviceId)
+    {
+        lock (_lock)
+        {
+            return _devices.FirstOrDefault(d => d.IsRelay && d.DeviceId == deviceId);
+        }
+    }
+
+    /// <summary>Removes a relay device by its id.</summary>
+    /// <param name="deviceId">The device id, base64url.</param>
+    /// <param name="userId">When not null, only that owner's device is removed.</param>
+    public void DeleteByDeviceId(string deviceId, string? userId)
+    {
+        lock (_lock)
+        {
+            if (_devices.RemoveAll(d => d.IsRelay && d.DeviceId == deviceId && (userId is null || d.UserId == userId)) > 0)
+            {
+                Persist();
+            }
+        }
+    }
+
     /// <summary>Removes a token.</summary>
     /// <param name="token">The token.</param>
     /// <param name="userId">When not null, only that owner's token is removed.</param>

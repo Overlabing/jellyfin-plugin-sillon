@@ -54,7 +54,13 @@ public class SillonController : ControllerBase
         {
             version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(),
             features = config.ExposeToApps && config.RequestsEnabled() ? new[] { "requests" } : Array.Empty<string>(),
-            mode = config.FulfillmentMode.ToString().ToLowerInvariant()
+            mode = config.FulfillmentMode.ToString().ToLowerInvariant(),
+            push = new
+            {
+                protocol = 1,
+                modes = new[] { PluginConfiguration.RelayMode, PluginConfiguration.DirectMode },
+                mode = config.ResolvePushMode(Environment.GetEnvironmentVariable)
+            }
         });
     }
 
