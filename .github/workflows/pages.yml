@@ -1,0 +1,41 @@
+name: pages
+
+# Publishes the plugin repository manifest to https://overlabing.github.io/jellyfin-plugin-sillon/manifest.json.
+# build.yml dispatches it on main after each release; run it by hand to republish (gh workflow run pages.yml).
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}manifest.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test the manifest script
+        run: python3 -I scripts/test_manifest.py
+
+      # Rebuilt from every published release: md5 of each zip as served, newest version first.
+      - name: Manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I scripts/manifest.py --repo "$GITHUB_REPOSITORY" --out site/manifest.json
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

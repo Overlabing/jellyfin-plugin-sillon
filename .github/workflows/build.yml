@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +21,9 @@ jobs:
 
       - name: Test
         run: dotnet test -c Release
+
+      - name: Test scripts
+        run: python3 -I scripts/test_manifest.py
 
       # The same zip as a local release: dll + meta.json, version from scripts/package.sh.
       - name: Package
@@ -43,3 +47,11 @@ jobs:
         run: |
           test "Sillon_${GITHUB_REF_NAME#v}" = "${{ steps.package.outputs.name }}" || { echo "tag $GITHUB_REF_NAME does not match ${{ steps.package.outputs.name }}"; exit 1; }
           gh release create "$GITHUB_REF_NAME" "${{ steps.package.outputs.zip }}" --title "Sillon $GITHUB_REF_NAME" --notes "$(jq -r .changelog dist/stage/meta.json)"
+
+      # The manifest is deployed by pages.yml on main: the github-pages environment only lets the default
+      # branch deploy, and GITHUB_TOKEN may start a workflow only through a dispatch.
+      - name: Publish the manifest
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
