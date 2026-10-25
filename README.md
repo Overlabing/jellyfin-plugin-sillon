@@ -42,14 +42,24 @@ playback and browsing your existing library work without it. The app's privacy p
 
 ## Installation
 
-There is no plugin repository manifest yet, so install from a release:
+Add the Sillon plugin repository to Jellyfin, then install the plugin from the catalogue:
 
-1. Download `Sillon_<version>.zip` from the
-   [latest release](https://github.com/Overlabing/jellyfin-plugin-sillon/releases/latest).
-2. Unzip it (it holds `Jellyfin.Plugin.Sillon.dll` and `meta.json`) into a folder named
-   `Sillon_<version>` inside Jellyfin's `plugins` directory, for example
-   `/config/plugins/Sillon_0.7.0.0/` in the official Docker image.
+1. In the Jellyfin dashboard, open Plugins, then Repositories (Catalog, then the settings icon on older
+   versions), and add a repository named `Sillon` with this URL:
+
+   ```
+   https://overlabing.github.io/jellyfin-plugin-sillon/manifest.json
+   ```
+
+2. Open the Catalog, find **Sillon** under Music, and install it.
 3. Restart Jellyfin. The plugin appears under Dashboard, Plugins, with its own entry in the sidebar.
+   New versions show up in the catalogue the same way.
+
+To install by hand instead, download `Sillon_<version>.zip` from the
+[latest release](https://github.com/Overlabing/jellyfin-plugin-sillon/releases/latest), unzip it (it holds
+`Jellyfin.Plugin.Sillon.dll` and `meta.json`) into a folder named `Sillon_<version>` inside Jellyfin's
+`plugins` directory (for example `/config/plugins/Sillon_0.7.0.0/` in the official Docker image), and
+restart Jellyfin.
 
 Requests and registered devices are stored in `requests.json` and `devices.json` in the plugin's data
 folder, which survive upgrades.
@@ -130,7 +140,8 @@ scripts/package.sh        # builds dist/Sillon_<version>.zip (dll and meta.json)
 
 Tests cover the request flow, the Lidarr client, the relay protocol (with fixed test vectors), APNs and
 the HTTP controllers; they need no Jellyfin server or network. A GitHub Actions workflow runs the same
-steps and publishes the zip as a release when a `v<version>` tag is pushed.
+steps, publishes the zip as a release when a `v<version>` tag is pushed, and updates the repository
+manifest on GitHub Pages.
 
 ## Contributing and support
 
@@ -140,4 +151,5 @@ links or server addresses in issues.
 
 ## License
 
-See the `LICENSE` file in this repository.
+Sillon for Jellyfin is free software under the [GNU General Public License v3.0](LICENSE), the license
+of the Jellyfin libraries it builds on.
