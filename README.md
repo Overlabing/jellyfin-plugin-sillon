@@ -1,80 +1,143 @@
-# Sillon, plugin Jellyfin
+# Sillon for Jellyfin
 
-Plugin Jellyfin 12.2 compagnon de l'application Sillon. Il relie Jellyfin à Lidarr pour que la liste d'envies de musique tenue depuis l'app puisse être traitée automatiquement.
+A Jellyfin plugin that powers the music catalogue, album requests and push notifications of the
+[Sillon](https://apps.apple.com/app/id6822914803) iOS and macOS app. It is for server administrators:
+install it, point it at Lidarr if you want requests fulfilled automatically, and the people who use
+Sillon on your server can ask for albums and be told when they are ready.
 
-Le plugin reprend la liste d'envies d'albums de l'ancien service Go `sillon-gateway` (mêmes routes, même JSON), à l'URL de base `<jellyfin>/Sillon`. Phase 3 (cette version) : les notifications APNs partent directement du serveur Jellyfin vers les appareils du demandeur.
+Sillon itself is a music player for Jellyfin. This plugin adds the server side of its request features;
+playback and browsing your existing library work without it. The app's privacy policy is at
+<https://overlabing.github.io/sillon/privacy>.
+
+## Features
+
+- **Catalogue search.** People search MusicBrainz-backed artists and albums from the app. The search goes
+  through your Lidarr, so it needs Lidarr to be set up (without it, the catalogue answers 503 and only
+  the manual wishlist below is available).
+- **Wishlist and requests.** A user asks for an album; the plugin follows the request until the album is
+  in your Jellyfin library, then adds it to that user's favourites and notifies them. Two fulfilment modes:
+  - **Lidarr**: the plugin adds the artist (unmonitored) and the album to Lidarr, starts the search, and
+    follows Lidarr's webhook events (grab, import, import failure). A scheduled task (every 5 minutes)
+    catches missed events, retries stalled adds, and fails requests that wait longer than the timeout
+    (14 days by default). Once a week it asks Lidarr to look for better quality ("cutoff unmet").
+  - **Manual**: requests are only recorded. An administrator marks each one as added once the album is in
+    the library; the rest of the flow is the same.
+- **Request limits.** Cap how many requests one person can have in progress, and how many they can make
+  per day (0 means no limit). Administrators can be exempted.
+- **Allow-list.** Optionally restrict what can be requested to a list of MusicBrainz release-group ids
+  (useful for a demo server).
+- **Notifications** when a requested album is ready, in one of three modes: through the Sillon relay,
+  directly to Apple with your own key, or off. See [Notifications](#notifications).
+- **Administration page** in the Jellyfin dashboard: overview, request list with covers, guided Lidarr
+  setup, notification settings, limits and clean-up of old requests.
+
+## Requirements
+
+- Jellyfin **12.2** or newer (the plugin is built against Jellyfin 12.2.0, `targetAbi` 12.2.0.0).
+- **Lidarr** is optional. Without it, requests are manual and the catalogue search is unavailable.
+  With it, the plugin needs Lidarr's address and API key, and Lidarr must be able to reach Jellyfin to
+  deliver its webhook.
+- For notifications through the relay: nothing else. For direct notifications: an Apple developer account
+  and an APNs key (see below).
 
 ## Installation
 
-1. `scripts/package.sh` produit `dist/Sillon_0.7.0.0.zip` (la dll et `meta.json`).
-2. Dézipper dans un dossier `Sillon_0.7.0.0/` du répertoire `plugins/` de Jellyfin.
-3. Redémarrer Jellyfin.
+There is no plugin repository manifest yet, so install from a release:
+
+1. Download `Sillon_<version>.zip` from the
+   [latest release](https://github.com/Overlabing/jellyfin-plugin-sillon/releases/latest).
+2. Unzip it (it holds `Jellyfin.Plugin.Sillon.dll` and `meta.json`) into a folder named
+   `Sillon_<version>` inside Jellyfin's `plugins` directory, for example
+   `/config/plugins/Sillon_0.7.0.0/` in the official Docker image.
+3. Restart Jellyfin. The plugin appears under Dashboard, Plugins, with its own entry in the sidebar.
+
+Requests and registered devices are stored in `requests.json` and `devices.json` in the plugin's data
+folder, which survive upgrades.
 
 ## Configuration
 
-Tableau de bord, Extensions, Sillon.
+Open the Sillon page in the Jellyfin dashboard. It has five tabs.
 
-- **Traitement de la liste d'envies** : `Manuel` ou `Lidarr`.
-- **Proposer la liste d'envies aux applications Sillon** : activé par défaut. Désactivé, `GET /Sillon/Config` renvoie `features: []` et les applications ne voient pas la fonctionnalité (utile pendant une migration) ; les routes continuent de répondre.
-- **Délai avant échec** : une envie sans résultat après ce nombre de jours (14 par défaut) passe en échec.
-- **Lidarr** : URL (par défaut `http://lidarr:8686`) et clé API, puis « Tester la connexion ». En cas de succès, la version de Lidarr s'affiche, la connexion est enregistrée et les listes « Profil de qualité », « Profil de métadonnées » et « Dossier racine » se remplissent. Choisir, puis « Enregistrer ».
-- **Dossiers** : « Dossier de musique vu par Lidarr » (`/data/media/music`) et « Le même dossier vu par Jellyfin » (`/data/music`). Quand Lidarr importe un album, le chemin est converti et Jellyfin est prévenu pour qu'il l'indexe.
-- **Webhook** : URL à coller dans Lidarr (Paramètres, Connexions, Webhook), événements Grab, Download (import) et échec de l'import. Le secret est généré au premier chargement du plugin.
-- **Liste d'envies** : les envies (toutes pour un administrateur) avec leur état (En attente, En cours, Ajouté, Non disponible, Retiré) ; en mode manuel, le bouton « Marquer comme ajouté » règle une envie.
-- **Notifications** : case « Activer », identifiant de clé, identifiant d'équipe (`XXXXXXXXXX` par défaut), topic (`com.overglass.sillon` par défaut) et clé privée `.p8`. La clé n'est jamais renvoyée par la page : elle s'affiche `***` une fois enregistrée, et enregistrer avec `***` la conserve. Une ligne d'état indique d'où vient la clé (environnement du serveur, champ ci-dessous, ou aucune). Le bouton « Envoyer une notification de test » envoie « Sillon : notifications actives » aux appareils de l'administrateur connecté et affiche le résultat par appareil.
+1. **Overview**: whether Lidarr is reachable, whether notifications are working, and how many requests
+   and phones are known.
+2. **Lidarr**: turn on "Add requested albums to Lidarr automatically", then follow the four steps: paste
+   Lidarr's address (for example `http://lidarr:8686`), paste its API key (Lidarr, Settings, General),
+   test the connection, and choose the quality profile, metadata profile and root folder. Under
+   Advanced, copy the webhook link and add it in Lidarr (Settings, Connect, Webhook, method POST, events
+   "On Grab", "On Release Import" and "On Import Failure"). The link contains a secret; treat it like a
+   password. If Lidarr and Jellyfin see your music at different paths (separate containers), fill in both
+   music folders so imported albums can be found.
+3. **Requests**: every request with its state (waiting, downloading, available, not available,
+   cancelled). Administrators can cancel any request, mark manual requests as added, and see all users'
+   requests.
+4. **Notifications**: choose a mode and see the phones registered for this server. A test button sends a
+   notification to your own phones.
+5. **Settings**: let people request albums (when off, the app hides the feature), request timeout, limits,
+   optional allow-list of albums, and clean-up of finished requests.
 
-## Notifications APNs
+## Notifications
 
-Le plugin parle à APNs en direct (HTTP/2, jeton JWT ES256 signé avec la clé `.p8`) ; un appareil enregistré avec l'environnement `development` passe par le bac à sable d'Apple, les autres par la production. Un appareil que APNs ne connaît plus (410, `BadDeviceToken`, `Unregistered`) est supprimé.
+A phone registers with your server when its owner opens the Sillon app signed in to it. Three modes:
 
-La clé peut venir de l'environnement du processus Jellyfin, qui l'emporte sur les champs de la page. Avec Docker :
+- **Relay (default for new installs).** Nothing to set up. Your server builds the notification (which
+  album, which artist, which state), encrypts it so that only the target phone can read it, signs it
+  with a key unique to your server, and hands it to the relay, which forwards it to Apple's push service.
+  - The relay **never sees the content**: it receives an opaque, fixed-size, encrypted envelope and the
+    identifier of the target phone (a hash of the phone's public key). It cannot tell which album or user
+    a notification is about.
+  - What the relay necessarily handles: your server's public key (the identity it signs with), the
+    identifiers of phones that declared your server, counters and sequence numbers for rate limiting and
+    replay protection, and whatever its delivery to Apple requires. It also sees the IP address your
+    server connects from and the timing of notifications, as any web service would, and it can block a
+    server that abuses it. Its exact retention is the publisher's to state; see the privacy policy.
+  - Your album titles, artists, user names and library never leave your server in readable form.
+  - The relay is run by the publisher of the Sillon app. The App Store app only talks to the official
+    relay; a custom relay address only works with an app build made for it.
+- **Direct.** Your server talks to Apple itself with a key from your own Apple developer account (key id,
+  team id, bundle id as topic, and the `.p8` key content). Nothing passes through anyone else. This
+  requires an app build signed for your own topic, so it is for people who build or distribute their own
+  copy of the app. The key can also come from the environment of the Jellyfin process
+  (`SILLON_APNS_KEY`, `SILLON_APNS_KEY_ID`, `SILLON_APNS_TEAM_ID`, `SILLON_APNS_TOPIC`), which takes
+  precedence over the page. Phones that Apple reports as unregistered are removed.
+- **Off.** Nobody is notified.
 
-```
-environment:
-  SILLON_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nMIGT...\n-----END PRIVATE KEY-----"   # contenu du .p8, les \n littéraux sont acceptés
-  SILLON_APNS_KEY_ID: "ABC123DEFG"
-  SILLON_APNS_TEAM_ID: "XXXXXXXXXX"           # facultatif
-  SILLON_APNS_TOPIC: "com.overglass.sillon"   # facultatif
-```
+Installs that predate the relay and already had a key configured stay in direct mode until you change it.
 
-La case « Activer » reste nécessaire. Un serveur tiers n'a pas la clé Apple de l'application : la liste d'envies y fonctionne, sans notification (un relais est prévu pour ce cas). `GET /Sillon/v1/me` renvoie `pushEnabled: true` quand les notifications sont actives.
+## Security notes
 
-## Liste d'envies
+- **Who can request.** Any Jellyfin user who is signed in can search the catalogue and make requests
+  (subject to your limits). Administrators see and manage all requests; other users only their own.
+  Anonymous callers can only reach the health endpoint and the Lidarr webhook.
+- **Webhook.** `POST /Sillon/webhooks/lidarr?secret=...` is protected by a random secret generated on
+  first start. Anyone with the link can post events, so keep it private and put Jellyfin behind HTTPS if
+  it is reachable from outside.
+- **Secrets are write-only.** The Lidarr API key and the APNs key are stored on your server and the
+  configuration API only ever returns a mask (`***`). Saving with the mask keeps the stored value.
+- **Device tokens belong to one user.** A push token (or relay device key) already registered by
+  someone else is never moved to another account: the registration is refused with a 409. A token is
+  freed when its owner signs out of the app, or when Apple reports it as no longer valid.
+- Admin endpoints require Jellyfin administrator rights.
 
-- **Mode Lidarr** : une envie ajoute l'artiste (non surveillé) et l'album à Lidarr, surveille l'album et lance la recherche. Les événements du webhook (Grab, Download ou AlbumImport, ImportFailure) font avancer l'envie ; un import partiel est accepté. Quand l'album est dans la bibliothèque Jellyfin (le plugin l'attend jusqu'à 5 minutes), il est ajouté aux favoris du demandeur. Une tâche planifiée « Rapprocher la liste d'envies avec Lidarr » (toutes les 5 minutes, lançable depuis le tableau de bord) rattrape les événements perdus, relance un ajout resté en plan après 10 minutes et fait échouer les envies qui dépassent le délai.
-- **Retrouver l'album importé** : après un import, le plugin cherche l'album dans Jellyfin par identifiant MusicBrainz, puis par dossier (celui que Lidarr a rempli, sans le niveau `CD 01`, converti avec les deux dossiers de musique ci-dessus), puis par titre exact. Tant qu'il ne le trouve pas, il demande à Jellyfin de scanner ce dossier, au plus une fois toutes les 10 minutes par envie.
-- **Éditions** : l'album est ajouté avec `anyReleaseOk` (et le drapeau est posé sur un album déjà connu), et quand l'import d'un téléchargement échoue avec « Album release not requested », la tâche planifiée l'accepte puis relance l'import (`DownloadedAlbumsScan`), au plus une fois par 30 minutes et par envie.
-- **Mises à niveau de qualité** : une fois par semaine, la tâche planifiée lance dans Lidarr la recherche « Cutoff Unmet » (`CutoffUnmetAlbumSearch`), pour qu'un FLAC trouvé plus tard remplace un MP3 déjà importé quand le profil de qualité le permet.
-- **Mode manuel** : l'envie est enregistrée sans appel à Lidarr. Un administrateur la marque comme ajoutée depuis la section « Liste d'envies » de la page du plugin ; les mêmes étapes suivent (attente de l'album dans la bibliothèque, favori, notification). La recherche dans le catalogue répond 503 (« mode manuel ») : l'accès direct à MusicBrainz viendra plus tard. La tâche planifiée ne fait ni relance ni échec automatique dans ce mode.
-- **Liste d'albums autorisés** (« Albums autorisés dans le catalogue ») : un MBID de release-group par ligne, lignes vides et commentaires `#` ignorés, casse indifférente. Vide (par défaut), tout le catalogue est proposé. Renseignée, la recherche et les pages d'artiste du catalogue ne montrent que ces albums (et les artistes qui en ont au moins un), et une envie pour un autre album est refusée en 400 (« Cet album n'est pas proposé sur ce serveur. »). La bibliothèque Jellyfin n'est pas touchée. Prévu pour un serveur de démonstration ne contenant que des albums Creative Commons (revue App Store).
-- Les données sont dans `requests.json` et `devices.json`, dans le dossier de données du plugin.
+## Building from source
 
-## Migration depuis sillon-gateway
-
-Reprend les envies et les appareils de l'ancien service Go dans le plugin (`scripts/migrate-from-gateway.py`, Python 3 sans dépendance).
-
-1. Arrêter `sillon-gateway` et Jellyfin.
-2. Copier la base SQLite du gateway (avec ses fichiers `-wal` et `-shm` s'ils existent) vers un dossier de travail ; ne jamais travailler sur l'original.
-3. Contrôler sans rien écrire : `python3 -I scripts/migrate-from-gateway.py --db gateway.db --out /tmp/sillon --dry-run`. Le résumé donne le nombre d'envies par état et d'appareils par utilisateur ; les jetons ne sont jamais affichés.
-4. Écrire les fichiers : même commande sans `--dry-run`. Le script refuse d'écraser un `requests.json` ou un `devices.json` non vides sans `--force`. Il convertit les identifiants d'utilisateur en 32 caractères hexadécimaux sans tirets (format `N` de Jellyfin) et toutes les dates en UTC. Les numéros d'envie sont conservés, le plugin continue après le plus grand.
-5. Placer `requests.json` et `devices.json` dans le dossier de données du plugin (`DataFolderPath`). Jellyfin choisit `<plugins>/Jellyfin.Plugin.Sillon` s'il existe, sinon `<plugins>/Jellyfin.Plugin.Sillon_<version>` (qui change à chaque montée de version). Créer le premier, il survit aux mises à jour. Pour une installation Docker avec `/config` : `/config/plugins/Jellyfin.Plugin.Sillon/` (et non `Sillon_0.7.0.0/`, qui contient la dll). Les fichiers doivent appartenir à l'utilisateur de Jellyfin.
-6. Démarrer Jellyfin, vérifier la section « Liste d'envies » du tableau de bord, puis activer « Proposer la liste d'envies aux applications Sillon ».
-
-Le schéma actuel du gateway n'a pas de colonne `library_added_at` : le script la lit quand elle existe, sinon les envies disponibles sont reprises sans date d'ajout aux favoris.
-
-## API
-
-- `GET /Sillon/health` : anonyme, `{ "status": "ok" }`.
-- `GET /Sillon/Config` : utilisateur authentifié, `{ "version", "features", "mode" }`. `features` contient `requests` en mode manuel, ou en mode Lidarr quand l'URL et la clé sont renseignées, sauf si « Proposer la liste d'envies aux applications Sillon » est désactivé (alors `[]`).
-- Utilisateur authentifié (jeton Jellyfin) : `GET /Sillon/v1/me`, `GET /Sillon/v1/catalog/search?q=`, `GET /Sillon/v1/catalog/artist/{mbid}`, `GET|POST /Sillon/v1/requests`, `DELETE /Sillon/v1/requests/{id}`, `POST /Sillon/v1/requests/{id}/retry` (relance la recherche Lidarr d'une envie en attente, en cours ou échouée), `POST /Sillon/v1/devices`, `DELETE /Sillon/v1/devices/{token}`. Un administrateur voit et retire toutes les envies, un utilisateur les siennes.
-- Administrateur uniquement : `POST /Sillon/v1/requests/{id}/available`, `POST /Sillon/Lidarr/Test`, `GET /Sillon/Lidarr/QualityProfiles`, `GET /Sillon/Lidarr/MetadataProfiles`, `GET /Sillon/Lidarr/RootFolders`, `GET /Sillon/Push/Status`, `POST /Sillon/Push/Test` (notification de test aux appareils de l'administrateur).
-- Anonyme, protégé par le secret : `POST /Sillon/webhooks/lidarr?secret=`.
-
-## Développement
+You need the .NET 10 SDK.
 
 ```
 dotnet build -warnaserror
-dotnet test
-python3 -I scripts/test_migrate.py
-scripts/package.sh
+dotnet test -c Release
+scripts/package.sh        # builds dist/Sillon_<version>.zip (dll and meta.json)
 ```
+
+Tests cover the request flow, the Lidarr client, the relay protocol (with fixed test vectors), APNs and
+the HTTP controllers; they need no Jellyfin server or network. A GitHub Actions workflow runs the same
+steps and publishes the zip as a release when a `v<version>` tag is pushed.
+
+## Contributing and support
+
+Issues and pull requests are welcome on
+[GitHub](https://github.com/Overlabing/jellyfin-plugin-sillon/issues). Please do not post API keys, webhook
+links or server addresses in issues.
+
+## License
+
+See the `LICENSE` file in this repository.

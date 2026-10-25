@@ -32,7 +32,7 @@ public class RelayModeTests
         var config = new PluginConfiguration();
 
         Assert.Equal("relay", config.ResolvePushMode(NoEnv));
-        Assert.Equal("https://sillon-push.tailba6a9d.ts.net", config.PushRelayUrl);
+        Assert.Equal(PluginConfiguration.DefaultPushRelayUrl, config.PushRelayUrl);
     }
 
     [Theory]
@@ -244,7 +244,7 @@ public class RelayModeTests
         Assert.Equal(keys.PublicKeyText, push.GetProperty("serverPublicKey").GetString());
         Assert.Equal(keys.KidText, push.GetProperty("kid").GetString());
         Assert.Equal(RelayCrypto.B64(SHA256Of(keys.PublicKey)), push.GetProperty("kid").GetString());
-        Assert.Equal("https://sillon-push.tailba6a9d.ts.net", push.GetProperty("relayUrl").GetString());
+        Assert.Equal(PluginConfiguration.DefaultPushRelayUrl, push.GetProperty("relayUrl").GetString());
         var device = Assert.Single(env.Devices.For(TestEnv.User));
         Assert.Equal(string.Empty, device.Token);
         Assert.True(device.IsRelay);
