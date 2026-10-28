@@ -403,15 +403,17 @@ public sealed class CatalogService
         => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
 
     /// <summary>
-    /// Among entries of one artist that share a normalized title (case, diacritics and punctuation folded), keeps the fullest release:
-    /// Album, then Album with secondary types, EP, Single, anything else; a tie goes to more tracks, then to the earlier release.
-    /// Entries without a same-title sibling, and entries without an artist id, are untouched; the order of the survivors is kept.
+    /// Among entries of one artist that share a normalized title (case, diacritics and punctuation folded), drops the lesser kinds of release:
+    /// only the best kind present survives (Album, else EP, else Single, else anything else). Albums are never dropped for one another: cast recordings,
+    /// soundtracks, live albums and re-recordings are distinct release groups that share a title, so all of them stay, the most likely one first
+    /// (no secondary type, then more releases, more tracks, the earlier date). The ordered siblings take the places the group held in the list.
+    /// Entries without a same-title sibling, and entries without an artist id, are untouched.
     /// </summary>
     /// <param name="albums">The albums found by a search.</param>
-    /// <returns>The albums without the same-title lesser releases.</returns>
+    /// <returns>The albums without the same-title lesser kinds, same-title albums ordered by likelihood.</returns>
     public static IReadOnlyList<LidarrAlbum> PreferFullRelease(IReadOnlyList<LidarrAlbum> albums)
     {
-        var best = new Dictionary<(string Artist, string Title), LidarrAlbum>();
+        var groups = new Dictionary<(string Artist, string Title), List<LidarrAlbum>>();
         foreach (var album in albums)
         {
             if (album.Artist is not { ForeignArtistId.Length: > 0 } artist || NormalizeTitle(album.Title).Length == 0)
@@ -420,50 +422,71 @@ public sealed class CatalogService
             }
 
             var key = (artist.ForeignArtistId, NormalizeTitle(album.Title));
-            if (!best.TryGetValue(key, out var current) || IsBetter(album, current))
+            if (!groups.TryGetValue(key, out var group))
             {
-                best[key] = album;
+                groups[key] = group = new List<LidarrAlbum>();
             }
+
+            group.Add(album);
         }
 
-        return albums
-            .Where(a => a.Artist is not { ForeignArtistId.Length: > 0 } artist
-                || NormalizeTitle(a.Title).Length == 0
-                || ReferenceEquals(best[(artist.ForeignArtistId, NormalizeTitle(a.Title))], a))
-            .ToList();
+        var ordered = groups.ToDictionary(
+            g => g.Key,
+            g =>
+            {
+                var best = g.Value.Min(KindRank);
+                return new Queue<LidarrAlbum>(g.Value
+                    .Where(a => KindRank(a) == best)
+                    .OrderBy(a => a.SecondaryTypes is { Count: > 0 } ? 1 : 0)
+                    .ThenByDescending(ReleaseCount)
+                    .ThenByDescending(OfficialCount)
+                    .ThenByDescending(TrackCount)
+                    .ThenBy(DateOf));
+            });
+
+        var result = new List<LidarrAlbum>(albums.Count);
+        foreach (var album in albums)
+        {
+            if (album.Artist is not { ForeignArtistId.Length: > 0 } artist || NormalizeTitle(album.Title).Length == 0)
+            {
+                result.Add(album);
+                continue;
+            }
+
+            var group = groups[(artist.ForeignArtistId, NormalizeTitle(album.Title))];
+            if (KindRank(album) != group.Min(KindRank))
+            {
+                continue;
+            }
+
+            result.Add(ordered[(artist.ForeignArtistId, NormalizeTitle(album.Title))].Dequeue());
+        }
+
+        return result;
     }
 
-    private static bool IsBetter(LidarrAlbum candidate, LidarrAlbum current)
-    {
-        var (rc, rn) = (ReleaseRank(candidate), ReleaseRank(current));
-        if (rc != rn)
+    private static int KindRank(LidarrAlbum album)
+        => album.AlbumType.Trim().ToLowerInvariant() switch
         {
-            return rc < rn;
-        }
-
-        var (tc, tn) = (TrackCount(candidate), TrackCount(current));
-        if (tc != tn)
-        {
-            return tc > tn;
-        }
-
-        return DateOf(candidate) < DateOf(current);
-    }
-
-    private static int ReleaseRank(LidarrAlbum album)
-    {
-        var secondary = album.SecondaryTypes is { Count: > 0 };
-        return album.AlbumType.Trim().ToLowerInvariant() switch
-        {
-            "album" => secondary ? 1 : 0,
-            "ep" => 2,
-            "single" => 3,
-            _ => 4,
+            "album" => 0,
+            "ep" => 1,
+            "single" => 2,
+            _ => 3,
         };
-    }
+
+    private static int ReleaseCount(LidarrAlbum album) => album.Releases?.Count ?? 0;
+
+    private static int OfficialCount(LidarrAlbum album)
+        => album.Releases?.Count(r => r.Status.Equals("Official", StringComparison.OrdinalIgnoreCase)) ?? 0;
 
     private static int TrackCount(LidarrAlbum album)
         => album.Releases is { Count: > 0 } releases ? releases.Max(r => r.TrackCount) : 0;
+
+    /// <summary>What tells an album from its same-title siblings: the release group's disambiguation, else that of its first release.</summary>
+    private static string DisambiguationOf(LidarrAlbum album)
+        => album.Disambiguation.Trim().Length > 0
+            ? album.Disambiguation
+            : album.Releases?.Select(r => r.Disambiguation.Trim()).FirstOrDefault(d => d.Length > 0) ?? string.Empty;
 
     private static DateTime DateOf(LidarrAlbum album)
         => album.ReleaseDate is { Length: > 0 } text && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date)
@@ -708,11 +731,12 @@ public sealed class CatalogService
                 album.Releases is { Count: > 0 } ? album.Releases[0].TrackCount : 0,
                 album.Releases is { Count: > 0 } && album.Releases[0].Label is { Count: > 0 } labels ? labels[0] : null,
                 album.ReleaseDate,
-                album.Disambiguation,
+                DisambiguationOf(album),
                 tracks is not null && tracks.TryGetValue(album.ForeignAlbumId, out var track)
                     ? new CatalogTrackMatch(track.Track, track.RecordingId, track.Disc > 0 ? track.Disc : null, track.Position > 0 ? track.Position : null)
                     : null,
-                phase));
+                phase,
+                album.Releases is { Count: > 0 } && album.Releases[0].Country is { Count: > 0 } countries ? countries[0] : null));
         }
 
         return result;

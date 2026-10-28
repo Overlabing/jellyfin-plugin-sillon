@@ -40,9 +40,10 @@ public sealed record CatalogArtist(
 /// <param name="TrackCount">The tracks of the primary release, 0 when unknown.</param>
 /// <param name="Label">The label of the primary release, when known.</param>
 /// <param name="ReleaseDate">The release date as Lidarr gives it, when known.</param>
-/// <param name="Disambiguation">The disambiguation text, empty when none.</param>
+/// <param name="Disambiguation">What tells the album from same-title ones ("1985 London cast"): the release group's disambiguation, else the first release's; empty when none.</param>
 /// <param name="MatchedTrack">The track the search matched on this album, absent for a match on the album or artist name. Read by apps newer than 1.1.1.</param>
 /// <param name="Phase">searching or notFoundYet while the request waits for a release, absent otherwise. Read by apps newer than 1.1.1.</param>
+/// <param name="Country">The country of the primary release, absent when unknown. Read by apps newer than 1.1.1.</param>
 public sealed record CatalogAlbum(
     [property: JsonPropertyName("mbid")] string Mbid,
     [property: JsonPropertyName("artistMbid")] string ArtistMbid,
@@ -61,7 +62,8 @@ public sealed record CatalogAlbum(
     [property: JsonPropertyName("releaseDate")] string? ReleaseDate,
     [property: JsonPropertyName("disambiguation")] string Disambiguation,
     [property: JsonPropertyName("matchedTrack"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CatalogTrackMatch? MatchedTrack = null,
-    [property: JsonPropertyName("phase"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Phase = null);
+    [property: JsonPropertyName("phase"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Phase = null,
+    [property: JsonPropertyName("country"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Country = null);
 
 /// <summary>The track a search matched on an album.</summary>
 /// <param name="Title">The track title.</param>
