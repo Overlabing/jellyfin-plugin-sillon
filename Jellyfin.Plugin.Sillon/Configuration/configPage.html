@@ -419,6 +419,32 @@
                             <div class="fieldDescription" data-s="timeoutHelp"></div>
                             <div class="sl-field-error" data-error-for="RequestTimeoutDays"></div>
                         </div>
+                        <div class="inputContainer">
+                            <input is="emby-input" type="number" min="1" max="365" id="NotFoundYetAfterDays" label="Call it not found yet after (days)" />
+                            <div class="fieldDescription" data-s="notFoundYetHelp"></div>
+                            <div class="sl-field-error" data-error-for="NotFoundYetAfterDays"></div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="SearchTracks" />
+                                <span data-s="searchTracksToggle"></span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription" data-s="searchTracksHelp"></div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="HideSingles" />
+                                <span data-s="hideSinglesToggle"></span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription" data-s="hideSinglesHelp"></div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="HideEps" />
+                                <span data-s="hideEpsToggle"></span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription" data-s="hideEpsHelp"></div>
+                        </div>
                     </div>
                     <div class="sl-card">
                         <h3 data-s="limitsTitle"></h3>
@@ -571,6 +597,13 @@
                 wishlistToggle: 'Let people request albums',
                 wishlistHelp: 'When off, the Sillon app hides the request feature. Existing requests are kept.',
                 timeoutHelp: 'A request that is still waiting after this many days is marked as failed.',
+                notFoundYetHelp: 'A request with no release found after this many days is flagged as "not found yet" for apps that show it. It keeps searching until the limit above.',
+                searchTracksToggle: 'Find albums by song title',
+                searchTracksHelp: 'Searching for a song offers the albums that contain it, using MusicBrainz (one request a second, answers kept for a day).',
+                hideSinglesToggle: 'Hide singles',
+                hideSinglesHelp: 'Singles are rarely available from download sources, while the album that holds the song usually is. Ignored when the catalogue is limited to a list of albums.',
+                hideEpsToggle: 'Hide EPs',
+                hideEpsHelp: 'Also hide EPs. Off by default.',
                 limitsTitle: 'Limits',
                 limitsSub: 'Stop one person from asking for too much at once. Enter 0 for no limit.',
                 limitActiveHelp: 'How many requests one person can have waiting or downloading.',
@@ -815,6 +848,10 @@
                 config = c;
                 el('ExposeToApps').checked = c.ExposeToApps !== false;
                 el('RequestTimeoutDays').value = c.RequestTimeoutDays;
+                el('NotFoundYetAfterDays').value = c.NotFoundYetAfterDays || 3;
+                el('SearchTracks').checked = c.SearchTracks !== false;
+                el('HideSingles').checked = c.HideSingles !== false;
+                el('HideEps').checked = c.HideEps === true;
                 el('JellyfinPathPrefix').value = c.JellyfinPathPrefix || '';
                 el('LidarrPathPrefix').value = c.LidarrPathPrefix || '';
                 parseAllowList(c.CatalogAllowList);
@@ -862,6 +899,10 @@
                 config.ExposeToApps = el('ExposeToApps').checked;
                 config.FulfillmentMode = el('AutoAdd').checked ? 'Lidarr' : 'Manual';
                 config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10);
+                config.NotFoundYetAfterDays = parseInt(el('NotFoundYetAfterDays').value, 10);
+                config.SearchTracks = el('SearchTracks').checked;
+                config.HideSingles = el('HideSingles').checked;
+                config.HideEps = el('HideEps').checked;
                 config.JellyfinPathPrefix = el('JellyfinPathPrefix').value.trim();
                 config.LidarrPathPrefix = el('LidarrPathPrefix').value.trim();
                 config.CatalogAllowList = allowComments.concat(allowEntries).join('\n');
@@ -903,6 +944,7 @@
                     if (raw === '' || !isFinite(n) || Math.floor(n) !== n || n < min || n > max) { bad(id, 'Enter a whole number from ' + min + ' to ' + max + '.', tab); }
                 }
                 intIn('RequestTimeoutDays', 1, 365, 'settings');
+                intIn('NotFoundYetAfterDays', 1, 365, 'settings');
                 intIn('MaxActiveRequestsPerUser', 0, 1000, 'settings');
                 intIn('MaxRequestsPerUserPerDay', 0, 1000, 'settings');
 

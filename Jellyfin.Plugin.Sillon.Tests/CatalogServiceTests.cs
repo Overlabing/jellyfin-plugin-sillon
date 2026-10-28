@@ -35,7 +35,7 @@ public class CatalogServiceTests
         env.Lidarr.OnSearch = term => term == "lidarr:" + Vald
             ? Items("[{\"foreignId\":\"" + Vald + "\",\"artist\":{\"id\":0,\"artistName\":\"Vald\",\"foreignArtistId\":\"" + Vald + "\"}}]")
             : Items(SearchJson);
-        return (env, new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance));
+        return (env, new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, now: () => env.Now));
     }
 
     [Fact]
@@ -374,7 +374,7 @@ public class CatalogServiceTests
 
         var xeu = json.GetProperty("albums")[0];
         Assert.Equal(
-            "{\"mbid\":\"" + Xeu + "\",\"artistMbid\":\"" + Vald + "\",\"title\":\"XEU\",\"artist\":\"Vald\",\"year\":2022,\"type\":\"Album\",\"coverUrl\":\"https://img/xeu.jpg\",\"state\":\"requested\",\"requestId\":1,\"albumType\":\"Album\",\"secondaryTypes\":[],\"discCount\":1,\"trackCount\":0,\"releaseDate\":\"2022-11-18T00:00:00Z\",\"disambiguation\":\"\"}",
+            "{\"mbid\":\"" + Xeu + "\",\"artistMbid\":\"" + Vald + "\",\"title\":\"XEU\",\"artist\":\"Vald\",\"year\":2022,\"type\":\"Album\",\"coverUrl\":\"https://img/xeu.jpg\",\"state\":\"requested\",\"requestId\":1,\"albumType\":\"Album\",\"secondaryTypes\":[],\"discCount\":1,\"trackCount\":0,\"releaseDate\":\"2022-11-18T00:00:00Z\",\"disambiguation\":\"\",\"phase\":\"searching\"}",
             xeu.GetRawText());
         // no request: requestId is absent, not null
         Assert.False(json.GetProperty("albums")[1].TryGetProperty("requestId", out var ignored));
@@ -411,6 +411,9 @@ public class CatalogServiceTests
     {
         var (env, catalog) = Make();
         using var _ = env;
+
+        // these tests are about which same-title release wins, so singles must not be hidden before that
+        env.Config.HideSingles = false;
         env.Lidarr.OnSearch = _ => found.Select(a => new LidarrSearchItem { Album = a }).ToList();
         return (await catalog.SearchAsync("rattle", CancellationToken.None)).Albums.Select(a => a.Mbid).ToList();
     }

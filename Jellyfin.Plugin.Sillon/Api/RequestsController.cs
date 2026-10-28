@@ -156,6 +156,35 @@ public sealed partial class RequestsController : ControllerBase
         }
     }
 
+    /// <summary>Lists the tracks of a catalogue album.</summary>
+    /// <param name="mbid">The album's MusicBrainz release group id.</param>
+    /// <param name="track">The track to flag as matched, by title.</param>
+    /// <param name="recording">The track to flag as matched, by recording id.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The tracklist: 400 for a malformed id, 404 for an unknown or unoffered album, 502 when MusicBrainz cannot answer.</returns>
+    [HttpGet("v1/catalog/album/{mbid}/tracks")]
+    [Authorize]
+    public async Task<ActionResult> CatalogAlbumTracks(string mbid, [FromQuery] string? track, [FromQuery] string? recording, CancellationToken ct)
+    {
+        if (!Guid.TryParse(mbid, out _))
+        {
+            return ApiJson.Error(StatusCodes.Status400BadRequest, "identifiant d'album invalide");
+        }
+
+        try
+        {
+            return ApiJson.Result(await _catalog.AlbumTracksAsync(mbid, track, recording, ct).ConfigureAwait(false));
+        }
+        catch (CatalogException ex)
+        {
+            return ApiJson.Error(ex.StatusCode, ex.Message);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return ClientLeft("catalog album tracks");
+        }
+    }
+
     /// <summary>Lists an artist's albums.</summary>
     /// <param name="mbid">The artist's MusicBrainz id.</param>
     /// <param name="name">The artist's name, when the app knows it.</param>
@@ -179,6 +208,9 @@ public sealed partial class RequestsController : ControllerBase
         }
     }
 
+    private RequestDto Dto(RequestRecord request)
+        => RequestDto.From(request, request.PhaseAt(DateTimeOffset.UtcNow, TimeSpan.FromDays(Math.Max(1, _config().NotFoundYetAfterDays))));
+
     /// <summary>Lists the caller's requests; an administrator sees everyone's.</summary>
     /// <returns>The requests, newest first.</returns>
     [HttpGet("v1/requests")]
@@ -191,7 +223,7 @@ public sealed partial class RequestsController : ControllerBase
             return Unauthorized();
         }
 
-        var requests = _store.List(caller.IsAdmin ? null : caller.Id).Select(RequestDto.From).ToList();
+        var requests = _store.List(caller.IsAdmin ? null : caller.Id).Select(Dto).ToList();
         return ApiJson.Result(new RequestList(requests));
     }
 
@@ -229,13 +261,13 @@ public sealed partial class RequestsController : ControllerBase
             var created = await _requests.CreateAsync(
                 new NewRequest(caller.Id, caller.Name, body.ForeignAlbumId, body.ForeignArtistId, body.Title, body.Artist, body.Year, body.CoverUrl, caller.IsAdmin),
                 ct).ConfigureAwait(false);
-            return ApiJson.Result(RequestDto.From(created));
+            return ApiJson.Result(Dto(created));
         }
         catch (ActiveRequestException)
         {
             var existing = _store.ActiveByForeignAlbum(body.ForeignAlbumId);
             return ApiJson.Result(
-                new ConflictBody("Cet album est déjà dans votre liste d'envies", existing is null ? null : RequestDto.From(existing)),
+                new ConflictBody("Cet album est déjà dans votre liste d'envies", existing is null ? null : Dto(existing)),
                 StatusCodes.Status409Conflict);
         }
         catch (AlbumNotAllowedException ex)
@@ -273,7 +305,7 @@ public sealed partial class RequestsController : ControllerBase
 
         try
         {
-            return ApiJson.Result(RequestDto.From(await _requests.CancelAsync(requestId, caller.Id, caller.IsAdmin, ct).ConfigureAwait(false)));
+            return ApiJson.Result(Dto(await _requests.CancelAsync(requestId, caller.Id, caller.IsAdmin, ct).ConfigureAwait(false)));
         }
         catch (Exception ex) when (ex is RequestNotFoundException or RequestForbiddenException or RequestNotActiveException or LidarrUnavailableException)
         {
@@ -302,7 +334,7 @@ public sealed partial class RequestsController : ControllerBase
 
         try
         {
-            return ApiJson.Result(RequestDto.From(await _requests.RetryAsync(requestId, caller.Id, caller.IsAdmin, ct).ConfigureAwait(false)));
+            return ApiJson.Result(Dto(await _requests.RetryAsync(requestId, caller.Id, caller.IsAdmin, ct).ConfigureAwait(false)));
         }
         catch (Exception ex) when (ex is RequestNotFoundException or RequestForbiddenException or RequestNotRetryableException or LidarrUnavailableException)
         {
@@ -324,7 +356,7 @@ public sealed partial class RequestsController : ControllerBase
 
         try
         {
-            return ApiJson.Result(RequestDto.From(_requests.MarkAvailableByHand(requestId)));
+            return ApiJson.Result(Dto(_requests.MarkAvailableByHand(requestId)));
         }
         catch (Exception ex) when (ex is RequestNotFoundException or RequestNotActiveException)
         {

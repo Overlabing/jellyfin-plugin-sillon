@@ -14,12 +14,28 @@ playback and browsing your existing library work without it. The app's privacy p
 - **Catalogue search.** People search MusicBrainz-backed artists and albums from the app. The search goes
   through your Lidarr, so it needs Lidarr to be set up (without it, the catalogue answers 503 and only
   the manual wishlist below is available).
+  - **Search by song.** Typing a track title (`Creep`, `Radiohead - Creep`, `Creep by Radiohead`) also offers the
+    albums that contain it, studio albums first, then compilations and live albums. The plugin asks
+    MusicBrainz directly (one request a second, an identifying User-Agent, answers kept for a day) and
+    resolves each album through Lidarr, so requests follow the usual path. Switch it off with *Find albums by song title*.
+    Each album found this way carries an optional `matchedTrack` (`title`, `recordingMbid`, and `disc` and
+    `position` when known).
+  - **Tracklist of a catalogue album.** `GET /Sillon/v1/catalog/album/{mbid}/tracks[?recording=<mbid>][&track=<title>]`
+    (`mbid` is the album's release group id) returns `{albumMbid, releaseMbid, title, discCount, tracks:
+    [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track
+    asked about. Errors: 400 malformed id, 404 unknown or not offered album, 502 MusicBrainz unavailable, 503
+    manual mode. The tracks come from MusicBrainz, so it works for albums that are not on the server yet.
+  - **Singles are hidden** by default, because they are rarely available from download sources while the album
+    that holds the song is. *Hide singles* and *Hide EPs* are plugin settings; neither applies when the catalogue
+    is limited to an allow list.
 - **Wishlist and requests.** A user asks for an album; the plugin follows the request until the album is
   in your Jellyfin library, then adds it to that user's favourites and notifies them. Two fulfilment modes:
   - **Lidarr**: the plugin adds the artist (unmonitored) and the album to Lidarr, starts the search, and
     follows Lidarr's webhook events (grab, import, import failure). A scheduled task (every 5 minutes)
     catches missed events, retries stalled adds, and fails requests that wait longer than the timeout
-    (14 days by default). Once a week it asks Lidarr to look for better quality ("cutoff unmet").
+    (14 days by default). Until a release is grabbed a request stays `requested`, and request records carry
+    an optional `phase` (`searching`, then `notFoundYet` after 3 days by default) for apps that tell the two
+    apart; older apps show it as waiting. Once a week it asks Lidarr to look for better quality ("cutoff unmet").
   - **Manual**: requests are only recorded. An administrator marks each one as added once the album is in
     the library; the rest of the flow is the same.
 - **Request limits.** Cap how many requests one person can have in progress, and how many they can make

@@ -12,6 +12,7 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 public sealed class CatalogService
 {
     private const int MaxSearchAlbums = 40;
+    private const int MaxTrackAlbums = 8;
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
 
@@ -20,6 +21,8 @@ public sealed class CatalogService
     private readonly IJellyfinLibrary _library;
     private readonly Func<PluginConfiguration> _config;
     private readonly ILogger<CatalogService> _logger;
+    private readonly IMusicBrainzApi? _musicBrainz;
+    private readonly Func<DateTimeOffset> _now;
     private readonly SemaphoreSlim _catalogLock = new(1, 1);
     private string? _catalogKey;
     private DateTime _catalogExpires;
@@ -31,9 +34,19 @@ public sealed class CatalogService
     /// <param name="library">The Jellyfin library.</param>
     /// <param name="config">The configuration accessor.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="musicBrainz">MusicBrainz, for the search by track title; without it a search only matches artist and album names.</param>
+    /// <param name="now">The clock; the system clock when null.</param>
     public CatalogService(
-        ILidarrProvider lidarr, RequestStore requests, IJellyfinLibrary library, Func<PluginConfiguration> config, ILogger<CatalogService> logger)
+        ILidarrProvider lidarr,
+        RequestStore requests,
+        IJellyfinLibrary library,
+        Func<PluginConfiguration> config,
+        ILogger<CatalogService> logger,
+        IMusicBrainzApi? musicBrainz = null,
+        Func<DateTimeOffset>? now = null)
     {
+        _musicBrainz = musicBrainz;
+        _now = now ?? (() => DateTimeOffset.UtcNow);
         _lidarr = lidarr;
         _requests = requests;
         _library = library;
@@ -49,8 +62,10 @@ public sealed class CatalogService
     public async Task<CatalogSearchResult> SearchAsync(string query, CancellationToken ct)
     {
         var lidarr = RequireLidarr();
-        var allowed = _config().AllowedReleaseGroups();
+        var config = _config();
+        var allowed = config.AllowedReleaseGroups();
         var lookup = LookupAlbumsOrNoneAsync(lidarr, query, ct);
+        var trackHits = TrackAlbumsOrNoneAsync(query, config, ct);
         IReadOnlyList<LidarrSearchItem> items;
         try
         {
@@ -78,6 +93,11 @@ public sealed class CatalogService
         void Add(LidarrAlbum album)
         {
             if (allowed.Count > 0 && !allowed.Contains(album.ForeignAlbumId))
+            {
+                return;
+            }
+
+            if (IsHidden(album, config, allowed))
             {
                 return;
             }
@@ -117,6 +137,19 @@ public sealed class CatalogService
             }
         }
 
+        // the albums that hold the track searched for, resolved through Lidarr so a request takes the usual path
+        var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
+        var hits = (await trackHits.ConfigureAwait(false)).Take(MaxTrackAlbums).ToList();
+        foreach (var hit in hits)
+        {
+            tracks[hit.ReleaseGroupId] = hit;
+        }
+
+        foreach (var album in await ResolveTrackAlbumsAsync(lidarr, hits, ct).ConfigureAwait(false))
+        {
+            Add(album);
+        }
+
         if (allowed.Count > 0)
         {
             // Lidarr answers a search by artist name with the artist alone: match the cached allowed albums too
@@ -137,7 +170,7 @@ public sealed class CatalogService
             artists.RemoveAll(a => !offered.Contains(a.Mbid));
         }
 
-        return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null));
+        return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null, tracks));
     }
 
     /// <summary>Lists an artist's albums. Resolution, in order: Lidarr's id lookup (<c>lidarr:&lt;mbid&gt;</c>) gives the artist; if Lidarr already holds the artist, all of its albums; else (or when that is empty) a search by the artist's name filtered to the albums of that artist. The name comes from the id lookup, or from the optional hint when that found nothing.</summary>
@@ -160,7 +193,8 @@ public sealed class CatalogService
             throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
         }
 
-        var allowed = _config().AllowedReleaseGroups();
+        var config = _config();
+        var allowed = config.AllowedReleaseGroups();
         if (allowed.Count > 0)
         {
             var cached = (await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false))
@@ -179,6 +213,11 @@ public sealed class CatalogService
         void Add(LidarrAlbum album)
         {
             if (allowed.Count > 0 && !allowed.Contains(album.ForeignAlbumId))
+            {
+                return;
+            }
+
+            if (IsHidden(album, config, allowed))
             {
                 return;
             }
@@ -241,12 +280,87 @@ public sealed class CatalogService
             }
         }
 
+        // an artist whose albums are all hidden singles still exists: only an unknown artist is a 404
         if ((artist is null || allowed.Count > 0) && albums.Count == 0)
         {
             throw new CatalogException(StatusCodes.Status404NotFound, "artiste introuvable");
         }
 
         return new CatalogArtistResult(artist is null ? null : ToArtist(artist), ToAlbums(albums, artist));
+    }
+
+    /// <summary>
+    /// Lists the tracks of a catalogue album: the release Lidarr shows first for the album (so the count matches the album's <c>trackCount</c>), else the earliest official release
+    /// MusicBrainz lists; its tracks come from MusicBrainz (<c>release?inc=recordings</c>). Works for albums not yet on the server.
+    /// </summary>
+    /// <param name="mbid">The album's MusicBrainz release group id.</param>
+    /// <param name="track">The track title to flag as matched, when the app comes from a track search.</param>
+    /// <param name="recording">The recording id to flag as matched (wins over the title).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The tracklist.</returns>
+    /// <exception cref="CatalogException">The catalogue is unavailable, the album is unknown or not offered.</exception>
+    public async Task<CatalogTracklist> AlbumTracksAsync(string mbid, string? track, string? recording, CancellationToken ct)
+    {
+        var lidarr = RequireLidarr();
+        if (_musicBrainz is null)
+        {
+            throw new CatalogException(StatusCodes.Status503ServiceUnavailable, "MusicBrainz indisponible");
+        }
+
+        var allowed = _config().AllowedReleaseGroups();
+        if (allowed.Count > 0 && !allowed.Contains(mbid))
+        {
+            throw new CatalogException(StatusCodes.Status404NotFound, "album introuvable");
+        }
+
+        string? releaseId = null;
+        try
+        {
+            var album = (await lidarr.LookupAlbumsAsync("lidarr:" + mbid, ct).ConfigureAwait(false))
+                .FirstOrDefault(a => string.Equals(a.ForeignAlbumId, mbid, StringComparison.OrdinalIgnoreCase));
+            releaseId = album?.Releases?.FirstOrDefault()?.ForeignReleaseId;
+            if (album is null && allowed.Count == 0)
+            {
+                throw new CatalogException(StatusCodes.Status404NotFound, "album introuvable");
+            }
+        }
+        catch (LidarrException ex)
+        {
+            // the tracks do not need Lidarr: MusicBrainz can pick the release itself
+            _logger.LogWarning("Lidarr album lookup failed: {Message}", ex.Message);
+        }
+
+        if (string.IsNullOrEmpty(releaseId))
+        {
+            var releases = await _musicBrainz.GetReleasesAsync(mbid, ct).ConfigureAwait(false)
+                ?? throw new CatalogException(StatusCodes.Status502BadGateway, "MusicBrainz indisponible");
+            releaseId = releases
+                .OrderBy(r => r.Status.Equals("Official", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(r => r.Date.Length == 0 ? "9999" : r.Date, StringComparer.Ordinal)
+                .FirstOrDefault()?.Id;
+        }
+
+        if (string.IsNullOrEmpty(releaseId))
+        {
+            throw new CatalogException(StatusCodes.Status404NotFound, "album introuvable");
+        }
+
+        var list = await _musicBrainz.GetTracklistAsync(releaseId, ct).ConfigureAwait(false)
+            ?? throw new CatalogException(StatusCodes.Status502BadGateway, "MusicBrainz indisponible");
+        var byRecording = !string.IsNullOrEmpty(recording) && list.Tracks.Any(t => string.Equals(t.RecordingId, recording, StringComparison.OrdinalIgnoreCase));
+        var wantedTitle = string.IsNullOrWhiteSpace(track) ? null : TrackQuery.Fold(track);
+        var matchedOnce = false;
+        var tracks = new List<CatalogTrack>(list.Tracks.Count);
+        foreach (var t in list.Tracks)
+        {
+            var hit = !matchedOnce && (byRecording
+                ? string.Equals(t.RecordingId, recording, StringComparison.OrdinalIgnoreCase)
+                : wantedTitle is not null && TrackQuery.Fold(t.Title) == wantedTitle);
+            matchedOnce |= hit;
+            tracks.Add(new CatalogTrack(t.Disc, t.Position, t.Number, t.Title, t.LengthMs, t.RecordingId, hit ? true : null));
+        }
+
+        return new CatalogTracklist(mbid, list.ReleaseId, list.Title, tracks.Count == 0 ? 0 : tracks.Max(t => t.Disc), tracks);
     }
 
     /// <summary>Picks the URL of an image: the remote one, else Lidarr's own when absolute (it is otherwise relative, /MediaCover/..., and unreachable by the app).</summary>
@@ -443,6 +557,63 @@ public sealed class CatalogService
         }
     }
 
+    /// <summary>Whether the settings hide the album: singles by default, EPs on request. An explicit allow list is never second-guessed.</summary>
+    private static bool IsHidden(LidarrAlbum album, PluginConfiguration config, HashSet<string> allowed)
+    {
+        if (allowed.Count > 0)
+        {
+            return false;
+        }
+
+        var type = album.AlbumType.Trim();
+        return (config.HideSingles && type.Equals("single", StringComparison.OrdinalIgnoreCase))
+            || (config.HideEps && type.Equals("ep", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<IReadOnlyList<TrackAlbum>> TrackAlbumsOrNoneAsync(string query, PluginConfiguration config, CancellationToken ct)
+    {
+        if (_musicBrainz is null || !config.SearchTracks || TrackQuery.Parse(query) is not { } parsed)
+        {
+            return Array.Empty<TrackAlbum>();
+        }
+
+        try
+        {
+            var recordings = await _musicBrainz.SearchRecordingsAsync(parsed, ct).ConfigureAwait(false);
+            return TrackSearch.Albums(recordings, parsed, config.HideEps);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("Track search failed: {Message}", ex.Message);
+            return Array.Empty<TrackAlbum>();
+        }
+    }
+
+    /// <summary>Looks the release groups up by id (<c>lidarr:&lt;mbid&gt;</c>), a few at a time to spare Lidarr's upstream; the order of the hits is kept and a failed lookup is skipped.</summary>
+    private async Task<IReadOnlyList<LidarrAlbum>> ResolveTrackAlbumsAsync(ILidarrApi lidarr, IReadOnlyList<TrackAlbum> hits, CancellationToken ct)
+    {
+        using var gate = new SemaphoreSlim(3);
+        var lookups = hits.Select(async hit =>
+        {
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                return (await lidarr.LookupAlbumsAsync("lidarr:" + hit.ReleaseGroupId, ct).ConfigureAwait(false))
+                    .FirstOrDefault(a => string.Equals(a.ForeignAlbumId, hit.ReleaseGroupId, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (LidarrException ex)
+            {
+                _logger.LogWarning("Lidarr lookup of the track album {Album} failed: {Message}", hit.ReleaseGroupId, ex.Message);
+                return null;
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }).ToList();
+        return (await Task.WhenAll(lookups).ConfigureAwait(false)).OfType<LidarrAlbum>().ToList();
+    }
+
     private async Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsOrNoneAsync(ILidarrApi lidarr, string query, CancellationToken ct)
     {
         try
@@ -494,8 +665,9 @@ public sealed class CatalogService
         return _lidarr.Create();
     }
 
-    private IReadOnlyList<CatalogAlbum> ToAlbums(IReadOnlyList<LidarrAlbum> albums, LidarrArtist? owner)
+    private IReadOnlyList<CatalogAlbum> ToAlbums(IReadOnlyList<LidarrAlbum> albums, LidarrArtist? owner, IReadOnlyDictionary<string, TrackAlbum>? tracks = null)
     {
+        var notFoundAfter = TimeSpan.FromDays(Math.Max(1, _config().NotFoundYetAfterDays));
         var requests = _requests.Newest(albums.Select(a => a.ForeignAlbumId));
         var result = new List<CatalogAlbum>(albums.Count);
         foreach (var album in albums)
@@ -505,9 +677,11 @@ public sealed class CatalogService
             var artistName = artist?.ArtistName ?? string.Empty;
             string state;
             long? requestId = null;
+            string? phase = null;
             if (requests.TryGetValue(album.ForeignAlbumId, out var request))
             {
                 (state, requestId) = (request.Status, request.Id);
+                phase = request.PhaseAt(_now(), notFoundAfter);
             }
             else if (album.Statistics is { PercentOfTracks: >= 100 } || InLibrary(album.ForeignAlbumId, title, artistName))
             {
@@ -534,7 +708,11 @@ public sealed class CatalogService
                 album.Releases is { Count: > 0 } ? album.Releases[0].TrackCount : 0,
                 album.Releases is { Count: > 0 } && album.Releases[0].Label is { Count: > 0 } labels ? labels[0] : null,
                 album.ReleaseDate,
-                album.Disambiguation));
+                album.Disambiguation,
+                tracks is not null && tracks.TryGetValue(album.ForeignAlbumId, out var track)
+                    ? new CatalogTrackMatch(track.Track, track.RecordingId, track.Disc > 0 ? track.Disc : null, track.Position > 0 ? track.Position : null)
+                    : null,
+                phase));
         }
 
         return result;

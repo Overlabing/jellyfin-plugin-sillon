@@ -41,6 +41,8 @@ public sealed record CatalogArtist(
 /// <param name="Label">The label of the primary release, when known.</param>
 /// <param name="ReleaseDate">The release date as Lidarr gives it, when known.</param>
 /// <param name="Disambiguation">The disambiguation text, empty when none.</param>
+/// <param name="MatchedTrack">The track the search matched on this album, absent for a match on the album or artist name. Read by apps newer than 1.1.1.</param>
+/// <param name="Phase">searching or notFoundYet while the request waits for a release, absent otherwise. Read by apps newer than 1.1.1.</param>
 public sealed record CatalogAlbum(
     [property: JsonPropertyName("mbid")] string Mbid,
     [property: JsonPropertyName("artistMbid")] string ArtistMbid,
@@ -57,7 +59,50 @@ public sealed record CatalogAlbum(
     [property: JsonPropertyName("trackCount")] int TrackCount,
     [property: JsonPropertyName("label")] string? Label,
     [property: JsonPropertyName("releaseDate")] string? ReleaseDate,
-    [property: JsonPropertyName("disambiguation")] string Disambiguation);
+    [property: JsonPropertyName("disambiguation")] string Disambiguation,
+    [property: JsonPropertyName("matchedTrack"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CatalogTrackMatch? MatchedTrack = null,
+    [property: JsonPropertyName("phase"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Phase = null);
+
+/// <summary>The track a search matched on an album.</summary>
+/// <param name="Title">The track title.</param>
+/// <param name="RecordingMbid">The recording's MusicBrainz id; the tracklist of the album carries the same id on the same track.</param>
+/// <param name="Disc">The disc on the first release MusicBrainz listed, absent when unknown. The tracklist's release may differ: match on the recording id first.</param>
+/// <param name="Position">The position on that disc, absent when unknown.</param>
+public sealed record CatalogTrackMatch(
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("recordingMbid")] string RecordingMbid,
+    [property: JsonPropertyName("disc"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Disc = null,
+    [property: JsonPropertyName("position"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? Position = null);
+
+/// <summary>A track of a catalogue album.</summary>
+/// <param name="Disc">The disc, from 1.</param>
+/// <param name="Position">The position on the disc, from 1.</param>
+/// <param name="Number">The number as printed on the release (<c>1</c>, <c>A1</c>).</param>
+/// <param name="Title">The title.</param>
+/// <param name="DurationMs">The length in milliseconds, absent when unknown.</param>
+/// <param name="RecordingMbid">The recording's MusicBrainz id, empty when unknown.</param>
+/// <param name="Matched">True for the track asked about (by recording id, else by title); absent otherwise.</param>
+public sealed record CatalogTrack(
+    [property: JsonPropertyName("disc")] int Disc,
+    [property: JsonPropertyName("position")] int Position,
+    [property: JsonPropertyName("number")] string Number,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("durationMs"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? DurationMs,
+    [property: JsonPropertyName("recordingMbid")] string RecordingMbid,
+    [property: JsonPropertyName("matched"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Matched = null);
+
+/// <summary>The tracklist of a catalogue album.</summary>
+/// <param name="AlbumMbid">The release group's MusicBrainz id.</param>
+/// <param name="ReleaseMbid">The release the tracks come from.</param>
+/// <param name="Title">The release title.</param>
+/// <param name="DiscCount">The number of discs.</param>
+/// <param name="Tracks">The tracks, disc by disc.</param>
+public sealed record CatalogTracklist(
+    [property: JsonPropertyName("albumMbid")] string AlbumMbid,
+    [property: JsonPropertyName("releaseMbid")] string ReleaseMbid,
+    [property: JsonPropertyName("title")] string Title,
+    [property: JsonPropertyName("discCount")] int DiscCount,
+    [property: JsonPropertyName("tracks")] IReadOnlyList<CatalogTrack> Tracks);
 
 /// <summary>Result of a catalogue search.</summary>
 /// <param name="Artists">The artists.</param>

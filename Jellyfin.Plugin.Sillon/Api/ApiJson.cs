@@ -77,6 +77,11 @@ public sealed record RequestDto
     [JsonPropertyName("lastSearchAt")]
     public DateTimeOffset? LastSearchAt { get; init; }
 
+    /// <summary>Gets searching or notFoundYet while the request waits for a release; absent otherwise. The status stays requested: apps that predate the field show it as waiting.</summary>
+    [JsonPropertyName("phase")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Phase { get; init; }
+
     /// <summary>Gets the creation time.</summary>
     [JsonPropertyName("createdAt")]
     public DateTimeOffset CreatedAt { get; init; }
@@ -87,8 +92,9 @@ public sealed record RequestDto
 
     /// <summary>Builds the API shape of a stored request.</summary>
     /// <param name="r">The stored request.</param>
+    /// <param name="phase">The phase of the request, when it waits for a release.</param>
     /// <returns>The DTO.</returns>
-    public static RequestDto From(RequestRecord r) => new()
+    public static RequestDto From(RequestRecord r, string? phase = null) => new()
     {
         Id = r.Id,
         UserId = r.UserId,
@@ -107,6 +113,7 @@ public sealed record RequestDto
         TracksTotal = r.TracksTotal > 0 ? r.TracksTotal : null,
         LibraryAddedAt = r.LibraryAddedAt,
         LastSearchAt = r.LastSearchAt,
+        Phase = phase,
         CreatedAt = r.CreatedAt,
         UpdatedAt = r.UpdatedAt
     };

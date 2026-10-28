@@ -105,6 +105,16 @@ public sealed record RequestRecord
     /// <summary>Gets the last change time.</summary>
     public DateTimeOffset UpdatedAt { get; init; }
 
+    /// <summary>
+    /// Where a waiting request stands, for apps that tell "no release yet" from "downloading": <c>searching</c> for the first days,
+    /// <c>notFoundYet</c> once <paramref name="notFoundAfter"/> has passed without a release; null when the request is not waiting.
+    /// </summary>
+    /// <param name="now">The current time.</param>
+    /// <param name="notFoundAfter">How long a request may search before it is called not found yet.</param>
+    /// <returns>The phase, or null.</returns>
+    public string? PhaseAt(DateTimeOffset now, TimeSpan notFoundAfter)
+        => Status == RequestStatus.Requested ? (now - CreatedAt >= notFoundAfter ? "notFoundYet" : "searching") : null;
+
     /// <summary>Gets a value indicating whether the request is still being worked on.</summary>
     [JsonIgnore]
     public bool IsActive => Status is RequestStatus.Requested or RequestStatus.Downloading;
