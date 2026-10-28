@@ -77,6 +77,10 @@ public sealed class LidarrRelease
     [JsonPropertyName("disambiguation")]
     public string Disambiguation { get; init; } = string.Empty;
 
+    /// <summary>Gets the countries the release came out in.</summary>
+    [JsonPropertyName("country")]
+    public List<string>? Country { get; init; }
+
     /// <summary>Gets the status (Official, ...).</summary>
     [JsonPropertyName("status")]
     public string Status { get; init; } = string.Empty;

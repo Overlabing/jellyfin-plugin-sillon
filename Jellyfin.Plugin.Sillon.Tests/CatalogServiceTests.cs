@@ -456,10 +456,10 @@ public class CatalogServiceTests
     public async Task Search_RanksAlbumThenAlbumWithSecondaryTypesThenEpThenSingle_TiesByTracksThenDate()
     {
         Assert.Equal(new[] { "live" }, await SearchIds(Rel("ep", "X", "EP", 5), Rel("single", "X", "Single", 1), Rel("live", "X", "Album", 8, secondary: new[] { "Live" })));
-        Assert.Equal(new[] { "plain" }, await SearchIds(Rel("live", "X", "Album", 20, secondary: new[] { "Live" }), Rel("plain", "X", "Album", 8)));
+        Assert.Equal(new[] { "plain", "live" }, await SearchIds(Rel("live", "X", "Album", 20, secondary: new[] { "Live" }), Rel("plain", "X", "Album", 8)));
         Assert.Equal(new[] { "ep" }, await SearchIds(Rel("single", "X", "Single", 3), Rel("ep", "X", "EP", 3)));
-        Assert.Equal(new[] { "long" }, await SearchIds(Rel("short", "X", "Album", 9), Rel("long", "X", "Album", 14)));
-        Assert.Equal(new[] { "early" }, await SearchIds(Rel("late", "X", "Album", 9, "2020-01-01"), Rel("early", "X", "Album", 9, "2010-01-01")));
+        Assert.Equal(new[] { "long", "short" }, await SearchIds(Rel("short", "X", "Album", 9), Rel("long", "X", "Album", 14)));
+        Assert.Equal(new[] { "early", "late" }, await SearchIds(Rel("late", "X", "Album", 9, "2020-01-01"), Rel("early", "X", "Album", 9, "2010-01-01")));
     }
 
     [Fact]
@@ -477,5 +477,95 @@ public class CatalogServiceTests
         var result = await catalog.SearchAsync("rattle", CancellationToken.None);
 
         Assert.Equal(new[] { "single" }, result.Albums.Select(a => a.Mbid));
+    }
+
+    private const string LesMis = "lesmis-artist";
+
+    // Lidarr's lookup shape: a release group per recording, each with its releases
+    private static LidarrAlbum LesMisGroup(string id, string date, string[] secondary, string? disambiguation, string[] releases, string country = "GB")
+        => Album("{\"id\":0,\"title\":\"Les Mis\u00e9rables\",\"foreignAlbumId\":\"" + id + "\",\"releaseDate\":\"" + date + "\",\"albumType\":\"Album\","
+            + "\"secondaryTypes\":" + JsonSerializer.Serialize(secondary) + ","
+            + (disambiguation is null ? string.Empty : "\"disambiguation\":" + JsonSerializer.Serialize(disambiguation) + ",")
+            + "\"releases\":[" + string.Join(",", releases.Select(d => "{\"mediumCount\":2,\"trackCount\":24,\"status\":\"Official\",\"country\":[\"" + country + "\"],\"disambiguation\":" + JsonSerializer.Serialize(d) + "}")) + "],"
+            + "\"artist\":{\"artistName\":\"Original London Cast\",\"foreignArtistId\":\"" + LesMis + "\"}}");
+
+    private static LidarrAlbum[] LesMisCatalogue() => new[]
+    {
+        LesMisGroup("japan-red", "1994-06-01", new[] { "Live", "Soundtrack" }, "Japanese 'Red' cast", new[] { "" }, "JP"),
+        LesMisGroup("london-1985", "1985-12-01", new[] { "Soundtrack" }, "1985 London cast", new[] { "", "", "", "" }),
+        LesMisGroup("film-2012", "2012-12-11", new[] { "Soundtrack" }, null, new[] { "film cast", "" }, "US"),
+        LesMisGroup("studio-1980", "1980-01-01", Array.Empty<string>(), "French original", new[] { "" }, "FR"),
+        Rel("single", "Les Mis\u00e9rables", "Single", 1, artist: LesMis),
+    };
+
+    private static async Task<CatalogSearchResult> SearchLesMis(params LidarrAlbum[] found)
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => found.Select(a => new LidarrSearchItem { Album = a }).ToList();
+        return await catalog.SearchAsync("les miserables", CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Search_SameTitleReleaseGroups_AreAllOffered_TheMostLikelyFirst_WithoutTheSameTitleSingle()
+    {
+        var result = await SearchLesMis(LesMisCatalogue());
+
+        Assert.Equal(new[] { "studio-1980", "london-1985", "film-2012", "japan-red" }, result.Albums.Select(a => a.Mbid));
+    }
+
+    [Fact]
+    public async Task Search_SameTitleReleaseGroups_ReachTheAppWhatTellsThemApart()
+    {
+        var result = await SearchLesMis(LesMisCatalogue());
+        var byId = result.Albums.ToDictionary(a => a.Mbid);
+
+        Assert.Equal(("1985 London cast", 1985, "GB"), (byId["london-1985"].Disambiguation, byId["london-1985"].Year, byId["london-1985"].Country));
+        Assert.Equal(("Japanese 'Red' cast", 1994, "JP"), (byId["japan-red"].Disambiguation, byId["japan-red"].Year, byId["japan-red"].Country));
+        Assert.Equal(new[] { "Live", "Soundtrack" }, byId["japan-red"].SecondaryTypes);
+
+        // no release group disambiguation: the first release that has one speaks for it
+        Assert.Equal("film cast", byId["film-2012"].Disambiguation);
+    }
+
+    [Fact]
+    public async Task Search_TheSameTitleInAnyOrder_KeepsTheSameRanking()
+    {
+        var found = LesMisCatalogue();
+        var forward = (await SearchLesMis(found)).Albums.Select(a => a.Mbid).ToList();
+        var backward = (await SearchLesMis(found.Reverse().ToArray())).Albums.Select(a => a.Mbid).ToList();
+
+        Assert.Equal(forward, backward);
+    }
+
+    [Fact]
+    public async Task Search_SameTitleAlbums_TakeTheSlotsTheyHeld_BetweenOtherAlbums()
+    {
+        var other = Rel("other", "Cats", "Album", 20, artist: LesMis);
+        var ids = (await SearchLesMis(LesMisGroup("a", "1994-06-01", new[] { "Live" }, null, new[] { "" }), other, LesMisGroup("b", "1985-12-01", Array.Empty<string>(), null, new[] { "", "" }))).Albums.Select(a => a.Mbid);
+
+        Assert.Equal(new[] { "b", "other", "a" }, ids);
+    }
+
+    [Fact]
+    public async Task Artist_ListsEverySameTitleReleaseGroup()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        env.Lidarr.OnSearch = _ => LesMisCatalogue().Select(a => new LidarrSearchItem { Album = a }).ToList();
+
+        var result = await catalog.ArtistAlbumsAsync(LesMis, "Original London Cast", CancellationToken.None);
+
+        Assert.Equal(new[] { "japan-red", "london-1985", "film-2012", "studio-1980" }.Order(), result.Albums.Where(a => a.AlbumType == "Album").Select(a => a.Mbid).Order());
+    }
+
+    [Fact]
+    public async Task Search_Json_OmitsTheCountryWhenUnknown()
+    {
+        var (env, catalog) = Make();
+        using var _ = env;
+        var result = await catalog.SearchAsync("vald", CancellationToken.None);
+
+        Assert.DoesNotContain("country", JsonSerializer.Serialize(result.Albums[0], ApiJson.Options));
     }
 }
