@@ -16,6 +16,9 @@ public sealed class CatalogService
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
 
+    // the app gives up on a search after 20 seconds, and Lidarr's lookups still have to run after this
+    private static readonly TimeSpan DefaultHintBudget = TimeSpan.FromSeconds(6);
+
     private readonly ILidarrProvider _lidarr;
     private readonly RequestStore _requests;
     private readonly IJellyfinLibrary _library;
@@ -23,6 +26,8 @@ public sealed class CatalogService
     private readonly ILogger<CatalogService> _logger;
     private readonly IMusicBrainzApi? _musicBrainz;
     private readonly Func<DateTimeOffset> _now;
+    private readonly ITrackHints? _hints;
+    private readonly TimeSpan _hintBudget;
     private readonly SemaphoreSlim _catalogLock = new(1, 1);
     private string? _catalogKey;
     private DateTime _catalogExpires;
@@ -36,6 +41,8 @@ public sealed class CatalogService
     /// <param name="logger">The logger.</param>
     /// <param name="musicBrainz">MusicBrainz, for the search by track title; without it a search only matches artist and album names.</param>
     /// <param name="now">The clock; the system clock when null.</param>
+    /// <param name="hints">The popularity hints, only asked when the administrator turned them on.</param>
+    /// <param name="hintBudget">How long the hints may take in all, keeping what they found by then; 6 seconds when null.</param>
     public CatalogService(
         ILidarrProvider lidarr,
         RequestStore requests,
@@ -43,8 +50,12 @@ public sealed class CatalogService
         Func<PluginConfiguration> config,
         ILogger<CatalogService> logger,
         IMusicBrainzApi? musicBrainz = null,
-        Func<DateTimeOffset>? now = null)
+        Func<DateTimeOffset>? now = null,
+        ITrackHints? hints = null,
+        TimeSpan? hintBudget = null)
     {
+        _hints = hints;
+        _hintBudget = hintBudget ?? DefaultHintBudget;
         _musicBrainz = musicBrainz;
         _now = now ?? (() => DateTimeOffset.UtcNow);
         _lidarr = lidarr;
@@ -117,6 +128,22 @@ public sealed class CatalogService
             }
         }
 
+        // the albums that hold the track searched for, resolved through Lidarr so a request takes the usual path
+        var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
+        var hits = (await trackHits.ConfigureAwait(false)).Take(MaxTrackAlbums).ToList();
+        foreach (var hit in hits)
+        {
+            tracks[hit.ReleaseGroupId] = hit;
+        }
+
+        var trackAlbums = await ResolveTrackAlbumsAsync(lidarr, hits, ct).ConfigureAwait(false);
+
+        // a popular artist's album comes before the many same-title albums Lidarr knows
+        foreach (var album in trackAlbums.Where(a => tracks[a.ForeignAlbumId].Hinted))
+        {
+            Add(album);
+        }
+
         foreach (var item in items)
         {
             if (item.Artist is { ForeignArtistId.Length: > 0 })
@@ -137,15 +164,7 @@ public sealed class CatalogService
             }
         }
 
-        // the albums that hold the track searched for, resolved through Lidarr so a request takes the usual path
-        var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
-        var hits = (await trackHits.ConfigureAwait(false)).Take(MaxTrackAlbums).ToList();
-        foreach (var hit in hits)
-        {
-            tracks[hit.ReleaseGroupId] = hit;
-        }
-
-        foreach (var album in await ResolveTrackAlbumsAsync(lidarr, hits, ct).ConfigureAwait(false))
+        foreach (var album in trackAlbums.Where(a => !tracks[a.ForeignAlbumId].Hinted))
         {
             Add(album);
         }
@@ -600,9 +619,22 @@ public sealed class CatalogService
             return Array.Empty<TrackAlbum>();
         }
 
+        // started first: the plain search keeps its place in MusicBrainz's queue
+        var plain = PlainTrackAlbumsAsync(_musicBrainz, parsed, config, ct);
+        if (_hints is null || !config.DeezerPopularityHints || parsed.Artist is not null)
+        {
+            return await plain.ConfigureAwait(false);
+        }
+
+        var hinted = await HintedTrackAlbumsAsync(_hints, _musicBrainz, parsed.Title, config, ct).ConfigureAwait(false);
+        return TrackSearch.WithHints(hinted, await plain.ConfigureAwait(false));
+    }
+
+    private async Task<IReadOnlyList<TrackAlbum>> PlainTrackAlbumsAsync(IMusicBrainzApi musicBrainz, TrackQuery parsed, PluginConfiguration config, CancellationToken ct)
+    {
         try
         {
-            var recordings = await _musicBrainz.SearchRecordingsAsync(parsed, ct).ConfigureAwait(false);
+            var recordings = await musicBrainz.SearchRecordingsAsync(parsed, ct).ConfigureAwait(false);
             return TrackSearch.Albums(recordings, parsed, config.HideEps);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -610,6 +642,29 @@ public sealed class CatalogService
             _logger.LogWarning("Track search failed: {Message}", ex.Message);
             return Array.Empty<TrackAlbum>();
         }
+    }
+
+    /// <summary>The albums of the artists the hints name, one artist at a time through MusicBrainz's queue and its cache; whatever goes wrong or runs out of time only costs the hints not found yet.</summary>
+    private async Task<IReadOnlyList<IReadOnlyList<TrackAlbum>>> HintedTrackAlbumsAsync(ITrackHints hints, IMusicBrainzApi musicBrainz, string title, PluginConfiguration config, CancellationToken ct)
+    {
+        var found = new List<IReadOnlyList<TrackAlbum>>();
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        budget.CancelAfter(_hintBudget);
+        try
+        {
+            foreach (var artist in await hints.ArtistsForTitleAsync(title, budget.Token).ConfigureAwait(false))
+            {
+                var query = new TrackQuery(title, artist, AnySpelling: true);
+                var recordings = await musicBrainz.SearchRecordingsAsync(query, budget.Token).ConfigureAwait(false);
+                found.Add(TrackSearch.Albums(recordings, query, config.HideEps));
+            }
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogDebug("Track hints stopped early: {Reason}", ex.GetType().Name);
+        }
+
+        return found;
     }
 
     /// <summary>Looks the release groups up by id (<c>lidarr:&lt;mbid&gt;</c>), a few at a time to spare Lidarr's upstream; the order of the hits is kept and a failed lookup is skipped.</summary>

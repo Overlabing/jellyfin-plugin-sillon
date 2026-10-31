@@ -59,13 +59,18 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(NamedClient.Default),
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? string.Empty,
             sp.GetRequiredService<ILogger<MusicBrainzClient>>()));
+        serviceCollection.AddSingleton<ITrackHints>(sp => new DeezerHints(
+            DeezerHints.CreateHttpClient(),
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? string.Empty,
+            sp.GetRequiredService<ILogger<DeezerHints>>()));
         serviceCollection.AddSingleton(sp => new CatalogService(
             sp.GetRequiredService<ILidarrProvider>(),
             sp.GetRequiredService<RequestStore>(),
             sp.GetRequiredService<IJellyfinLibrary>(),
             sp.GetRequiredService<Func<PluginConfiguration>>(),
             sp.GetRequiredService<ILogger<CatalogService>>(),
-            sp.GetRequiredService<IMusicBrainzApi>()));
+            sp.GetRequiredService<IMusicBrainzApi>(),
+            hints: sp.GetRequiredService<ITrackHints>()));
         serviceCollection.AddSingleton(sp => new RequestService(
             sp.GetRequiredService<RequestStore>(),
             sp.GetRequiredService<ILidarrProvider>(),

@@ -9,12 +9,14 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="RecordingId">The recording's MusicBrainz id (of the first recording that put the track here).</param>
 /// <param name="Disc">The disc of the track on the first release MusicBrainz listed, 0 when unknown.</param>
 /// <param name="Position">The track's position on that disc, 0 when unknown.</param>
-public sealed record TrackAlbum(string ReleaseGroupId, string Track, int Rank, int Hits, int Year, string RecordingId = "", int Disc = 0, int Position = 0);
+/// <param name="Hinted">Whether it comes from an artist a popularity hint named.</param>
+public sealed record TrackAlbum(string ReleaseGroupId, string Track, int Rank, int Hits, int Year, string RecordingId = "", int Disc = 0, int Position = 0, bool Hinted = false);
 
 /// <summary>Turns MusicBrainz recordings into the albums to offer for a track search.</summary>
 public static class TrackSearch
 {
     private const int MinScore = 70;
+    private const int MaxAlbumsPerHintedArtist = 2;
 
     /// <summary>
     /// Keeps the albums the recordings appear on: studio albums first, then albums with another secondary type, then compilations and live
@@ -28,16 +30,17 @@ public static class TrackSearch
     public static IReadOnlyList<TrackAlbum> Albums(IReadOnlyList<MbRecording> recordings, TrackQuery query, bool hideEps)
     {
         var title = TrackQuery.Fold(query.Title);
-        var artist = query.Artist is null ? null : TrackQuery.Fold(query.Artist);
+        var artist = query.Artist is null ? null : TrackQuery.FoldTight(query.Artist);
         var found = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
         foreach (var recording in recordings)
         {
-            if (recording.Score < MinScore || TrackQuery.Fold(recording.Title) != title)
+            // a recording found under the artist's other spelling scores low, and the title and artist checks here are what vouch for it
+            if ((recording.Score < MinScore && !query.AnySpelling) || TrackQuery.Fold(recording.Title) != title)
             {
                 continue;
             }
 
-            if (artist is { Length: > 0 } && !TrackQuery.Fold(recording.Artist).Contains(artist, StringComparison.Ordinal))
+            if (artist is { Length: > 0 } && !TrackQuery.FoldTight(recording.Artist).Contains(artist, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -62,6 +65,21 @@ public static class TrackSearch
             .ThenBy(a => a.Year == 0 ? int.MaxValue : a.Year)
             .ToList();
     }
+
+    /// <summary>
+    /// Puts the albums of the hinted artists first, in the order of the hint, then the plain results, each release group once. An artist
+    /// offers its best albums only, so that one with many compilations leaves room for the next artists and the plain results.
+    /// </summary>
+    /// <param name="hinted">The albums found for each hinted artist, most popular artist first.</param>
+    /// <param name="plain">The albums found by the title alone.</param>
+    /// <returns>The albums, hinted ones flagged.</returns>
+    public static IReadOnlyList<TrackAlbum> WithHints(IReadOnlyList<IReadOnlyList<TrackAlbum>> hinted, IReadOnlyList<TrackAlbum> plain)
+        => hinted
+            .SelectMany(albums => albums.Take(MaxAlbumsPerHintedArtist))
+            .Select(album => album with { Hinted = true })
+            .Concat(plain)
+            .DistinctBy(album => album.ReleaseGroupId, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static int EarlierYear(int a, int b) => a == 0 ? b : b == 0 ? a : Math.Min(a, b);
 

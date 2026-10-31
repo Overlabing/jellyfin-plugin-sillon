@@ -20,6 +20,10 @@ playback and browsing your existing library work without it. The app's privacy p
     resolves each album through Lidarr, so requests follow the usual path. Switch it off with *Find albums by song title*.
     Each album found this way carries an optional `matchedTrack` (`title`, `recordingMbid`, and `disc` and
     `position` when known).
+  - **Popularity hints from Deezer (optional, off by default).** A title many artists have recorded can bury the
+    famous version: `Creep` has thousands of recordings on MusicBrainz, ranked by text alone. Turn on *Use Deezer to
+    find the best-known artists for a song title* and a search for a bare title also asks Deezer which artists are
+    best known for it, then offers those artists' albums first. See [Deezer hints](#deezer-hints).
   - **Tracklist of a catalogue album.** `GET /Sillon/v1/catalog/album/{mbid}/tracks[?recording=<mbid>][&track=<title>]`
     (`mbid` is the album's release group id) returns `{albumMbid, releaseMbid, title, discCount, tracks:
     [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track
@@ -102,8 +106,29 @@ Open the Sillon page in the Jellyfin dashboard. It has five tabs.
    requests.
 4. **Notifications**: choose a mode and see the phones registered for this server. A test button sends a
    notification to your own phones.
-5. **Settings**: let people request albums (when off, the app hides the feature), request timeout, limits,
-   optional allow-list of albums, and clean-up of finished requests.
+5. **Settings**: let people request albums (when off, the app hides the feature), request timeout, song search
+   and its optional [Deezer hints](#deezer-hints), limits, optional allow-list of albums, and clean-up of finished
+   requests.
+
+## Deezer hints
+
+This option is **off by default**, stays off on upgrade, and only a server administrator can turn it on (Settings,
+*Use Deezer to find the best-known artists for a song title*). While it is off, the plugin makes no call to Deezer.
+
+**What leaves your server when it is on.** The search text, for searches that are a bare title (not
+`Artist - Title` or `Title by Artist`), and your server's IP address, as with any web request. It goes to
+`https://api.deezer.com/search` without a key, a cookie, or any user or account information; the User-Agent only
+names the plugin and its version. It is for non-commercial private or family use under
+[Deezer's terms](https://developers.deezer.com/termsofuse), which you accept by turning it on.
+
+**What it does.** The plugin keeps Deezer's top tracks whose title is exactly the one searched for, takes up to three
+of their artists, looks each one up on MusicBrainz (still one request a second), and offers up to two albums per
+artist before the other results. Lookups are answered from a cache on your server for 7 days (Deezer) and a day
+(MusicBrainz). Nothing from Deezer is shown or stored other than those artist names.
+
+**The cost.** A title searched for the first time takes about 3 seconds longer, because of MusicBrainz's pace; the
+hints stop after 6 seconds at most and keep what they found. If Deezer fails, times out or knows nothing, the search
+answers as it would without the option, and the plugin leaves Deezer alone for 5 minutes.
 
 ## Notifications
 
