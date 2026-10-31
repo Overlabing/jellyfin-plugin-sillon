@@ -130,6 +130,12 @@ artist before the other results. Lookups are answered from a cache on your serve
 hints stop after 6 seconds at most and keep what they found. If Deezer fails, times out or knows nothing, the search
 answers as it would without the option, and the plugin leaves Deezer alone for 5 minutes.
 
+**When MusicBrainz is busy.** MusicBrainz sheds load by declining requests with a 503, however slowly this server asks.
+The plugin tries again up to twice, waiting as long as a `Retry-After` asks (up to 5 seconds; longer, and it stops asking
+for that long), then pauses for a few seconds. The hinted artists are asked for first, one query each, then the title
+alone. A search still returns what it has and logs one warning, naming the limit that declined. Nothing is remembered from
+a 503, so the next search asks again, and only for what it is missing.
+
 ## Notifications
 
 A phone registers with your server when its owner opens the Sillon app signed in to it. Three modes:

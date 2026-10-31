@@ -1,0 +1,623 @@
+[
+ {
+  "title": "Pablo Honey",
+  "foreignAlbumId": "cd76f76b-ff15-3784-a71d-4da3078a6851",
+  "albumType": "Album",
+  "secondaryTypes": [],
+  "releaseDate": "1993-02-22T00:00:00Z",
+  "disambiguation": "",
+  "mediumCount": 1,
+  "monitored": false,
+  "artist": {
+   "artistName": "Radiohead",
+   "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+   "artistType": "Group",
+   "genres": [
+    "Alternative Rock",
+    "Art Rock",
+    "Rock",
+    "Experimental Rock",
+    "Electronic",
+    "Indie Rock",
+    "Experimental",
+    "Art Pop",
+    "Post-Britpop",
+    "Electronica",
+    "Britpop",
+    "Chamber Pop",
+    "Indietronica",
+    "Post-Grunge",
+    "Crossover Prog",
+    "Electronic Rock",
+    "Ambient Pop",
+    "Idm"
+   ]
+  },
+  "releases": [
+   {
+    "foreignReleaseId": "241499cc-ab40-40c6-8847-fdecf293857a",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": true,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "661e10a1-8a01-4201-8f1b-e3a42684739d",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "c6303808-8b95-4837-bc52-69d599f5d81c",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": false,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "12\" Vinyl",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "4972a96f-413e-31c5-bb4e-f11c1f2cf45f",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "24d10180-a965-39a2-9494-288ea15d27d6",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "4d4cc42b-b15c-3f1d-8a10-5386803009f6",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [],
+    "country": [
+     "Japan"
+    ],
+    "format": "2xCD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "0a29c4b7-e1c1-4b3b-adf7-a8cc1a5ef11b",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": false,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "12\" Vinyl",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "02769f4d-ee78-3680-aa79-67f3a821c931",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "07aab296-9a40-42a9-8d1f-6b06aa032e8a",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "United Kingdom"
+    ],
+    "format": "CD",
+    "disambiguation": "made in UK, PM 520"
+   },
+   {
+    "foreignReleaseId": "b1a9b282-7f04-4d14-9aea-bcd2b33e3156",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "United Kingdom"
+    ],
+    "format": "12\" Vinyl",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "5df336df-cb28-4147-a126-ba414820f02f",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "Cassette",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "7b3d649d-8fd3-4b0d-a26e-8e0d89d69683",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": false,
+    "label": [
+     "EMI Music Canada"
+    ],
+    "country": [
+     "Canada"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "ae8c1966-4224-4c19-b5e7-769abcb801c8",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "2xCD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "8197e68a-9141-4796-a215-4e0706912548",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "[Worldwide]"
+    ],
+    "format": "Digital Media",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "509ca2da-ac45-4687-8142-bf1fcd3a6e4f",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "2xCD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "54ed4e79-5754-4432-9355-b7fa57d7bc67",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "2xCD",
+    "disambiguation": "special collector’s edition"
+   },
+   {
+    "foreignReleaseId": "eabdab86-5317-4a77-bf39-bd632faa0ea1",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "XL Recordings"
+    ],
+    "country": [
+     "[Worldwide]"
+    ],
+    "format": "Digital Media",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "77c92990-6eef-33f4-b25c-3c60670e74c3",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "United Kingdom"
+    ],
+    "format": "2xCD",
+    "disambiguation": "Collectors Edition"
+   },
+   {
+    "foreignReleaseId": "b38ae233-bb6f-3115-9185-3f8f149b0a44",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "Japan"
+    ],
+    "format": "2xCD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "286912b9-24d1-4073-9f0d-b03cffad61f8",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "Europe"
+    ],
+    "format": "CD",
+    "disambiguation": "printed in EU, made in Italy"
+   },
+   {
+    "foreignReleaseId": "c08e0cf1-912b-4ee3-a6ae-aba9eedb99ad",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": false,
+    "label": [
+     "BMG Direct",
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "CD",
+    "disambiguation": "BMG club edition"
+   },
+   {
+    "foreignReleaseId": "607e5a8d-0308-424f-80dd-749513c8d855",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "XL Recordings"
+    ],
+    "country": [
+     "Germany"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "89489f8e-3ecf-4825-81e4-5caa12154cdd",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "EMI Music Canada"
+    ],
+    "country": [
+     "Canada"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "e71bf938-ab69-43ed-a06d-bbee7418e328",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "XL Recordings"
+    ],
+    "country": [
+     "[Worldwide]"
+    ],
+    "format": "Digital Media",
+    "disambiguation": "Bandcamp"
+   },
+   {
+    "foreignReleaseId": "811bddb6-a6c4-43cf-b782-a2bed0b834ac",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 13,
+    "monitored": false,
+    "label": [
+     "BMG Direct Marketing, Inc.",
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "06487940-c7d4-4af3-976d-0be796d686ce",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "Europe"
+    ],
+    "format": "CD",
+    "disambiguation": "printed in Italy, made in Italy"
+   },
+   {
+    "foreignReleaseId": "8125fd6f-addc-45a8-ba34-4b023aeae962",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "Europe"
+    ],
+    "format": "CD",
+    "disambiguation": "made in UK, PM 520, candy CD"
+   },
+   {
+    "foreignReleaseId": "3d17069b-194f-4f08-921a-b3d7e8fc3c53",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Capitol Records"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "8bc2ad8e-d821-38f8-b233-4ae30970e8ec",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 2,
+    "trackCount": 34,
+    "monitored": false,
+    "label": [
+     "EMI"
+    ],
+    "country": [
+     "Europe"
+    ],
+    "format": "2xCD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "066e2c2d-66ed-4c33-ba57-cb4485c9f106",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "Argentina"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "0c1a7410-384d-41a3-b860-82075511e253",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "Mexico"
+    ],
+    "format": "Cassette",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "29575ff4-cbce-468a-9305-79176ebefb80",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "United Kingdom"
+    ],
+    "format": "CD",
+    "disambiguation": "made in UK, PM 516"
+   },
+   {
+    "foreignReleaseId": "79e50442-79d0-4540-b2ee-887a2ebc7bea",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "XL Recordings"
+    ],
+    "country": [
+     "[Worldwide]"
+    ],
+    "format": "Digital Media",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "0d5d78b6-62e3-45e9-9b22-ef8696217f74",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone",
+     "Parlophone"
+    ],
+    "country": [
+     "Europe"
+    ],
+    "format": "CD",
+    "disambiguation": "781409 2 .5 EMI SWINDON (01XXXX) / (01XXXX-NL)"
+   },
+   {
+    "foreignReleaseId": "287dca89-2bf4-42c2-ba32-b6eddceb835f",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "XL Recordings"
+    ],
+    "country": [
+     "United States"
+    ],
+    "format": "CD",
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "051cfabc-f80c-4fc8-89a3-27161fa95c59",
+    "title": "Pablo Honey",
+    "status": "Official",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "monitored": false,
+    "label": [
+     "Parlophone"
+    ],
+    "country": [
+     "Poland"
+    ],
+    "format": "Cassette",
+    "disambiguation": ""
+   }
+  ]
+ }
+]

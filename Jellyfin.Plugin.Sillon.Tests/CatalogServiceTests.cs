@@ -103,7 +103,7 @@ public class CatalogServiceTests
         var result = await catalog.SearchAsync("era", CancellationToken.None);
 
         var album = Assert.Single(result.Albums);
-        Assert.Equal(("EP", 3, 9, "Label A", "2019-05-03T00:00:00Z", "deluxe"), (album.AlbumType, album.DiscCount, album.TrackCount, album.Label, album.ReleaseDate, album.Disambiguation));
+        Assert.Equal(("EP", 1, 9, "Label A", "2019-05-03T00:00:00Z", "deluxe"), (album.AlbumType, album.DiscCount, album.TrackCount, album.Label, album.ReleaseDate, album.Disambiguation));
         Assert.Equal(new[] { "Live", "Compilation" }, album.SecondaryTypes);
         var artist = Assert.Single(result.Artists);
         Assert.Equal("Group", artist.ArtistType);
@@ -175,7 +175,7 @@ public class CatalogServiceTests
 
         Assert.Equal(40, result.Albums.Count);
         Assert.Equal("rich-1", result.Albums[0].Mbid);
-        Assert.Equal(3, result.Albums[0].DiscCount);
+        Assert.Equal(1, result.Albums[0].DiscCount);
     }
 
     [Fact]

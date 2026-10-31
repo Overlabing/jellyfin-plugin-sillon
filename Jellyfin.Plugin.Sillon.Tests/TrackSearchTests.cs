@@ -222,28 +222,12 @@ public class TrackSearchTests
         Assert.All(clock.Waits, w => Assert.True(w >= TimeSpan.FromSeconds(1)));
     }
 
-    [Theory]
-    [InlineData(HttpStatusCode.ServiceUnavailable)]
-    [InlineData(HttpStatusCode.InternalServerError)]
-    public async Task Client_AFailureAnswersNothing_AndIsNotRetriedAtOnce(HttpStatusCode status)
-    {
-        var (client, handler, clock) = MakeClient(_ => new HttpResponseMessage(status));
-
-        Assert.Empty(await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None));
-        Assert.Empty(await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None));
-        Assert.Single(handler.Requests);
-
-        clock.Now += TimeSpan.FromMinutes(6);
-        await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None);
-        Assert.Equal(2, handler.Requests.Count);
-    }
-
     [Fact]
-    public async Task Client_GarbageJsonAnswersNothing()
+    public async Task Client_GarbageJsonIsAFailure_NotAnEmptyAnswer()
     {
         var (client, _, _) = MakeClient(_ => Ok("<html>nope</html>"));
 
-        Assert.Empty(await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None));
+        await Assert.ThrowsAsync<MusicBrainzUnavailableException>(() => client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None));
     }
 
     // ---- the catalogue: hiding singles, resolving the albums, hints, phase
