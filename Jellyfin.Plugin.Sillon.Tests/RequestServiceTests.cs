@@ -601,6 +601,99 @@ public class RequestServiceTests
         Assert.Equal(RequestStatus.Cancelled, env.Store.Get(created!.Id)!.Status);
     }
 
+    private static async Task<(TestEnv Env, RequestRecord Request)> TimedOut()
+    {
+        var (env, request) = await Requested();
+        env.Now += TimeSpan.FromDays(15);
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+        env.Notifier.Sent.Clear();
+        env.Notifier.Events.Clear();
+        return (env, request);
+    }
+
+    private static LidarrAlbum Imported(int id, int files = 2, int tracks = 2)
+        => new() { Id = id, Duration = 1000, Statistics = new LidarrStats { TrackFileCount = files, TrackCount = tracks, PercentOfTracks = 100.0 * files / tracks } };
+
+    [Fact]
+    public async Task Reconcile_AFailedRequestWhoseAlbumWasImported_BecomesAvailableAndTellsTheRequester()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+        env.Lidarr.Albums[101] = Imported(101);
+        env.Library.AlbumPresent = true;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var stored = env.Store.Get(request.Id)!;
+        Assert.Equal(RequestStatus.Available, stored.Status);
+        Assert.Equal(string.Empty, stored.Error);
+        Assert.Equal(2, stored.TracksImported);
+        Assert.Equal(TestEnv.User, Assert.Single(env.Notifier.Sent).UserId);
+        Assert.NotNull(stored.NotifiedAt);
+        Assert.Contains((TestEnv.User, env.Library.ItemId), env.Library.Favorites);
+    }
+
+    [Fact]
+    public async Task Reconcile_AFailedRequestWithNothingImported_StaysFailed()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+        Assert.Empty(env.Notifier.Sent);
+    }
+
+    [Fact]
+    public async Task Reconcile_AFailedRequestStillInTheQueue_WaitsForTheImportToFinish()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+        env.Lidarr.Albums[101] = Imported(101, files: 1);
+        env.Lidarr.Queue = new() { new LidarrQueueRecord { AlbumId = 101 } };
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+    }
+
+    [Fact]
+    public async Task Reconcile_AFailedRequestReplacedByANewerOne_IsNotRecovered()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+        env.Lidarr.Existing["alb-1"] = new LidarrAlbum { Id = 101, ForeignAlbumId = "alb-1" };
+        var newer = await env.Service.CreateAsync(TestEnv.Input(), CancellationToken.None);
+        env.Lidarr.Albums[101] = Imported(101);
+        env.Library.AlbumPresent = true;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+        Assert.Equal(RequestStatus.Available, env.Store.Get(newer.Id)!.Status);
+        Assert.Single(env.Notifier.Sent);
+    }
+
+    [Fact]
+    public async Task Reconcile_InManualMode_LeavesAFailedRequestAlone()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+        env.Lidarr.Albums[101] = Imported(101);
+        env.Config.FulfillmentMode = FulfillmentMode.Manual;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+    }
+
     [Fact]
     public async Task Cancel_OfAnAvailableRequest_IsRefused()
     {

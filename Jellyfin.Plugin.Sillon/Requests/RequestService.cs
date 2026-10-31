@@ -425,7 +425,8 @@ public sealed class RequestService
         await CutoffSearchAsync(ct).ConfigureAwait(false);
 
         var live = _store.ListByStatus(RequestStatus.Requested, RequestStatus.Downloading);
-        if (live.Count == 0)
+        var failed = _store.ListByStatus(RequestStatus.Failed).Where(r => r.LidarrAlbumId is not null).ToList();
+        if (live.Count == 0 && failed.Count == 0)
         {
             return;
         }
@@ -499,6 +500,44 @@ public sealed class RequestService
             else if (album.Monitored == false || (queueRead && imported == 0))
             {
                 await ReSearchAsync(request, lidarr, (int)lidarrId, ct).ConfigureAwait(false);
+            }
+        }
+
+        if (queueRead)
+        {
+            await RecoverFailedAsync(failed, lidarr, queued, ct).ConfigureAwait(false);
+        }
+    }
+
+    // a failed album stays monitored, so a release found after the timeout still imports; no webhook settles it since the request is no longer live.
+    // Only the album's newest request is told: an older failed one was replaced by the request the user made since
+    private async Task RecoverFailedAsync(IReadOnlyList<RequestRecord> failed, ILidarrApi lidarr, HashSet<int> queued, CancellationToken ct)
+    {
+        foreach (var request in failed)
+        {
+            var lidarrId = (int)request.LidarrAlbumId!.Value;
+            if (queued.Contains(lidarrId)
+                || !_store.Newest(new[] { request.ForeignAlbumId }).TryGetValue(request.ForeignAlbumId, out var newest)
+                || newest.Id != request.Id)
+            {
+                continue;
+            }
+
+            LidarrAlbum album;
+            try
+            {
+                album = await lidarr.GetAlbumAsync(lidarrId, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("Reconcile: reading the album failed request={Id}: {Message}", request.Id, ex.Message);
+                continue;
+            }
+
+            var (imported, total) = Counts(album);
+            if (imported > 0)
+            {
+                MarkAvailable(request, await AlbumFoldersAsync(lidarr, lidarrId, album, ct).ConfigureAwait(false), imported, total, RequestStatus.Failed);
             }
         }
     }
@@ -785,10 +824,10 @@ public sealed class RequestService
         return folders;
     }
 
-    private string MarkAvailable(RequestRecord request, IReadOnlyList<string> lidarrFolders, int imported, int total)
+    private string MarkAvailable(RequestRecord request, IReadOnlyList<string> lidarrFolders, int imported, int total, params string[] fromStatuses)
     {
         var from = request.Status;
-        if (!_store.Transition(request.Id, RequestStatus.Live, RequestStatus.Available, string.Empty))
+        if (!_store.Transition(request.Id, fromStatuses.Length > 0 ? fromStatuses : RequestStatus.Live, RequestStatus.Available, string.Empty))
         {
             // cancelled, failed or already imported by a concurrent event
             return $"request {request.Id}: already settled";

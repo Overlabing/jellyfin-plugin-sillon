@@ -33,7 +33,8 @@ playback and browsing your existing library work without it. The app's privacy p
   - **Lidarr**: the plugin adds the album to Lidarr with its artist, starts the search, and
     follows Lidarr's webhook events (grab, import, import failure). A scheduled task (every 5 minutes)
     catches missed events, retries stalled adds, and fails requests that wait longer than the timeout
-    (14 days by default). Until a release is grabbed a request stays `requested`, and request records carry
+    (14 days by default); if the album is imported after that, the request becomes available and the user is
+    told. Until a release is grabbed a request stays `requested`, and request records carry
     an optional `phase` (`searching`, then `notFoundYet` after 3 days by default) for apps that tell the two
     apart; older apps show it as waiting. Once a week it asks Lidarr to look for better quality ("cutoff unmet").
     The artist is monitored, because Lidarr's wanted list and RSS sync skip the albums of an unmonitored artist,
