@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-version="0.9.0.0"
+version="0.9.1.0"
 target_abi="12.2.0.0"
 guid="1daed904-1b05-483c-8544-16cb6dcced54"
 
@@ -26,7 +26,7 @@ cat > "$stage/meta.json" <<JSON
   "category": "Music",
   "overview": "Music requests for the Sillon app.",
   "description": "Connects Jellyfin to Lidarr so music requests made from the Sillon app can be fulfilled automatically.",
-  "changelog": "A search for a bare song title can ask Deezer which artists are best known for it, and offer their albums first. This is off by default and stays off on upgrade: only an administrator can turn it on, and while it is off the plugin makes no call to Deezer.",
+  "changelog": "The album catalogue is steadier when MusicBrainz is busy: a busy answer is retried and never remembered as an empty result, and the next lookup recovers sooner. An album's disc count now follows what most editions have. A requester is notified only when the album has arrived. The admin page and README use clearer wording.",
   "status": "Active",
   "autoUpdate": false
 }
