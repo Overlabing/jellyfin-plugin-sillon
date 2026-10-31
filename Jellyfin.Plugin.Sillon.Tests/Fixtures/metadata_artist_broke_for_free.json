@@ -1,0 +1,210 @@
+{
+ "id": "069a1c1f-14eb-4d36-b0a0-77dffbd67713",
+ "artistname": "Broke For Free",
+ "sortname": "Broke For Free",
+ "artistaliases": [],
+ "disambiguation": "Chillwave project of Tom Cascino from Oakland, California",
+ "overview": null,
+ "links": [
+  {
+   "target": "http://brokeforfree.com/",
+   "type": "brokeforfree"
+  }
+ ],
+ "images": [],
+ "rating": {
+  "Count": 0,
+  "Value": null
+ },
+ "status": "active",
+ "genres": [
+  "Electronic",
+  "Chillwave"
+ ],
+ "type": "Person",
+ "Albums": [
+  {
+   "Id": "e20604a1-64a3-4e77-8f5c-91653e21dbbb",
+   "OldIds": [],
+   "Title": "Leaf",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2012-08-13",
+   "Rating": null
+  },
+  {
+   "Id": "a0905844-a3db-46f4-bf19-992e17661174",
+   "OldIds": [],
+   "Title": "Slam Funk",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2010-09-01",
+   "Rating": null
+  },
+  {
+   "Id": "ed2aec26-9ec0-4fe7-8aa8-8acce85dae51",
+   "OldIds": [],
+   "Title": "Something",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2011-07-08",
+   "Rating": null
+  },
+  {
+   "Id": "ce0eb31a-142a-4ac8-9cb9-6a3adb3ad19e",
+   "OldIds": [],
+   "Title": "Directionless",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2011-01-18",
+   "Rating": null
+  },
+  {
+   "Id": "b7a26148-1d1e-4b49-bfd4-02c95b51e9f7",
+   "OldIds": [],
+   "Title": "Thank You Electronics",
+   "Type": "Other",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2010-10-31",
+   "Rating": null
+  },
+  {
+   "Id": "c302654d-40d2-45d7-a93c-682fca0a88d1",
+   "OldIds": [],
+   "Title": "Synonymy",
+   "Type": "Other",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2010-04-16",
+   "Rating": null
+  },
+  {
+   "Id": "81606559-8c68-4688-a91d-bcc1ce575bd4",
+   "OldIds": [],
+   "Title": "Layers",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2012-04-18",
+   "Rating": null
+  },
+  {
+   "Id": "f7836f54-6b1f-4f80-b335-dafa3df0084a",
+   "OldIds": [],
+   "Title": "Gold Can Stay",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2012-12-04",
+   "Rating": null
+  },
+  {
+   "Id": "d5deb941-b8c4-4a1f-91ac-9e234cfa5108",
+   "OldIds": [],
+   "Title": "Petal",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "602e5fe8-18b0-452a-9627-fe751e1a35f5",
+   "OldIds": [],
+   "Title": "XXVII",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2016-10-25",
+   "Rating": null
+  },
+  {
+   "Id": "0ab80281-eec6-48bc-87ff-f1b50b801579",
+   "OldIds": [],
+   "Title": "Demos",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2019-11-05",
+   "Rating": null
+  },
+  {
+   "Id": "a1bca3de-cf65-4efe-8786-a1e7762c2118",
+   "OldIds": [],
+   "Title": "BFF",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [],
+   "ReleaseDate": "2019-05-17",
+   "Rating": null
+  },
+  {
+   "Id": "cf16acf1-bef5-4db8-833e-a07553ee9e24",
+   "OldIds": [],
+   "Title": "Grass Hop",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2012-01-12",
+   "Rating": null
+  },
+  {
+   "Id": "0158744c-7a35-413e-9ad0-dd3dceb67a6b",
+   "OldIds": [],
+   "Title": "unna",
+   "Type": "Single",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2017-04-12",
+   "Rating": null
+  },
+  {
+   "Id": "a954c3d8-beda-4926-a2a2-6a56eb93e641",
+   "OldIds": [],
+   "Title": "YEKOMS",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2021-06-22",
+   "Rating": null
+  },
+  {
+   "Id": "1792d7a1-3ba2-48db-aed7-b35a6fd77cd9",
+   "OldIds": [],
+   "Title": "Broken Remixes Vol.1",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2011-09-05",
+   "Rating": null
+  }
+ ],
+ "oldids": [
+  "3dbe6198-b89e-44a6-bc97-3ff573cce766"
+ ]
+}

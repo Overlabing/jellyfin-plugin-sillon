@@ -14,7 +14,10 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="Year">The earliest release year seen, 0 when unknown.</param>
 /// <param name="Disc">The disc the track is on in the first release listed, 0 when unknown.</param>
 /// <param name="Position">The track's position on that disc, 0 when unknown.</param>
-public sealed record MbReleaseGroup(string Id, string Title, string PrimaryType, IReadOnlyList<string> SecondaryTypes, int Year, int Disc = 0, int Position = 0);
+/// <param name="ArtistId">The MusicBrainz id of the artist credited first, empty when unknown; a browse tells it.</param>
+/// <param name="ArtistName">The name of the artist credited first, empty when unknown.</param>
+/// <param name="Date">The first release date as MusicBrainz gives it, empty when unknown; a browse tells it.</param>
+public sealed record MbReleaseGroup(string Id, string Title, string PrimaryType, IReadOnlyList<string> SecondaryTypes, int Year, int Disc = 0, int Position = 0, string ArtistId = "", string ArtistName = "", string Date = "");
 
 /// <summary>A recording found by a track search.</summary>
 /// <param name="Title">The track title.</param>
@@ -186,7 +189,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     public Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
     {
         var wanted = string.Join('|', types);
-        var url = $"/ws/2/release-group?fmt=json&artist={Uri.EscapeDataString(artistId)}&type={Uri.EscapeDataString(wanted)}&limit={BrowsePageSize}&offset={offset}";
+
+        // website-default leaves out the release groups with only bootleg, promotional or pseudo releases: 248 of The Beatles' 771 albums and EPs, 3 pages instead of 8
+        var url = $"/ws/2/release-group?fmt=json&artist={Uri.EscapeDataString(artistId)}&type={Uri.EscapeDataString(wanted)}&release-group-status=website-default&inc=artist-credits&limit={BrowsePageSize}&offset={offset}";
         return CallAsync($"browse:{artistId.ToLowerInvariant()}:{wanted}:{offset}", url, ParseBrowse, ct);
     }
 
@@ -398,7 +403,10 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
                 g.Title ?? string.Empty,
                 g.PrimaryType ?? string.Empty,
                 g.SecondaryTypes ?? new List<string>(),
-                g.FirstReleaseDate is { Length: >= 4 } d && int.TryParse(d.AsSpan(0, 4), out var year) ? year : 0))
+                g.FirstReleaseDate is { Length: >= 4 } d && int.TryParse(d.AsSpan(0, 4), out var year) ? year : 0,
+                ArtistId: g.ArtistCredit?.FirstOrDefault()?.Artist?.Id ?? string.Empty,
+                ArtistName: g.ArtistCredit?.FirstOrDefault()?.Artist?.Name ?? string.Empty,
+                Date: g.FirstReleaseDate ?? string.Empty))
             .ToList();
         return new MbReleaseGroupPage(groups, parsed.Count);
     }
@@ -482,6 +490,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
 
     private sealed class MbArtist
     {
+        [JsonPropertyName("id")]
+        public string? Id { get; init; }
+
         [JsonPropertyName("name")]
         public string? Name { get; init; }
     }
@@ -523,6 +534,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
 
         [JsonPropertyName("first-release-date")]
         public string? FirstReleaseDate { get; init; }
+
+        [JsonPropertyName("artist-credit")]
+        public List<MbCredit>? ArtistCredit { get; init; }
     }
 
     private sealed class MbRawMedium

@@ -68,6 +68,22 @@ public sealed class JellyfinLibrary : IJellyfinLibrary
     }
 
     /// <inheritdoc />
+    public IReadOnlySet<string> FindAlbums(IReadOnlyList<AlbumKey> albums)
+    {
+        // one read of the albums instead of up to two queries per album, which a discography of hundreds would feel
+        var items = _libraryManager.GetItemList(new InternalItemsQuery
+        {
+            IncludeItemTypes = new[] { BaseItemKind.MusicAlbum },
+            Recursive = true
+        });
+        var library = items.OfType<MusicAlbum>().Select(a => new LibraryAlbum(
+            MusicBrainzKeys.Select(k => a.TryGetProviderId(k, out var value) ? value : null).OfType<string>().ToList(),
+            a.Name,
+            a.AlbumArtist));
+        return LibraryAlbum.Held(library, albums);
+    }
+
+    /// <inheritdoc />
     public string? FindAlbumByPath(string jellyfinFolder)
     {
         var folder = jellyfinFolder.TrimEnd('/');

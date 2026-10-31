@@ -59,6 +59,8 @@ public sealed class CatalogService
     /// <param name="hints">The popularity hints, only asked when the administrator turned them on.</param>
     /// <param name="hintBudget">How long the hints may take in all, keeping what they found by then; 6 seconds when null.</param>
     /// <param name="discographyBudget">How long listing an artist's albums may take, keeping what it found by then; 15 seconds for the artist page and 8 for a search when null.</param>
+    /// <param name="metadata">Lidarr's metadata service, for the whole list of an artist's albums at once; MusicBrainz and a lookup per album when null, or when it does not answer.</param>
+    /// <param name="browseWait">How long the metadata service's list waits for the joint albums MusicBrainz adds to it; 3 seconds when null.</param>
     public CatalogService(
         ILidarrProvider lidarr,
         RequestStore requests,
@@ -69,7 +71,9 @@ public sealed class CatalogService
         Func<DateTimeOffset>? now = null,
         ITrackHints? hints = null,
         TimeSpan? hintBudget = null,
-        TimeSpan? discographyBudget = null)
+        TimeSpan? discographyBudget = null,
+        IArtistMetadata? metadata = null,
+        TimeSpan? browseWait = null)
     {
         _artistBudget = discographyBudget ?? DefaultArtistBudget;
         _searchBudget = discographyBudget ?? DefaultSearchBudget;
@@ -82,7 +86,7 @@ public sealed class CatalogService
         _library = library;
         _config = config;
         _logger = logger;
-        _discography = musicBrainz is null ? null : new ArtistDiscography(musicBrainz, _now);
+        _discography = musicBrainz is null ? null : new ArtistDiscography(musicBrainz, _now, metadata, browseWait);
     }
 
     /// <summary>Searches artists and albums.</summary>
@@ -225,7 +229,7 @@ public sealed class CatalogService
         return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null, tracks));
     }
 
-    /// <summary>Lists an artist's albums. Resolution, in order: Lidarr's id lookup (<c>lidarr:&lt;mbid&gt;</c>) gives the artist; if Lidarr already holds the artist, all of its albums; else the release groups MusicBrainz credits to the artist, each resolved by the same id lookup; when that is empty or incomplete, a search by the artist's name filtered to the albums of that artist. The name comes from the id lookup, or from the optional hint when that found nothing.</summary>
+    /// <summary>Lists an artist's albums. Resolution, in order: Lidarr's id lookup (<c>lidarr:&lt;mbid&gt;</c>) gives the artist; if Lidarr already holds the artist, all of its albums; else the whole list of Lidarr's metadata service, or when it gives no answer the release groups MusicBrainz credits to the artist, each resolved by the same id lookup; when that is empty or incomplete, a search by the artist's name filtered to the albums of that artist. The name comes from the id lookup, or from the optional hint when that found nothing.</summary>
     /// <param name="mbid">The artist's MusicBrainz id.</param>
     /// <param name="nameHint">The artist's name, when the app knows it.</param>
     /// <param name="ct">Cancellation token.</param>
@@ -834,6 +838,11 @@ public sealed class CatalogService
         {
             var answer = await _discography.AlbumsAsync(lidarr, artist.ForeignArtistId, config, ArtistDiscography.Search(_searchBudget), ct).ConfigureAwait(false);
             WarnIfDiscographyIncomplete(answer);
+            if (answer.Listed)
+            {
+                return answer.Albums;
+            }
+
             albums = answer.Albums;
         }
 
@@ -842,7 +851,7 @@ public sealed class CatalogService
 
     private void WarnIfDiscographyIncomplete(DiscographyAnswer answer)
     {
-        if (!answer.Complete)
+        if (answer.Failure is not null)
         {
             _logger.LogWarning("Artist albums incomplete, {Found} found ({Reason}): returning those", answer.Albums.Count, answer.Failure);
         }
@@ -873,16 +882,22 @@ public sealed class CatalogService
             artist.ArtistType,
             artist.Genres ?? new List<string>());
 
-    private bool InLibrary(string foreignAlbumId, string title, string artist)
+    /// <summary>Which albums the library holds, asked at once: a discography can run to hundreds.</summary>
+    private IReadOnlySet<string> InLibrary(IReadOnlyList<AlbumKey> albums)
     {
+        if (albums.Count == 0)
+        {
+            return new HashSet<string>();
+        }
+
         try
         {
-            return _library.FindAlbum(foreignAlbumId, title, artist) is not null;
+            return _library.FindAlbums(albums);
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Library album lookup failed: {Message}", ex.Message);
-            return false;
+            return new HashSet<string>();
         }
     }
 
@@ -917,6 +932,10 @@ public sealed class CatalogService
     {
         var notFoundAfter = TimeSpan.FromDays(Math.Max(1, _config().NotFoundYetAfterDays));
         var requests = _requests.Newest(albums.Select(a => a.ForeignAlbumId));
+        var inLibrary = InLibrary(albums
+            .Where(a => !requests.ContainsKey(a.ForeignAlbumId) && a.Statistics is not { PercentOfTracks: >= 100 })
+            .Select(a => new AlbumKey(a.ForeignAlbumId, a.Title, (a.Artist ?? owner)?.ArtistName ?? string.Empty))
+            .ToList());
         var result = new List<CatalogAlbum>(albums.Count);
         foreach (var album in albums)
         {
@@ -931,7 +950,7 @@ public sealed class CatalogService
                 (state, requestId) = (request.Status, request.Id);
                 phase = request.PhaseAt(_now(), notFoundAfter);
             }
-            else if (album.Statistics is { PercentOfTracks: >= 100 } || InLibrary(album.ForeignAlbumId, title, artistName))
+            else if (album.Statistics is { PercentOfTracks: >= 100 } || inLibrary.Contains(album.ForeignAlbumId))
             {
                 state = "library";
             }

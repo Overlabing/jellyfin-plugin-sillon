@@ -1,0 +1,456 @@
+{
+ "id": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+ "artistname": "The Beatles",
+ "sortname": "Beatles, The",
+ "artistaliases": [
+  "披頭四",
+  "The Beatles"
+ ],
+ "disambiguation": "UK rock band, “The Fab Four”",
+ "overview": null,
+ "links": [
+  {
+   "target": "https://www.thebeatles.com/",
+   "type": "thebeatles"
+  }
+ ],
+ "images": [
+  {
+   "CoverType": "Poster",
+   "Url": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-4facf1550225f.jpg",
+   "remoteUrl": "https://assets.fanart.tv/fanart/beatles-the-4facf1550225f.jpg"
+  },
+  {
+   "CoverType": "Banner",
+   "Url": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-5304a6cd34c6e.jpg",
+   "remoteUrl": "https://assets.fanart.tv/fanart/beatles-the-5304a6cd34c6e.jpg"
+  }
+ ],
+ "rating": {
+  "Count": 86,
+  "Value": 9.6
+ },
+ "status": "ended",
+ "genres": [
+  "Rock",
+  "Pop",
+  "Pop Rock",
+  "Merseybeat",
+  "Psychedelic Pop",
+  "Psychedelic Rock",
+  "Classic Rock",
+  "Rock And Roll",
+  "Experimental Rock",
+  "Britpop",
+  "Folk Rock",
+  "Mainstream Rock"
+ ],
+ "type": "Group",
+ "Albums": [
+  {
+   "Id": "794a5fcd-4098-3519-b4b6-e66707f4cbc3",
+   "OldIds": [],
+   "Title": "The Beatles’ Hits",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "1963-09-06",
+   "Rating": null
+  },
+  {
+   "Id": "1068b40b-4a1f-3208-b009-42bf88fac2b9",
+   "OldIds": [],
+   "Title": "Interview Disc",
+   "Type": "Other",
+   "SecondaryTypes": [
+    "Interview"
+   ],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "364d7e32-99ab-48ce-a634-501036c5f4a2",
+   "OldIds": [],
+   "Title": "Hot as Sun",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "9667635e-a689-30c8-ae96-aca7d784bdfe",
+   "OldIds": [],
+   "Title": "Norwegian Wood",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "4f539c70-1a19-37a3-ba14-979f11fc0686",
+   "OldIds": [
+    "58fcf7c2-0eb5-4fcf-a0cd-97a243f395f8",
+    "c0f789ad-b09c-4112-96d8-4259ff192caa",
+    "801a101c-097e-4cbb-ad2a-6b50e84756aa",
+    "d8462523-25c3-448b-ad2f-570ee1c3d73a",
+    "6771431d-51ae-4245-9008-1d4795a7043c"
+   ],
+   "Title": "1",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "2000-11-13",
+   "Rating": null
+  },
+  {
+   "Id": "867e16bf-0405-38ce-a9ec-fa44d0d3fa33",
+   "OldIds": [],
+   "Title": "Live at the BBC",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Live"
+   ],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "1994-11-30",
+   "Rating": null
+  },
+  {
+   "Id": "7bf3249b-f1c3-3b39-af6b-a4aac343dca7",
+   "OldIds": [],
+   "Title": "Anthology 1",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Official",
+    "Withdrawn"
+   ],
+   "ReleaseDate": "1995-11-20",
+   "Rating": null
+  },
+  {
+   "Id": "7e9abe51-9808-4f18-b88a-f40e9b31f303",
+   "OldIds": [],
+   "Title": "Let It Be… Naked",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Remix"
+   ],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2003-11-14",
+   "Rating": null
+  },
+  {
+   "Id": "652a96d5-99fb-4233-bbf4-b11c2eb67c0a",
+   "OldIds": [],
+   "Title": "Kinfauns Demos",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "b3274032-dfc9-46f4-9f3c-0eee9e67b8f0",
+   "OldIds": [],
+   "Title": "Hot as Sun",
+   "Type": "Other",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Promotion"
+   ],
+   "ReleaseDate": "2021-05-04",
+   "Rating": null
+  },
+  {
+   "Id": "84225cac-5cd3-3389-a84e-e673e3bf3242",
+   "OldIds": [],
+   "Title": "The Beatles’ Story",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Interview"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1964-11-23",
+   "Rating": null
+  },
+  {
+   "Id": "bff544a7-56e0-3ed6-9e0f-3b676cca9111",
+   "OldIds": [
+    "d78ee9ce-6adf-3711-9492-e93f15bd7363",
+    "0a9130bf-9b42-49af-97a5-89e9bdc8f7d7",
+    "0656b47f-5e93-48e0-8202-16627e6a7f71",
+    "d4d2cf5e-effa-4eac-8c3d-afe73596c2ce",
+    "1d361234-9392-42ef-bb20-6a467c196d33"
+   ],
+   "Title": "Let It Be",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1970-05-08",
+   "Rating": null
+  },
+  {
+   "Id": "eabb68b3-d57c-359a-8215-91f38d365da5",
+   "OldIds": [
+    "7494623a-12c2-4836-8574-24140b2a6f51",
+    "87ed85d8-a4e3-37b0-b870-1855992f8162"
+   ],
+   "Title": "The Beatles at the Hollywood Bowl",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Live"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1977-05-04",
+   "Rating": null
+  },
+  {
+   "Id": "221ff5cc-d3fa-361f-8fa9-667b31a7ef56",
+   "OldIds": [
+    "f61df671-523c-4e6d-ae2f-89f4bdb7d422"
+   ],
+   "Title": "Let It Be",
+   "Type": "Single",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official",
+    "Withdrawn"
+   ],
+   "ReleaseDate": "1970-03-06",
+   "Rating": null
+  },
+  {
+   "Id": "dba0a085-feb5-44e3-98f7-740848fef68f",
+   "OldIds": [],
+   "Title": "The Alternate Magical Mystery Tour",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "de208292-8db5-3aed-a14a-b37a84d8c521",
+   "OldIds": [
+    "c3a8bda2-b04c-4bc9-b8c1-3014876b79db",
+    "342fcd3d-eb07-4509-bd4f-6a2ebeaf3c87"
+   ],
+   "Title": "Please Please Me",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1963-03-22",
+   "Rating": null
+  },
+  {
+   "Id": "9430dcc6-2164-4bec-bc33-9948f30063f7",
+   "OldIds": [],
+   "Title": "Yellow Submarine Songtrack",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation",
+    "Soundtrack"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official",
+    "Promotion"
+   ],
+   "ReleaseDate": "1999-09-13",
+   "Rating": null
+  },
+  {
+   "Id": "72d15666-99a7-321e-b1f3-a3f8c09dff9f",
+   "OldIds": [
+    "db16eb80-39b5-3cda-a157-8f300570e741",
+    "802c4905-3a45-3486-9024-873e7f2f1522",
+    "924b9c9d-666f-4138-a5ef-3e6543568cd7",
+    "caadca50-0d25-4a30-ad93-c674a5dba801",
+    "cc3487b2-e130-4f60-b5c0-7c696c040a7b",
+    "7094ef3d-6e0a-4475-b47e-c187beec85ad",
+    "12d17242-6ed1-4ae9-8244-8711d9f37968"
+   ],
+   "Title": "Revolver",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official",
+    "Promotion"
+   ],
+   "ReleaseDate": "1966-08-05",
+   "Rating": null
+  },
+  {
+   "Id": "ff148b26-6913-4f7f-8850-30355390d226",
+   "OldIds": [],
+   "Title": "Norwegian Wood",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "1967-02-08",
+   "Rating": null
+  },
+  {
+   "Id": "9162580e-5df4-32de-80cc-f45a8d8a9b1d",
+   "OldIds": [
+    "b676f22d-21fb-4c2f-95d0-4e51b26711ed",
+    "0020f84f-fd82-4903-9f44-530bf856d3f7",
+    "c464dd1f-9326-4d9f-8968-bf0e83cea912",
+    "dc08f96f-d6a0-4858-b977-40ab58fe4e80"
+   ],
+   "Title": "Abbey Road",
+   "Type": "Album",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1969-09-26",
+   "Rating": null
+  },
+  {
+   "Id": "d5fe05db-9afb-49ac-8e13-ccb0387320f3",
+   "OldIds": [],
+   "Title": "1964 US Albums in Mono",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation",
+    "Interview",
+    "Soundtrack"
+   ],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "2024-11-22",
+   "Rating": null
+  },
+  {
+   "Id": "0d44e1cb-c6e0-3453-8b68-4d2082f05421",
+   "OldIds": [
+    "4c749027-d6c3-344a-af2e-b697b086e5b3",
+    "97da09d8-2bb6-4378-80ba-e99c25456742",
+    "b4019b5d-d1e8-4f58-9c7e-f155f2a3cd84",
+    "00459975-4223-41af-ba61-e27af2018de9",
+    "f8d38177-5dbc-4737-b31c-f68ff482e273",
+    "52c0377f-3355-4ec9-9f28-a6c6f5386480",
+    "b8bafd65-e439-4e54-bf03-7d442f7c6275",
+    "e34183f6-f49e-4a8a-9249-5a9f09ed11d0",
+    "6b3b84b9-7a11-43db-b3e1-dc4e3316ee37",
+    "5705fd20-d892-444f-bf7e-285b10b7cef9"
+   ],
+   "Title": "Help!",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Soundtrack"
+   ],
+   "ReleaseStatuses": [
+    "Bootleg",
+    "Official"
+   ],
+   "ReleaseDate": "1965-08-06",
+   "Rating": null
+  },
+  {
+   "Id": "3cdee8dd-45a3-4f9a-b055-cc061295282a",
+   "OldIds": [],
+   "Title": "Help!",
+   "Type": "EP",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "1965-07-23",
+   "Rating": null
+  },
+  {
+   "Id": "e9da841b-5eed-3867-89fa-c765ce50bf72",
+   "OldIds": [],
+   "Title": "The Beatles’ Movie Medley",
+   "Type": "Single",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Official"
+   ],
+   "ReleaseDate": "1982-03-22",
+   "Rating": null
+  },
+  {
+   "Id": "59336988-b5e5-47cc-ac9e-7764917f5201",
+   "OldIds": [],
+   "Title": "Posters, Incense and Strobe Candles",
+   "Type": "Broadcast",
+   "SecondaryTypes": [],
+   "ReleaseStatuses": [
+    "Bootleg"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  },
+  {
+   "Id": "f8686980-4687-331b-822f-d72ab442f97c",
+   "OldIds": [],
+   "Title": "The Capitol Albums, Volume 1 Sampler",
+   "Type": "Album",
+   "SecondaryTypes": [
+    "Compilation"
+   ],
+   "ReleaseStatuses": [
+    "Promotion"
+   ],
+   "ReleaseDate": null,
+   "Rating": null
+  }
+ ],
+ "oldids": [
+  "333b16c0-c1fc-4fa0-ab58-367adf2c8e2e",
+  "f8b6c151-03ff-4fd7-8df0-ff0980d6ae4c"
+ ]
+}
