@@ -163,6 +163,12 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool SearchTracks { get; set; } = true;
 
     /// <summary>
+    /// Gets or sets a value indicating whether a search by bare song title asks Deezer which artists are best known for that title. Off unless
+    /// the administrator turns it on, because the search text and the server's IP address then go to Deezer.
+    /// </summary>
+    public bool DeezerPopularityHints { get; set; }
+
+    /// <summary>
     /// Gets or sets how many days a request may go without Lidarr finding any release before the app is told it is not found yet.
     /// </summary>
     public int NotFoundYetAfterDays { get; set; } = 3;

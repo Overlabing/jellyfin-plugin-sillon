@@ -433,6 +433,16 @@
                         </div>
                         <div class="checkboxContainer checkboxContainer-withDescription">
                             <label class="emby-checkbox-label">
+                                <input is="emby-checkbox" type="checkbox" id="DeezerPopularityHints" />
+                                <span data-s="deezerHintsToggle"></span>
+                            </label>
+                            <div class="fieldDescription checkboxFieldDescription">
+                                <span data-s="deezerHintsHelp"></span>
+                                <a href="https://developers.deezer.com/termsofuse" target="_blank" rel="noopener noreferrer">https://developers.deezer.com/termsofuse</a>
+                            </div>
+                        </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
                                 <input is="emby-checkbox" type="checkbox" id="HideSingles" />
                                 <span data-s="hideSinglesToggle"></span>
                             </label>
@@ -600,6 +610,8 @@
                 notFoundYetHelp: 'A request with no release found after this many days is flagged as "not found yet" for apps that show it. It keeps searching until the limit above.',
                 searchTracksToggle: 'Find albums by song title',
                 searchTracksHelp: 'Searching for a song offers the albums that contain it, using MusicBrainz (one request a second, answers kept for a day).',
+                deezerHintsToggle: 'Use Deezer to find the best-known artists for a song title (off by default)',
+                deezerHintsHelp: 'Helps with titles many artists have recorded: searching only a song title then offers the albums of the artists Deezer knows best for it first. When on, the search text and this server\'s IP address go to Deezer; no account or user information does. It is for non-commercial private or family use under Deezer\'s terms, which you accept by turning this on:',
                 hideSinglesToggle: 'Hide singles',
                 hideSinglesHelp: 'Singles are rarely available from download sources, while the album that holds the song usually is. Ignored when the catalogue is limited to a list of albums.',
                 hideEpsToggle: 'Hide EPs',
@@ -850,6 +862,7 @@
                 el('RequestTimeoutDays').value = c.RequestTimeoutDays;
                 el('NotFoundYetAfterDays').value = c.NotFoundYetAfterDays || 3;
                 el('SearchTracks').checked = c.SearchTracks !== false;
+                el('DeezerPopularityHints').checked = c.DeezerPopularityHints === true;
                 el('HideSingles').checked = c.HideSingles !== false;
                 el('HideEps').checked = c.HideEps === true;
                 el('JellyfinPathPrefix').value = c.JellyfinPathPrefix || '';
@@ -901,6 +914,7 @@
                 config.RequestTimeoutDays = parseInt(el('RequestTimeoutDays').value, 10);
                 config.NotFoundYetAfterDays = parseInt(el('NotFoundYetAfterDays').value, 10);
                 config.SearchTracks = el('SearchTracks').checked;
+                config.DeezerPopularityHints = el('DeezerPopularityHints').checked;
                 config.HideSingles = el('HideSingles').checked;
                 config.HideEps = el('HideEps').checked;
                 config.JellyfinPathPrefix = el('JellyfinPathPrefix').value.trim();
