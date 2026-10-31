@@ -85,7 +85,27 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
         }
 
         Added.Add(album);
-        return new LidarrAlbum { Id = 100 + Added.Count, ForeignAlbumId = album.ForeignAlbumId };
+        return new LidarrAlbum { Id = 100 + Added.Count, ForeignAlbumId = album.ForeignAlbumId, ArtistId = AddedArtistId };
+    }
+
+    public int AddedArtistId { get; set; } = 50;
+
+    public List<int> ArtistsMonitored { get; } = new();
+
+    public Exception? MonitorArtistError { get; set; }
+
+    public Action? OnSearchQueued { get; set; }
+
+    public Task MonitorArtistAsync(int artistId, CancellationToken ct = default)
+    {
+        if (MonitorArtistError is not null)
+        {
+            throw MonitorArtistError;
+        }
+
+        Calls.Add("monitor-artist");
+        ArtistsMonitored.Add(artistId);
+        return Task.CompletedTask;
     }
 
     public Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default)
@@ -103,6 +123,7 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
     {
         Calls.Add("search");
         Searched.AddRange(ids);
+        OnSearchQueued?.Invoke();
         return Task.CompletedTask;
     }
 

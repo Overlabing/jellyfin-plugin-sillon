@@ -41,6 +41,10 @@ public sealed class LidarrArtist
     [JsonPropertyName("path")]
     public string Path { get; init; } = string.Empty;
 
+    /// <summary>Gets a value indicating whether Lidarr monitors the artist.</summary>
+    [JsonPropertyName("monitored")]
+    public bool Monitored { get; init; }
+
     /// <summary>Gets the artist type (Person, Group, ...).</summary>
     [JsonPropertyName("artistType")]
     public string ArtistType { get; init; } = string.Empty;
@@ -153,6 +157,10 @@ public sealed class LidarrAlbum
     [JsonPropertyName("artist")]
     public LidarrArtist? Artist { get; init; }
 
+    /// <summary>Gets the Lidarr id of the artist, 0 when the album is only known from a lookup.</summary>
+    [JsonPropertyName("artistId")]
+    public int ArtistId { get; init; }
+
     /// <summary>Gets the file statistics.</summary>
     [JsonPropertyName("statistics")]
     public LidarrStats? Statistics { get; init; }
@@ -257,7 +265,7 @@ public sealed class LidarrAddArtist
     [JsonPropertyName("rootFolderPath")]
     public string RootFolderPath { get; init; } = string.Empty;
 
-    /// <summary>Gets a value indicating whether the artist is monitored.</summary>
+    /// <summary>Gets a value indicating whether the artist is monitored. Lidarr's wanted list and RSS sync only consider a monitored album of a monitored artist.</summary>
     [JsonPropertyName("monitored")]
     public bool Monitored { get; init; }
 

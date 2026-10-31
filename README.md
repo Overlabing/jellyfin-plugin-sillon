@@ -30,12 +30,15 @@ playback and browsing your existing library work without it. The app's privacy p
     is limited to an allow list.
 - **Wishlist and requests.** A user asks for an album; the plugin follows the request until the album is
   in your Jellyfin library, then adds it to that user's favourites and notifies them. Two fulfilment modes:
-  - **Lidarr**: the plugin adds the artist (unmonitored) and the album to Lidarr, starts the search, and
+  - **Lidarr**: the plugin adds the album to Lidarr with its artist, starts the search, and
     follows Lidarr's webhook events (grab, import, import failure). A scheduled task (every 5 minutes)
     catches missed events, retries stalled adds, and fails requests that wait longer than the timeout
     (14 days by default). Until a release is grabbed a request stays `requested`, and request records carry
     an optional `phase` (`searching`, then `notFoundYet` after 3 days by default) for apps that tell the two
     apart; older apps show it as waiting. Once a week it asks Lidarr to look for better quality ("cutoff unmet").
+    The artist is monitored, because Lidarr's wanted list and RSS sync skip the albums of an unmonitored artist,
+    but only the requested album is: the artist's other albums and future releases are left alone. Cancelling a
+    request unmonitors its album.
   - **Manual**: requests are only recorded. An administrator marks each one as added once the album is in
     the library; the rest of the flow is the same.
 - **Request limits.** Cap how many requests one person can have in progress, and how many they can make

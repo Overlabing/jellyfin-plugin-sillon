@@ -223,11 +223,19 @@ public sealed class RequestService
             throw new RequestNotActiveException();
         }
 
-        if (request.LidarrAlbumId is { } lidarrId)
+        // without a stored id the add may have reached Lidarr all the same; an add still running stops by itself once the request is cancelled
+        if (request.LidarrAlbumId is not null || !ManualMode)
         {
             try
             {
-                await _lidarr.Create().MonitorAlbumsAsync(new[] { (int)lidarrId }, false, ct).ConfigureAwait(false);
+                var lidarr = _lidarr.Create();
+                var albumIds = request.LidarrAlbumId is { } lidarrId
+                    ? new[] { (int)lidarrId }
+                    : (await lidarr.GetAlbumsByForeignIdAsync(request.ForeignAlbumId, ct).ConfigureAwait(false)).Select(a => a.Id).ToArray();
+                if (albumIds.Length > 0)
+                {
+                    await lidarr.MonitorAlbumsAsync(albumIds, false, ct).ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -624,9 +632,11 @@ public sealed class RequestService
         var config = _config();
         var existing = await lidarr.GetAlbumsByForeignIdAsync(request.ForeignAlbumId, ct).ConfigureAwait(false);
         int id;
+        int artistId;
         if (existing.Count > 0)
         {
             id = existing[0].Id;
+            artistId = existing[0].ArtistId;
             try
             {
                 await lidarr.SetAnyReleaseOkAsync(id, ct).ConfigureAwait(false);
@@ -650,7 +660,7 @@ public sealed class RequestService
                         QualityProfileId = config.LidarrQualityProfileId,
                         MetadataProfileId = config.LidarrMetadataProfileId,
                         RootFolderPath = config.LidarrRootFolder,
-                        Monitored = false,
+                        Monitored = true,
                         MonitorNewItems = "none",
                         AddOptions = new LidarrAddArtistOptions { Monitor = "none", SearchForMissingAlbums = false }
                     },
@@ -658,6 +668,7 @@ public sealed class RequestService
                 },
                 ct).ConfigureAwait(false);
             id = added.Id;
+            artistId = added.ArtistId;
         }
 
         if (id == 0)
@@ -666,13 +677,44 @@ public sealed class RequestService
         }
 
         await WaitForRefreshAsync(lidarr, id, ct).ConfigureAwait(false);
+        if (await UnmonitorIfCancelledAsync(request.Id, lidarr, id, ct).ConfigureAwait(false))
+        {
+            return id;
+        }
+
+        // Lidarr keeps the flags of an artist it already holds whatever the add asks for
+        if (artistId != 0)
+        {
+            await lidarr.MonitorArtistAsync(artistId, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            _logger.LogWarning("Lidarr named no artist for the album, the artist's monitoring is unchanged request={Id} album={Album}", request.Id, id);
+        }
+
         if (existing.Count == 0 || existing[0].Monitored != true)
         {
             await lidarr.MonitorAlbumsAsync(new[] { id }, true, ct).ConfigureAwait(false);
         }
 
         await lidarr.AlbumSearchAsync(new[] { id }, ct).ConfigureAwait(false);
+
+        // a cancellation may have landed between the check above and the monitor call
+        await UnmonitorIfCancelledAsync(request.Id, lidarr, id, ct).ConfigureAwait(false);
         return id;
+    }
+
+    // a cancellation that lands during the add cannot undo what the add does next, so the add undoes it itself
+    private async Task<bool> UnmonitorIfCancelledAsync(long requestId, ILidarrApi lidarr, int albumId, CancellationToken ct)
+    {
+        if (_store.Get(requestId)?.Status != RequestStatus.Cancelled)
+        {
+            return false;
+        }
+
+        await lidarr.MonitorAlbumsAsync(new[] { albumId }, false, ct).ConfigureAwait(false);
+        _logger.LogInformation("Request cancelled during the Lidarr add, album unmonitored request={Id} album={Album}", requestId, albumId);
+        return true;
     }
 
     private void SetDownloading(RequestRecord request)
