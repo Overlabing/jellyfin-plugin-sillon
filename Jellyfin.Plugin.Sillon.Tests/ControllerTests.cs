@@ -383,6 +383,21 @@ public class ControllerTests
     }
 
     [Fact]
+    public async Task CatalogAlbumTracks_RejectsAMalformedId_AndIsUnavailableInManualMode()
+    {
+        using var env = new TestEnv();
+        var controller = Requests(env, Principal(TestEnv.User));
+
+        var bad = Json(await controller.CatalogAlbumTracks("not-a-guid", null, null, CancellationToken.None), out var badStatus);
+        Assert.Equal(400, badStatus);
+        Assert.Equal("identifiant d'album invalide", bad.GetProperty("error").GetString());
+
+        env.Config.FulfillmentMode = Jellyfin.Plugin.Sillon.Configuration.FulfillmentMode.Manual;
+        Json(await controller.CatalogAlbumTracks("5f0e7c3a-2b1d-4e8f-9a6b-7d3c1e5a9b22", null, null, CancellationToken.None), out var manual);
+        Assert.Equal(503, manual);
+    }
+
+    [Fact]
     public async Task CatalogSearch_NeedsAQuery_AndIsUnavailableInManualMode()
     {
         using var env = new TestEnv(FulfillmentMode.Manual);

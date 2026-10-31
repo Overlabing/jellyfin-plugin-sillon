@@ -57,6 +57,10 @@ public sealed class LidarrArtist
 /// <summary>A release of an album (one edition).</summary>
 public sealed class LidarrRelease
 {
+    /// <summary>Gets the MusicBrainz id of the release.</summary>
+    [JsonPropertyName("foreignReleaseId")]
+    public string ForeignReleaseId { get; init; } = string.Empty;
+
     /// <summary>Gets the number of discs.</summary>
     [JsonPropertyName("mediumCount")]
     public int MediumCount { get; init; }
@@ -72,6 +76,10 @@ public sealed class LidarrRelease
     /// <summary>Gets the disambiguation text.</summary>
     [JsonPropertyName("disambiguation")]
     public string Disambiguation { get; init; } = string.Empty;
+
+    /// <summary>Gets the countries the release came out in.</summary>
+    [JsonPropertyName("country")]
+    public List<string>? Country { get; init; }
 
     /// <summary>Gets the status (Official, ...).</summary>
     [JsonPropertyName("status")]

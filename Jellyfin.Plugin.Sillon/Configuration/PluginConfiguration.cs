@@ -148,6 +148,26 @@ public class PluginConfiguration : BasePluginConfiguration
     public int RequestTimeoutDays { get; set; } = 14;
 
     /// <summary>
+    /// Gets or sets a value indicating whether the catalogue hides singles (rarely available from the sources Lidarr searches; the album that holds the song is offered instead).
+    /// </summary>
+    public bool HideSingles { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the catalogue also hides EPs.
+    /// </summary>
+    public bool HideEps { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a search can also find albums by the title of a track, through MusicBrainz.
+    /// </summary>
+    public bool SearchTracks { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets how many days a request may go without Lidarr finding any release before the app is told it is not found yet.
+    /// </summary>
+    public int NotFoundYetAfterDays { get; set; } = 3;
+
+    /// <summary>
     /// Gets or sets the release-group MBIDs the catalogue offers, one per line (blank lines and <c>#</c> comments ignored); empty offers the whole catalogue.
     /// </summary>
     public string CatalogAllowList { get; set; } = string.Empty;
@@ -247,6 +267,7 @@ public class PluginConfiguration : BasePluginConfiguration
     public void Sanitize()
     {
         RequestTimeoutDays = Math.Clamp(RequestTimeoutDays, 1, 365);
+        NotFoundYetAfterDays = Math.Clamp(NotFoundYetAfterDays, 1, 365);
         MaxActiveRequestsPerUser = Math.Clamp(MaxActiveRequestsPerUser, 0, 1000);
         MaxRequestsPerUserPerDay = Math.Clamp(MaxRequestsPerUserPerDay, 0, 1000);
         LidarrUrl = (LidarrUrl ?? string.Empty).Trim().TrimEnd('/');

@@ -55,7 +55,17 @@ public sealed class PluginServiceRegistrator : IPluginServiceRegistrator
             sp.GetRequiredService<ApnsNotifier>(),
             sp.GetRequiredService<Func<PluginConfiguration>>(),
             typeof(Plugin).Assembly.GetName().Version?.ToString() ?? string.Empty));
-        serviceCollection.AddSingleton<CatalogService>();
+        serviceCollection.AddSingleton<IMusicBrainzApi>(sp => new MusicBrainzClient(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(NamedClient.Default),
+            typeof(Plugin).Assembly.GetName().Version?.ToString() ?? string.Empty,
+            sp.GetRequiredService<ILogger<MusicBrainzClient>>()));
+        serviceCollection.AddSingleton(sp => new CatalogService(
+            sp.GetRequiredService<ILidarrProvider>(),
+            sp.GetRequiredService<RequestStore>(),
+            sp.GetRequiredService<IJellyfinLibrary>(),
+            sp.GetRequiredService<Func<PluginConfiguration>>(),
+            sp.GetRequiredService<ILogger<CatalogService>>(),
+            sp.GetRequiredService<IMusicBrainzApi>()));
         serviceCollection.AddSingleton(sp => new RequestService(
             sp.GetRequiredService<RequestStore>(),
             sp.GetRequiredService<ILidarrProvider>(),
