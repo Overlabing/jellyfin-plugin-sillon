@@ -45,28 +45,19 @@ public sealed partial record NotificationEvent(
     public static NotificationEvent Available(RequestRecord request, string albumId)
         => new(Types.Available, request.Id, albumId, request.Title, request.Artist, request.TracksImported, request.TracksTotal);
 
-    /// <summary>Builds the "the album was not found" event.</summary>
-    /// <param name="request">The request.</param>
-    /// <returns>The event.</returns>
-    public static NotificationEvent NotFound(RequestRecord request)
-        => new(Types.NotFound, request.Id, string.Empty, request.Title, request.Artist, 0, 0);
-
     /// <summary>The French sentence direct mode sends.</summary>
     /// <returns>The sentence.</returns>
     public string DirectBody()
     {
-        switch (Type)
+        if (Type != Types.Available)
         {
-            case Types.Available:
-                var body = $"{Title} de {Artist} est maintenant dans la bibliothèque";
-                return TracksTotal > 0 && TracksImported < TracksTotal
-                    ? body + string.Create(CultureInfo.InvariantCulture, $" ({TracksImported}/{TracksTotal} titres)")
-                    : body;
-            case Types.NotFound:
-                return $"{Title} de {Artist} est introuvable";
-            default:
-                return "Sillon: notifications are working";
+            return "Sillon: notifications are working";
         }
+
+        var body = $"{Title} de {Artist} est maintenant dans la bibliothèque";
+        return TracksTotal > 0 && TracksImported < TracksTotal
+            ? body + string.Create(CultureInfo.InvariantCulture, $" ({TracksImported}/{TracksTotal} titres)")
+            : body;
     }
 
     /// <summary>The keys direct mode puts next to <c>aps</c> (the app's notification tap reads them).</summary>
@@ -174,14 +165,11 @@ public sealed partial record NotificationEvent(
         return stream.ToArray();
     }
 
-    /// <summary>Event types.</summary>
+    /// <summary>Event types. <c>request.not_found</c> was sent by earlier versions and shipped apps still decode it: never reuse that name.</summary>
     public static class Types
     {
         /// <summary>The album is in the library.</summary>
         public const string Available = "request.available";
-
-        /// <summary>The album was not found.</summary>
-        public const string NotFound = "request.not_found";
 
         /// <summary>A test.</summary>
         public const string Test = "test";

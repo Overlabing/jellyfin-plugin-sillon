@@ -459,7 +459,7 @@ public sealed class RequestService
             var age = _now() - request.CreatedAt;
             if (request.LidarrAlbumId is not { } lidarrId)
             {
-                await RetryAddAsync(request, age, limit, days, ct).ConfigureAwait(false);
+                RetryAdd(request, age, limit, days);
                 continue;
             }
 
@@ -486,7 +486,7 @@ public sealed class RequestService
             }
             else if (age > 2 * limit)
             {
-                await TimeoutAsync(request, days, ct).ConfigureAwait(false);
+                FailTimedOut(request, days);
             }
             else if (isQueued)
             {
@@ -495,7 +495,7 @@ public sealed class RequestService
             }
             else if (queueRead && age > limit)
             {
-                await TimeoutAsync(request, days, ct).ConfigureAwait(false);
+                FailTimedOut(request, days);
             }
             else if (album.Monitored == false || (queueRead && imported == 0))
             {
@@ -1023,7 +1023,8 @@ public sealed class RequestService
         }
     }
 
-    private async Task TimeoutAsync(RequestRecord request, int days, CancellationToken ct)
+    // nobody is told: the only notification a requester gets is the one saying the album arrived, which a later import still sends
+    private void FailTimedOut(RequestRecord request, int days)
     {
         if (!_store.Transition(request.Id, RequestStatus.Live, RequestStatus.Failed, $"introuvable après {days} jours"))
         {
@@ -1031,16 +1032,15 @@ public sealed class RequestService
         }
 
         _logger.LogInformation("Request timed out request={Id} artist={Artist} title={Title}", request.Id, request.Artist, request.Title);
-        await _notifier.NotifyAsync(request.UserId, NotificationEvent.NotFound(request), ct).ConfigureAwait(false);
     }
 
     // re-runs, in the background, the Lidarr add of a request that never got its album id (the client hung up, Lidarr was slow or down, the plugin stopped);
     // the add is idempotent (an album Lidarr already has is reused), the wait between attempts doubles, and the request times out like any other
-    private async Task RetryAddAsync(RequestRecord request, TimeSpan age, TimeSpan limit, int days, CancellationToken ct)
+    private void RetryAdd(RequestRecord request, TimeSpan age, TimeSpan limit, int days)
     {
         if (age > limit)
         {
-            await TimeoutAsync(request, days, ct).ConfigureAwait(false);
+            FailTimedOut(request, days);
             return;
         }
 

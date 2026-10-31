@@ -141,7 +141,7 @@ a 503, so the next search asks again, and only for what it is missing.
 A phone registers with your server when its owner opens the Sillon app signed in to it. Three modes:
 
 - **Relay (default for new installs).** Nothing to set up. Your server builds the notification (which
-  album, which artist, which state), encrypts it so that only the target phone can read it, signs it
+  album, which artist), encrypts it so that only the target phone can read it, signs it
   with a key unique to your server, and hands it to the relay, which forwards it to Apple's push service.
   - The relay **never sees the content**: it receives an opaque, fixed-size, encrypted envelope and the
     identifier of the target phone (a hash of the phone's public key). It cannot tell which album or user
