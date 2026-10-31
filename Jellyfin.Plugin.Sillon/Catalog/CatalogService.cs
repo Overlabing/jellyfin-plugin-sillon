@@ -134,7 +134,7 @@ public sealed class CatalogService
 
         // the albums that hold the track searched for, resolved through Lidarr so a request takes the usual path
         var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
-        var hits = (await trackHits.ConfigureAwait(false)).Take(MaxTrackAlbums).ToList();
+        var hits = (await trackHits.ConfigureAwait(false)).Where(h => allowed.Count == 0 || allowed.Contains(h.ReleaseGroupId)).Take(MaxTrackAlbums).ToList();
         foreach (var hit in hits)
         {
             tracks[hit.ReleaseGroupId] = hit;
@@ -786,6 +786,20 @@ public sealed class CatalogService
         return _lidarr.Create();
     }
 
+    /// <summary>
+    /// The discs of most editions, the fewer when tied. Not the most of any edition, and not those of the one Lidarr monitors, which tends to be the
+    /// largest (a 6-disc box for OK Computer): a one-disc studio album with deluxe editions is not a box set, which is what the apps take a count above one for.
+    /// </summary>
+    private static int DiscCountOf(LidarrAlbum album)
+    {
+        if (album.Releases is not { Count: > 0 } releases)
+        {
+            return 1;
+        }
+
+        return Math.Max(1, releases.GroupBy(r => r.MediumCount).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).First().Key);
+    }
+
     private IReadOnlyList<CatalogAlbum> ToAlbums(IReadOnlyList<LidarrAlbum> albums, LidarrArtist? owner, IReadOnlyDictionary<string, TrackAlbum>? tracks = null)
     {
         var notFoundAfter = TimeSpan.FromDays(Math.Max(1, _config().NotFoundYetAfterDays));
@@ -825,7 +839,7 @@ public sealed class CatalogService
                 requestId,
                 album.AlbumType,
                 album.SecondaryTypes ?? new List<string>(),
-                album.Releases is { Count: > 0 } releases ? Math.Max(1, releases.Max(r => r.MediumCount)) : 1,
+                DiscCountOf(album),
                 album.Releases is { Count: > 0 } ? album.Releases[0].TrackCount : 0,
                 album.Releases is { Count: > 0 } && album.Releases[0].Label is { Count: > 0 } labels ? labels[0] : null,
                 album.ReleaseDate,

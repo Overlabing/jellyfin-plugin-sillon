@@ -1,0 +1,210 @@
+[
+ {
+  "foreignId": "ce0eb31a-142a-4ac8-9cb9-6a3adb3ad19e",
+  "album": {
+   "title": "Directionless",
+   "foreignAlbumId": "ce0eb31a-142a-4ac8-9cb9-6a3adb3ad19e",
+   "albumType": "EP",
+   "secondaryTypes": [],
+   "releaseDate": "2011-01-18T00:00:00Z",
+   "disambiguation": "",
+   "mediumCount": 1,
+   "monitored": false,
+   "artist": {
+    "artistName": "Broke For Free",
+    "foreignArtistId": "069a1c1f-14eb-4d36-b0a0-77dffbd67713",
+    "artistType": "Person",
+    "genres": [
+     "Electronic",
+     "Chillwave"
+    ]
+   },
+   "releases": [
+    {
+     "foreignReleaseId": "e81e934b-1c7e-44b0-849c-de3c5311fb19",
+     "title": "Directionless",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 6,
+     "monitored": true,
+     "label": [
+      "[no label]"
+     ],
+     "country": [
+      "[Worldwide]"
+     ],
+     "format": "Digital Media",
+     "disambiguation": ""
+    }
+   ]
+  }
+ },
+ {
+  "foreignId": "615e8bed-bc67-49ef-a4d0-7d9c27721f5b",
+  "album": {
+   "title": "Lost + Directionless",
+   "foreignAlbumId": "615e8bed-bc67-49ef-a4d0-7d9c27721f5b",
+   "albumType": "Album",
+   "secondaryTypes": [],
+   "releaseDate": "2013-11-01T00:00:00Z",
+   "disambiguation": "",
+   "mediumCount": 1,
+   "monitored": false,
+   "artist": {
+    "artistName": "Candle Nine",
+    "foreignArtistId": "9375f8ed-f4f7-497d-8c90-b09f56025d12",
+    "artistType": "Person",
+    "genres": []
+   },
+   "releases": [
+    {
+     "foreignReleaseId": "776e9dbd-a616-4517-9331-c15ef9669807",
+     "title": "Lost + Directionless",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 9,
+     "monitored": true,
+     "label": [
+      "Burning Daylight Records"
+     ],
+     "country": [
+      "[Worldwide]"
+     ],
+     "format": "Digital Media",
+     "disambiguation": ""
+    }
+   ]
+  }
+ },
+ {
+  "foreignId": "324a6be1-115f-4ff2-91e0-9aa6a74d8258",
+  "album": {
+   "title": "Mindless, Directionless Energy: Live at the Lyceum 1981",
+   "foreignAlbumId": "324a6be1-115f-4ff2-91e0-9aa6a74d8258",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Live"
+   ],
+   "releaseDate": "1987-11-07T00:00:00Z",
+   "disambiguation": "",
+   "mediumCount": 1,
+   "monitored": false,
+   "artist": {
+    "artistName": "The Damned",
+    "foreignArtistId": "77d21c13-846f-4f48-9546-873949eff6ae",
+    "artistType": "Group",
+    "genres": [
+     "Punk Rock",
+     "Gothic Rock",
+     "Post-Punk",
+     "New Wave",
+     "Punk",
+     "Rock",
+     "Proto-Punk",
+     "Horror Punk",
+     "Pop",
+     "Dance-Rock",
+     "Deathrock"
+    ]
+   },
+   "releases": [
+    {
+     "foreignReleaseId": "a45731b6-450c-46c6-98d5-39db1453b9e5",
+     "title": "Mindless, Directionless Energy: Live at the Lyceum 1981",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 10,
+     "monitored": false,
+     "label": [
+      "I.D. Records"
+     ],
+     "country": [
+      "United Kingdom"
+     ],
+     "format": "CD",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "369fdbe9-5c4d-436c-afc8-a4d2e487be6d",
+     "title": "Mindless, Directionless Energy: Live at the Lyceum 1981",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 9,
+     "monitored": false,
+     "label": [
+      "I.D. Records"
+     ],
+     "country": [
+      "United Kingdom"
+     ],
+     "format": "12\" Vinyl",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "01c5c9a2-ea4b-40ca-9875-27d3117b90de",
+     "title": "Ballroom Blitz: Live at the Lyceum",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 15,
+     "monitored": true,
+     "label": [
+      "Receiver Records"
+     ],
+     "country": [
+      "United Kingdom"
+     ],
+     "format": "12\" Vinyl",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "685488bc-6eda-354d-b7e0-962b12573f88",
+     "title": "Ballroom Blitz: Live at the Lyceum",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 15,
+     "monitored": false,
+     "label": [
+      "Castle Music"
+     ],
+     "country": [
+      "United Kingdom"
+     ],
+     "format": "CD",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "365fc3eb-e32f-47eb-9c95-3ac13ef06a26",
+     "title": "Ballroom Blitz: Live at the Lyceum",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 15,
+     "monitored": false,
+     "label": [
+      "Receiver Records"
+     ],
+     "country": [
+      "United Kingdom"
+     ],
+     "format": "CD",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "4190c33e-7d1a-4bb7-bfc3-e8e2f6394b9c",
+     "title": "Live at the Lyceum Ballroom 1981",
+     "status": "Official",
+     "mediumCount": 1,
+     "trackCount": 15,
+     "monitored": false,
+     "label": [
+      "meldac"
+     ],
+     "country": [
+      "Japan"
+     ],
+     "format": "CD",
+     "disambiguation": ""
+    }
+   ]
+  }
+ }
+]

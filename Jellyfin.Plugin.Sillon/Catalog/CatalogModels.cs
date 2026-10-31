@@ -36,7 +36,7 @@ public sealed record CatalogArtist(
 /// <param name="RequestId">The request id, when a request exists.</param>
 /// <param name="AlbumType">Lidarr's album type: Album, EP, Single, Broadcast or Other.</param>
 /// <param name="SecondaryTypes">Lidarr's secondary types (Compilation, Live, ...).</param>
-/// <param name="DiscCount">The most discs of any release, 1 when unknown.</param>
+/// <param name="DiscCount">The discs of most releases, the fewer when tied; 1 when unknown.</param>
 /// <param name="TrackCount">The tracks of the primary release, 0 when unknown.</param>
 /// <param name="Label">The label of the primary release, when known.</param>
 /// <param name="ReleaseDate">The release date as Lidarr gives it, when known.</param>
