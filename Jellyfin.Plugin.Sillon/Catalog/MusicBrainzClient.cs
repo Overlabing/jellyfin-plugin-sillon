@@ -116,7 +116,10 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     public async Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct)
     {
         var lucene = query.ToLucene();
-        var url = $"/ws/2/recording?fmt=json&limit=25&query={Uri.EscapeDataString(lucene)}";
+
+        // a hinted artist's recordings are what is wanted, and its studio album can rank past the first compilations
+        var limit = query.AnySpelling ? 100 : 25;
+        var url = $"/ws/2/recording?fmt=json&limit={limit}&query={Uri.EscapeDataString(lucene)}";
         return await CallAsync("search:" + TrackQuery.Fold(lucene), url, ParseSearch, ct).ConfigureAwait(false) ?? Array.Empty<MbRecording>();
     }
 
