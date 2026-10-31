@@ -24,13 +24,15 @@ playback and browsing your existing library work without it. The app's privacy p
     famous version: `Creep` has thousands of recordings on MusicBrainz, ranked by text alone. Turn on *Use Deezer to
     find the best-known artists for a song title* and a search for a bare title also asks Deezer which artists are
     best known for it, then offers those artists' albums first. See [Deezer hints](#deezer-hints).
-  - **Artists Lidarr does not hold.** An artist's page lists what MusicBrainz credits to the artist (joint albums and
-    compilations that name the artist included, various-artists ones the artist merely has a track on not), each album
-    resolved through Lidarr so requests follow the usual path, and leaving out albums known from bootlegs alone. A search for
-    the artist's exact name puts up to 12 studio albums first, those with the most editions, after any popularity hint.
-    Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds. Both are bounded in time
-    (15 seconds for the page, 8 for the search): they answer with what they have by then, and go further the next time, since answers
-    are kept. An allow list never reaches this path.
+  - **Artists Lidarr does not hold.** An artist's page lists the whole discography at once, from a single request to the
+    service Lidarr itself gets its metadata from (see [Lidarr's metadata service](#lidarrs-metadata-service)), leaving out what is
+    known from bootlegs or promotional releases alone, interviews, broadcasts and the types the settings hide. MusicBrainz adds the joint albums
+    that service does not list, because they name someone else first: the page waits 3 seconds for those at most, and whatever arrives later is there on
+    the next visit. A search for the artist's exact name puts the artist's studio albums first, up to 40, after any popularity hint.
+    Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds. A request follows the usual
+    path through Lidarr. Track count, disc count, label and disambiguation are not known at this stage: the apps leave them out, and the tracklist
+    endpoint gives the tracks when an album is opened. If the service fails, times out or answers something unexpected, MusicBrainz lists the albums and each one goes
+    through Lidarr's id lookup, bounded in time (15 seconds for the page, 8 for the search). An allow list never reaches any of this.
   - **Tracklist of a catalogue album.** `GET /Sillon/v1/catalog/album/{mbid}/tracks[?recording=<mbid>][&track=<title>]`
     (`mbid` is the album's release group id) returns `{albumMbid, releaseMbid, title, discCount, tracks:
     [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track
@@ -117,6 +119,14 @@ Open the Sillon page in the Jellyfin dashboard. It has five tabs.
 5. **Settings**: let people request albums (when off, the app hides the feature), request timeout, song search
    and its optional [Deezer hints](#deezer-hints), limits, optional allow-list of albums, and clean-up of finished
    requests.
+
+## Lidarr's metadata service
+
+For an artist Lidarr does not hold, the plugin asks `https://api.lidarr.audio/api/v0.4/artist/<MusicBrainz id>`, the service Lidarr itself
+uses. The request carries the artist's id and a User-Agent naming the plugin and its version, nothing about the user or the server.
+It is not a documented public API and publishes no terms for other clients, so it is used sparingly and never relied on: one request with a
+3-second timeout and no retry, answers kept for 6 hours, and after a failure it is left alone for a minute while MusicBrainz answers instead.
+Covers of these albums come straight from the [Cover Art Archive](https://coverartarchive.org) to the apps; an album without one shows the app's placeholder.
 
 ## Deezer hints
 

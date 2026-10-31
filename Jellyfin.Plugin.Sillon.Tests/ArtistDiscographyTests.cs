@@ -134,7 +134,7 @@ public class ArtistDiscographyTests
         var page = await client.BrowseReleaseGroupsAsync(DjSnake, new[] { "album", "ep" }, 0, CancellationToken.None);
         await client.BrowseReleaseGroupsAsync(DjSnake, new[] { "album", "ep" }, 0, CancellationToken.None);
 
-        Assert.Equal($"/ws/2/release-group?fmt=json&artist={DjSnake}&type=album%7Cep&limit=100&offset=0", Assert.Single(http.Urls));
+        Assert.Equal($"/ws/2/release-group?fmt=json&artist={DjSnake}&type=album%7Cep&release-group-status=website-default&inc=artist-credits&limit=100&offset=0", Assert.Single(http.Urls));
         Assert.Equal(12, page.Total);
         var encore = Assert.Single(page.Groups, g => g.Id == Encore);
         Assert.Equal(("Encore", "Album", 2016), (encore.Title, encore.PrimaryType, encore.Year));
