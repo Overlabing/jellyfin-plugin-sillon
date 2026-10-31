@@ -18,6 +18,14 @@ public sealed class LidarrImage
     public string RemoteUrl { get; init; } = string.Empty;
 }
 
+/// <summary>A rating.</summary>
+public sealed class LidarrRatings
+{
+    /// <summary>Gets the number of votes.</summary>
+    [JsonPropertyName("votes")]
+    public int Votes { get; init; }
+}
+
 /// <summary>An artist, in a search or nested in an album.</summary>
 public sealed class LidarrArtist
 {
@@ -56,6 +64,10 @@ public sealed class LidarrArtist
     /// <summary>Gets the images.</summary>
     [JsonPropertyName("images")]
     public List<LidarrImage>? Images { get; init; }
+
+    /// <summary>Gets the rating, which tells a well-known artist from the namesakes.</summary>
+    [JsonPropertyName("ratings")]
+    public LidarrRatings? Ratings { get; init; }
 }
 
 /// <summary>A release of an album (one edition).</summary>

@@ -234,6 +234,9 @@ public class TrackSearchTests
 
     private sealed class FakeMusicBrainz(IReadOnlyList<MbRecording> recordings) : IMusicBrainzApi
     {
+        public Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
+            => Task.FromResult(new MbReleaseGroupPage(Array.Empty<MbReleaseGroup>(), 0));
+
         public List<TrackQuery> Queries { get; } = new();
 
         public bool Throws { get; init; }

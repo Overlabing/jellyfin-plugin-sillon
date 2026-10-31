@@ -1,0 +1,318 @@
+[
+ {
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "c6634121-d420-4a77-b6de-751211f78526",
+   "artistName": "DJ Snake",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "aa114151-4a17-42b0-8e20-37b434627479",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "582d8cdb-306b-41ea-bbd0-4fad0964663c",
+   "title": "DJ Snake Presents",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Compilation"
+   ],
+   "releaseDate": "2017-08-20T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "9e311bbf-f19f-4136-a8bd-192da62c4d4f",
+     "mediumCount": 1,
+     "trackCount": 14,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "DJ Snake Music"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [
+    {
+     "coverType": "cover",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/9e311bbf-f19f-4136-a8bd-192da62c4d4f/25666458751-1200.jpg"
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+    "artistName": "DJ Snake",
+    "artistType": "Person",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 1,
+     "value": 8.0
+    }
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "0698f3b5-f2da-49c9-a67e-2a7ee4175519",
+   "artistName": "DJ Snake Eye",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "d111d2c7-c523-48d6-b1f4-b18e74c68817",
+   "title": "DJ Snake Medley",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "releaseDate": "2020-07-03T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "7b72b47b-39a9-4a5d-903c-da4ca16d2581",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "[no label]"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [
+    {
+     "coverType": "cover",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/7b72b47b-39a9-4a5d-903c-da4ca16d2581/26629125874-1200.jpg"
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "c320cf63-e9dd-4c2e-b4bc-37a0cca6b645",
+    "artistName": "Kaleidoscope Orchestra",
+    "artistType": "Orchestra",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 0,
+     "value": 0
+    }
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "bcc703d9-ac19-4ee8-9713-af2a2a9de609",
+   "artistName": "Dj Snakes",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "8821d53b-4712-435a-8732-ee6953aa9c1f",
+   "artistName": "DJ Snakeman",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "caf37a21-451b-4f9b-bdb9-22e971660a46",
+   "title": "Midday (DJ Snake feat. Bipolar Sunshine vs. BTS)",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "releaseDate": "2016-08-22T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "5f3fd2c5-2c9a-4534-9ba4-c609e9b26e33",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "[no label]"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [],
+   "artist": {
+    "foreignArtistId": "03f3241a-b900-43fa-a72c-d9f9901f6dfc",
+    "artistName": "oneboredjeu",
+    "artistType": "Person",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 0,
+     "value": 0
+    }
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "50f242db-ea8c-49e2-a162-a3c7b9c761e6",
+   "title": "major lazer & DJ snake ~ lean on",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "releaseDate": "2019-05-01T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "7bad4e4b-df9d-49f8-a1af-9ca0791ae6b0",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "[no label]"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [
+    {
+     "coverType": "cover",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/7bad4e4b-df9d-49f8-a1af-9ca0791ae6b0/34658513194-1200.jpg"
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "aa138f01-8f8a-4839-acb7-e87b572614cd",
+    "artistName": "exaheva",
+    "artistType": "Person",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 0,
+     "value": 0
+    }
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "899225a5-2f0c-4828-a537-d4a038f6d46c",
+   "title": "Love You Wherever (DJ Snake vs. Shakira)",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "releaseDate": "2017-03-09T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "1821d8dc-3032-405c-8ff2-c542f5507ae0",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "[no label]"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [],
+   "artist": {
+    "foreignArtistId": "03f3241a-b900-43fa-a72c-d9f9901f6dfc",
+    "artistName": "oneboredjeu",
+    "artistType": "Person",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 0,
+     "value": 0
+    }
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "3244da3d-6a58-40b0-b997-ac67bb49923e",
+   "title": "Lil Lean (Major Lazer & DJ Snake vs. Usher feat. Ludacris & Lil Jon)",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "releaseDate": "2017-05-12T00:00:00Z",
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "e1862b1f-f009-491a-956b-970b78c7f5cf",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "country": [
+      "[Worldwide]"
+     ],
+     "label": [
+      "[no label]"
+     ],
+     "disambiguation": ""
+    }
+   ],
+   "images": [],
+   "artist": {
+    "foreignArtistId": "03f3241a-b900-43fa-a72c-d9f9901f6dfc",
+    "artistName": "oneboredjeu",
+    "artistType": "Person",
+    "id": 0,
+    "disambiguation": "",
+    "ratings": {
+     "votes": 0,
+     "value": 0
+    }
+   }
+  }
+ }
+]
