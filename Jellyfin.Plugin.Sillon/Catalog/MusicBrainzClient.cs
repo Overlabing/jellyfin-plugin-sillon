@@ -45,6 +45,11 @@ public sealed record MbTrack(int Disc, int Position, string Number, string Title
 /// <param name="Tracks">The tracks, disc by disc.</param>
 public sealed record MbTracklist(string ReleaseId, string Title, IReadOnlyList<MbTrack> Tracks);
 
+/// <summary>One page of an artist's release groups.</summary>
+/// <param name="Groups">The release groups of this page, in no particular order.</param>
+/// <param name="Total">How many the artist has in all.</param>
+public sealed record MbReleaseGroupPage(IReadOnlyList<MbReleaseGroup> Groups, int Total);
+
 /// <summary>MusicBrainz gave no answer, which says nothing about whether the thing asked for exists.</summary>
 public sealed class MusicBrainzUnavailableException : Exception
 {
@@ -87,6 +92,15 @@ public interface IMusicBrainzApi
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The tracklist; null when MusicBrainz cannot answer.</returns>
     Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct);
+
+    /// <summary>Lists one page of the release groups credited to an artist.</summary>
+    /// <param name="artistId">The artist's MusicBrainz id.</param>
+    /// <param name="types">The primary types wanted, in lower case (<c>album</c>, <c>ep</c>, <c>single</c>).</param>
+    /// <param name="offset">How many release groups to skip.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The page.</returns>
+    /// <exception cref="MusicBrainzUnavailableException">MusicBrainz could not answer.</exception>
+    Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct);
 }
 
 /// <summary>
@@ -98,6 +112,9 @@ public interface IMusicBrainzApi
 /// </summary>
 public sealed class MusicBrainzClient : IMusicBrainzApi
 {
+    /// <summary>The most release groups MusicBrainz gives per page of a browse.</summary>
+    public const int BrowsePageSize = 100;
+
     private const int MaxCached = 500;
     private static readonly TimeSpan MinGap = TimeSpan.FromMilliseconds(1100);
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(6);
@@ -164,6 +181,14 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     /// <inheritdoc />
     public Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct)
         => OrNullAsync(CallAsync("release:" + releaseId.ToLowerInvariant(), $"/ws/2/release/{Uri.EscapeDataString(releaseId)}?fmt=json&inc=recordings", ParseTracklist, ct));
+
+    /// <inheritdoc />
+    public Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
+    {
+        var wanted = string.Join('|', types);
+        var url = $"/ws/2/release-group?fmt=json&artist={Uri.EscapeDataString(artistId)}&type={Uri.EscapeDataString(wanted)}&limit={BrowsePageSize}&offset={offset}";
+        return CallAsync($"browse:{artistId.ToLowerInvariant()}:{wanted}:{offset}", url, ParseBrowse, ct);
+    }
 
     private async Task<T?> OrNullAsync<T>(Task<T> call)
         where T : class
@@ -363,6 +388,21 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
             .Select(r => new MbRelease(r.Id!, r.Status ?? string.Empty, r.Date ?? string.Empty))
             .ToList();
 
+    private static MbReleaseGroupPage ParseBrowse(string body)
+    {
+        var parsed = JsonSerializer.Deserialize<MbBrowse>(body, Json) ?? throw new JsonException("empty browse");
+        var groups = (parsed.ReleaseGroups ?? new List<MbRawGroup>())
+            .Where(g => g.Id.Length > 0)
+            .Select(g => new MbReleaseGroup(
+                g.Id,
+                g.Title ?? string.Empty,
+                g.PrimaryType ?? string.Empty,
+                g.SecondaryTypes ?? new List<string>(),
+                g.FirstReleaseDate is { Length: >= 4 } d && int.TryParse(d.AsSpan(0, 4), out var year) ? year : 0))
+            .ToList();
+        return new MbReleaseGroupPage(groups, parsed.Count);
+    }
+
     private static MbTracklist ParseTracklist(string body)
     {
         var release = JsonSerializer.Deserialize<MbRawRelease>(body, Json) ?? throw new JsonException("empty release");
@@ -393,6 +433,15 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     {
         [JsonPropertyName("recordings")]
         public List<MbRaw>? Recordings { get; init; }
+    }
+
+    private sealed class MbBrowse
+    {
+        [JsonPropertyName("release-group-count")]
+        public int Count { get; init; }
+
+        [JsonPropertyName("release-groups")]
+        public List<MbRawGroup>? ReleaseGroups { get; init; }
     }
 
     private sealed class MbGroupBody
@@ -471,6 +520,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
 
         [JsonPropertyName("secondary-types")]
         public List<string>? SecondaryTypes { get; init; }
+
+        [JsonPropertyName("first-release-date")]
+        public string? FirstReleaseDate { get; init; }
     }
 
     private sealed class MbRawMedium

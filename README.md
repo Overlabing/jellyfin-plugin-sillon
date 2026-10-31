@@ -24,6 +24,13 @@ playback and browsing your existing library work without it. The app's privacy p
     famous version: `Creep` has thousands of recordings on MusicBrainz, ranked by text alone. Turn on *Use Deezer to
     find the best-known artists for a song title* and a search for a bare title also asks Deezer which artists are
     best known for it, then offers those artists' albums first. See [Deezer hints](#deezer-hints).
+  - **Artists Lidarr does not hold.** An artist's page lists what MusicBrainz credits to the artist (joint albums and
+    compilations that name the artist included, various-artists ones the artist merely has a track on not), each album
+    resolved through Lidarr so requests follow the usual path, and leaving out albums known from bootlegs alone. A search for
+    the artist's exact name puts up to 12 studio albums first, those with the most editions, after any popularity hint.
+    Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds. Both are bounded in time
+    (15 seconds for the page, 8 for the search): they answer with what they have by then, and go further the next time, since answers
+    are kept. An allow list never reaches this path.
   - **Tracklist of a catalogue album.** `GET /Sillon/v1/catalog/album/{mbid}/tracks[?recording=<mbid>][&track=<title>]`
     (`mbid` is the album's release group id) returns `{albumMbid, releaseMbid, title, discCount, tracks:
     [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track

@@ -258,6 +258,9 @@ public class DeezerHintsTests
 
     private sealed class FakeMusicBrainz(Func<TrackQuery, IReadOnlyList<MbRecording>> answer) : IMusicBrainzApi
     {
+        public Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
+            => Task.FromResult(new MbReleaseGroupPage(Array.Empty<MbReleaseGroup>(), 0));
+
         public List<TrackQuery> Queries { get; } = new();
 
         public Func<TrackQuery, CancellationToken, Task>? Before { get; init; }

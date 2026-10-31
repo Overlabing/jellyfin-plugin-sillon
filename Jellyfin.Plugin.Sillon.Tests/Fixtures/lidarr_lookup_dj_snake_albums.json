@@ -1,0 +1,883 @@
+[
+ {
+  "foreignAlbumId": "2f79f52c-1768-4c43-8da9-c4f188f1f100",
+  "title": "Here Comes the Night (Remixes)",
+  "albumType": "EP",
+  "secondaryTypes": [
+   "Remix"
+  ],
+  "releaseDate": "2017-04-07T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "2a112892-82fb-463b-b89e-3187099298e1",
+    "mediumCount": 1,
+    "trackCount": 5,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "DJ Snake Music LLC"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/2a112892-82fb-463b-b89e-3187099298e1/16401646616-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "46d3feb8-7c6f-4f12-a545-3d07ccb6b71e",
+  "title": "Selfish Love EP",
+  "albumType": "EP",
+  "secondaryTypes": [
+   "Remix"
+  ],
+  "releaseDate": "2021-05-07T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "6a4b6aa8-a53e-464b-a1be-0771388965b3",
+    "mediumCount": 1,
+    "trackCount": 4,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "DJ Snake Music Productions Limited"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "60449a4b-733a-485d-a347-b70bd91cb047",
+    "mediumCount": 1,
+    "trackCount": 4,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "DJ Snake Music Productions Limited"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/6a4b6aa8-a53e-464b-a1be-0771388965b3/29289434442-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "46f1c4fe-924a-4a24-8c1a-899c6f677fb2",
+  "title": "Nomad",
+  "albumType": "Album",
+  "secondaryTypes": [],
+  "releaseDate": "2025-11-07T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "59559fc8-be55-47c2-929b-489028fe6d46",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "Universal"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "0f7ef758-0bf0-4094-8971-6605284da9cd",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "DJ Snake Music Productions Limited"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "4ec2b881-885e-4fdc-aea9-66ffa06820fd",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [],
+    "label": [
+     "DJ Snake Music",
+     "Interscope Records"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/0f7ef758-0bf0-4094-8971-6605284da9cd/43510801017-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "512af5da-2aef-41df-95ee-3e856bcacbc5",
+  "title": "Shang‐Chi and the Legend of the Ten Rings: The Album",
+  "albumType": "Album",
+  "secondaryTypes": [
+   "Compilation",
+   "Soundtrack"
+  ],
+  "releaseDate": "2021-09-03T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "3d086557-42b7-4c99-ac55-18225a5312b7",
+    "mediumCount": 1,
+    "trackCount": 12,
+    "status": "Official",
+    "country": [
+     "United States"
+    ],
+    "label": [
+     "Hollywood Records",
+     "Interscope Records",
+     "Marvel"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "84e4085d-c5b6-40fd-840c-f5913fa22cdc",
+    "mediumCount": 1,
+    "trackCount": 18,
+    "status": "Official",
+    "country": [
+     "Albania",
+     "Algeria",
+     "Andorra",
+     "Angola",
+     "Antigua and Barbuda",
+     "Argentina",
+     "Armenia",
+     "Australia",
+     "Austria",
+     "Azerbaijan",
+     "Bahamas",
+     "Bahrain",
+     "Bangladesh",
+     "Barbados",
+     "Belarus",
+     "Belgium",
+     "Belize",
+     "Benin",
+     "Bhutan",
+     "Bolivia",
+     "Bosnia and Herzegovina",
+     "Botswana",
+     "Brazil",
+     "Brunei",
+     "Bulgaria",
+     "Burkina Faso",
+     "Burundi",
+     "Cambodia",
+     "Cameroon",
+     "Canada",
+     "Cape Verde",
+     "Chad",
+     "Chile",
+     "Colombia",
+     "Comoros",
+     "Costa Rica",
+     "Côte d'Ivoire",
+     "Croatia",
+     "Cyprus",
+     "Czechia",
+     "Denmark",
+     "Djibouti",
+     "Dominica",
+     "Dominican Republic",
+     "Timor-Leste",
+     "Ecuador",
+     "Egypt",
+     "El Salvador",
+     "Equatorial Guinea",
+     "Estonia",
+     "Fiji",
+     "Finland",
+     "France",
+     "Gabon",
+     "Gambia",
+     "Georgia",
+     "Germany",
+     "Ghana",
+     "Greece",
+     "Grenada",
+     "Guatemala",
+     "Guinea",
+     "Guinea-Bissau",
+     "Guyana",
+     "Haiti",
+     "Honduras",
+     "Hong Kong",
+     "Hungary",
+     "Iceland",
+     "India",
+     "Indonesia",
+     "Ireland",
+     "Israel",
+     "Italy",
+     "Jamaica",
+     "Japan",
+     "Jordan",
+     "Kazakhstan",
+     "Kenya",
+     "Kiribati",
+     "South Korea",
+     "Kuwait",
+     "Kyrgyzstan",
+     "Laos",
+     "Latvia",
+     "Lebanon",
+     "Lesotho",
+     "Liberia",
+     "Liechtenstein",
+     "Lithuania",
+     "Luxembourg",
+     "North Macedonia",
+     "Madagascar",
+     "Malawi",
+     "Malaysia",
+     "Maldives",
+     "Mali",
+     "Malta",
+     "Marshall Islands",
+     "Mauritania",
+     "Mauritius",
+     "Mexico",
+     "Federated States of Micronesia",
+     "Moldova",
+     "Monaco",
+     "Mongolia",
+     "Morocco",
+     "Mozambique",
+     "Namibia",
+     "Nauru",
+     "Nepal",
+     "Netherlands",
+     "New Zealand",
+     "Nicaragua",
+     "Niger",
+     "Nigeria",
+     "Norway",
+     "Oman",
+     "Pakistan",
+     "Palau",
+     "Panama",
+     "Papua New Guinea",
+     "Paraguay",
+     "Peru",
+     "Philippines",
+     "Poland",
+     "Portugal",
+     "Qatar",
+     "Romania",
+     "Russia",
+     "Rwanda",
+     "Saint Kitts and Nevis",
+     "Saint Lucia",
+     "Saint Vincent and The Grenadines",
+     "Samoa",
+     "San Marino",
+     "Sao Tome and Principe",
+     "Saudi Arabia",
+     "Senegal",
+     "Seychelles",
+     "Sierra Leone",
+     "Singapore",
+     "Slovakia",
+     "Slovenia",
+     "Solomon Islands",
+     "South Africa",
+     "Spain",
+     "Sri Lanka",
+     "Suriname",
+     "Eswatini",
+     "Sweden",
+     "Switzerland",
+     "Taiwan",
+     "Tanzania",
+     "Thailand",
+     "Togo",
+     "Tonga",
+     "Trinidad and Tobago",
+     "Tunisia",
+     "Türkiye",
+     "Tuvalu",
+     "Uganda",
+     "Ukraine",
+     "United Arab Emirates",
+     "United Kingdom",
+     "United States",
+     "Uruguay",
+     "Uzbekistan",
+     "Vanuatu",
+     "Vietnam",
+     "Zambia",
+     "Zimbabwe",
+     "Montenegro",
+     "Palestine",
+     "Serbia",
+     "Curaçao",
+     "Kosovo"
+    ],
+    "label": [
+     "Hollywood Records",
+     "Interscope Records",
+     "Marvel"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "5f9eac5b-1303-4e95-a683-21388ce14ed2",
+    "mediumCount": 1,
+    "trackCount": 18,
+    "status": "Official",
+    "country": [
+     "Japan"
+    ],
+    "label": [
+     "Hollywood Records",
+     "Interscope Records",
+     "Marvel"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/84e4085d-c5b6-40fd-840c-f5913fa22cdc/30326941712-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "f3463d81-f100-478e-b7ba-3710c6eac781",
+   "artistName": "88rising",
+   "artistType": "Other",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "582d8cdb-306b-41ea-bbd0-4fad0964663c",
+  "title": "DJ Snake Presents",
+  "albumType": "Album",
+  "secondaryTypes": [
+   "Compilation"
+  ],
+  "releaseDate": "2017-08-20T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "9e311bbf-f19f-4136-a8bd-192da62c4d4f",
+    "mediumCount": 1,
+    "trackCount": 14,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "DJ Snake Music"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/9e311bbf-f19f-4136-a8bd-192da62c4d4f/25666458751-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "5c631dec-2278-4dbb-80c0-a8649aff0d8c",
+  "title": "Encore",
+  "albumType": "Album",
+  "secondaryTypes": [],
+  "releaseDate": "2016-08-05T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "95c4e35c-929d-4c5e-9838-a708bca21b1b",
+    "mediumCount": 1,
+    "trackCount": 14,
+    "status": "Official",
+    "country": [
+     "Australia"
+    ],
+    "label": [
+     "Interscope Records"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "02edfa2e-6022-4e2f-9fe5-b6b542466b70",
+    "mediumCount": 1,
+    "trackCount": 16,
+    "status": "Official",
+    "country": [
+     "United States"
+    ],
+    "label": [
+     "Interscope Records"
+    ],
+    "disambiguation": "Target exclusive"
+   },
+   {
+    "foreignReleaseId": "13b27645-7c9b-4b2f-81a8-f3e1be9b1760",
+    "mediumCount": 1,
+    "trackCount": 14,
+    "status": "Official",
+    "country": [
+     "Europe"
+    ],
+    "label": [
+     "Interscope Records"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/88dd9214-f943-44bc-ad15-d297d8538c78/14746962400-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "6f0d3574-3ca4-4bbc-a176-bad4278f5125",
+  "title": "Get Low (Remixes)",
+  "albumType": "EP",
+  "secondaryTypes": [
+   "Remix"
+  ],
+  "releaseDate": "2015-06-02T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "5a6901c2-aa84-418a-80d8-5a129adbb36a",
+    "mediumCount": 1,
+    "trackCount": 5,
+    "status": "Official",
+    "country": [
+     "United States"
+    ],
+    "label": [
+     "Columbia"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/5a6901c2-aa84-418a-80d8-5a129adbb36a/11722617200-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "1c294418-722f-45a3-a24d-910f9b6f1502",
+   "artistName": "Dillon Francis",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "8cd49547-ec41-47e9-84f5-e707a604dc75",
+  "title": "Carte Blanche",
+  "albumType": "Album",
+  "secondaryTypes": [],
+  "releaseDate": "2019-07-25T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "d5b0d1f8-df43-4aec-b945-79c5bf15b599",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [
+     "Japan"
+    ],
+    "label": [
+     "DJ Snake Music",
+     "Geffen"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "b5f940cd-42f8-435c-9245-7f08fa8db76b",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [
+     "Albania",
+     "Algeria",
+     "Andorra",
+     "Argentina",
+     "Australia",
+     "Austria",
+     "Bahrain",
+     "Belarus",
+     "Belgium",
+     "Bolivia",
+     "Bosnia and Herzegovina",
+     "Brazil",
+     "Bulgaria",
+     "Canada",
+     "Chile",
+     "Colombia",
+     "Costa Rica",
+     "Croatia",
+     "Cyprus",
+     "Czechia",
+     "Denmark",
+     "Dominican Republic",
+     "Ecuador",
+     "Egypt",
+     "El Salvador",
+     "Estonia",
+     "Finland",
+     "France",
+     "Germany",
+     "Greece",
+     "Guatemala",
+     "Honduras",
+     "Hong Kong",
+     "Hungary",
+     "Iceland",
+     "India",
+     "Indonesia",
+     "Ireland",
+     "Israel",
+     "Italy",
+     "Jordan",
+     "Kazakhstan",
+     "Kuwait",
+     "Latvia",
+     "Lebanon",
+     "Liechtenstein",
+     "Lithuania",
+     "Luxembourg",
+     "North Macedonia",
+     "Malaysia",
+     "Malta",
+     "Mexico",
+     "Moldova",
+     "Monaco",
+     "Morocco",
+     "Netherlands",
+     "New Zealand",
+     "Nicaragua",
+     "Norway",
+     "Oman",
+     "Panama",
+     "Paraguay",
+     "Peru",
+     "Philippines",
+     "Poland",
+     "Portugal",
+     "Qatar",
+     "Romania",
+     "Russia",
+     "Saudi Arabia",
+     "Singapore",
+     "Slovakia",
+     "Slovenia",
+     "South Africa",
+     "Spain",
+     "Sweden",
+     "Switzerland",
+     "Taiwan",
+     "Thailand",
+     "Tunisia",
+     "Türkiye",
+     "Ukraine",
+     "United Arab Emirates",
+     "United Kingdom",
+     "United States",
+     "Uruguay",
+     "Vietnam",
+     "Montenegro",
+     "Palestine",
+     "Serbia",
+     "Kosovo"
+    ],
+    "label": [
+     "DJ Snake Music",
+     "Geffen"
+    ],
+    "disambiguation": ""
+   },
+   {
+    "foreignReleaseId": "02c2e9be-9b46-4d3d-8055-e14b88e254f4",
+    "mediumCount": 1,
+    "trackCount": 17,
+    "status": "Official",
+    "country": [
+     "Japan"
+    ],
+    "label": [
+     "DJ Snake Music",
+     "Geffen"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/b5f940cd-42f8-435c-9245-7f08fa8db76b/23926227859-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "c169317f-03f3-4082-a909-75d4fad3c0aa",
+  "title": "Lean On EP (10th Anniversary)",
+  "albumType": "EP",
+  "secondaryTypes": [],
+  "releaseDate": "2025-12-25T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "faa79a0f-42ee-4cf4-ac53-88d3ebaecff3",
+    "mediumCount": 1,
+    "trackCount": 8,
+    "status": "Official",
+    "country": [],
+    "label": [
+     "DML Music IP"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/faa79a0f-42ee-4cf4-ac53-88d3ebaecff3/43922895128-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "75be165a-ad83-4d12-bd28-f589a15c479f",
+   "artistName": "Major Lazer",
+   "artistType": "Group",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 10.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "cd633ed6-c6be-4d37-af1e-94eae306ea7a",
+  "title": "Propaganda EP",
+  "albumType": "EP",
+  "secondaryTypes": [
+   "Remix"
+  ],
+  "releaseDate": "2016-02-19T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "1b4d6a7a-a86a-4471-bf2d-2ac2c9ee56ce",
+    "mediumCount": 1,
+    "trackCount": 11,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "[no label]"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/1b4d6a7a-a86a-4471-bf2d-2ac2c9ee56ce/13150646016-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "d3612514-862f-4592-b995-a414977765ec",
+  "title": "Made in France",
+  "albumType": "Album",
+  "secondaryTypes": [
+   "Compilation",
+   "DJ-mix",
+   "Mixtape/Street"
+  ],
+  "releaseDate": "2006-01-01T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "673f9c41-82d5-462a-8b8f-e42ea82f0803",
+    "mediumCount": 1,
+    "trackCount": 23,
+    "status": "Bootleg",
+    "country": [
+     "France"
+    ],
+    "label": [],
+    "disambiguation": ""
+   }
+  ],
+  "images": [],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ },
+ {
+  "foreignAlbumId": "d8786c1c-6ecb-4b4d-8402-ed82f8ae0f14",
+  "title": "Ocho Cinco (Remixes)",
+  "albumType": "Album",
+  "secondaryTypes": [
+   "Remix"
+  ],
+  "releaseDate": "2016-12-30T00:00:00Z",
+  "disambiguation": "",
+  "releases": [
+   {
+    "foreignReleaseId": "82b67d33-2258-4ea9-b023-fcf1bb570072",
+    "mediumCount": 1,
+    "trackCount": 27,
+    "status": "Official",
+    "country": [
+     "[Worldwide]"
+    ],
+    "label": [
+     "Def Jam Recordings"
+    ],
+    "disambiguation": ""
+   }
+  ],
+  "images": [
+   {
+    "coverType": "cover",
+    "remoteUrl": "https://images.lidarr.audio/cache/https://coverartarchive.org/release/82b67d33-2258-4ea9-b023-fcf1bb570072/44968782374-1200.jpg"
+   }
+  ],
+  "artist": {
+   "foreignArtistId": "31445b1e-96f3-4c7f-84ec-dd02e647e690",
+   "artistName": "DJ Snake",
+   "artistType": "Person",
+   "id": 0,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 1,
+    "value": 8.0
+   }
+  }
+ }
+]

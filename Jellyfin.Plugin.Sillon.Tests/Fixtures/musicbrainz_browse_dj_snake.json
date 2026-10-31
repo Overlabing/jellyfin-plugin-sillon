@@ -1,0 +1,121 @@
+{
+ "release-group-offset": 0,
+ "release-group-count": 12,
+ "release-groups": [
+  {
+   "first-release-date": "2017-04-07",
+   "primary-type": "EP",
+   "secondary-types": [
+    "Remix"
+   ],
+   "id": "2f79f52c-1768-4c43-8da9-c4f188f1f100",
+   "disambiguation": "",
+   "title": "Here Comes the Night (Remixes)"
+  },
+  {
+   "first-release-date": "2021-05-07",
+   "secondary-types": [
+    "Remix"
+   ],
+   "primary-type": "EP",
+   "title": "Selfish Love EP",
+   "id": "46d3feb8-7c6f-4f12-a545-3d07ccb6b71e",
+   "disambiguation": ""
+  },
+  {
+   "title": "Nomad",
+   "disambiguation": "",
+   "id": "46f1c4fe-924a-4a24-8c1a-899c6f677fb2",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2025-11-07"
+  },
+  {
+   "disambiguation": "",
+   "id": "512af5da-2aef-41df-95ee-3e856bcacbc5",
+   "title": "Shang‐Chi and the Legend of the Ten Rings: The Album",
+   "secondary-types": [
+    "Compilation",
+    "Soundtrack"
+   ],
+   "primary-type": "Album",
+   "first-release-date": "2021-09-03"
+  },
+  {
+   "primary-type": "Album",
+   "secondary-types": [
+    "Compilation"
+   ],
+   "first-release-date": "2017-08-20",
+   "title": "DJ Snake Presents",
+   "disambiguation": "",
+   "id": "582d8cdb-306b-41ea-bbd0-4fad0964663c"
+  },
+  {
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2016-08-05",
+   "title": "Encore",
+   "disambiguation": "",
+   "id": "5c631dec-2278-4dbb-80c0-a8649aff0d8c"
+  },
+  {
+   "secondary-types": [
+    "Remix"
+   ],
+   "primary-type": "EP",
+   "first-release-date": "2015-06-02",
+   "title": "Get Low (Remixes)",
+   "disambiguation": "",
+   "id": "6f0d3574-3ca4-4bbc-a176-bad4278f5125"
+  },
+  {
+   "title": "Carte Blanche",
+   "disambiguation": "",
+   "id": "8cd49547-ec41-47e9-84f5-e707a604dc75",
+   "primary-type": "Album",
+   "secondary-types": [],
+   "first-release-date": "2019-07-25"
+  },
+  {
+   "secondary-types": [],
+   "primary-type": "EP",
+   "first-release-date": "2025-12-25",
+   "disambiguation": "",
+   "id": "c169317f-03f3-4082-a909-75d4fad3c0aa",
+   "title": "Lean On EP (10th Anniversary)"
+  },
+  {
+   "disambiguation": "",
+   "id": "cd633ed6-c6be-4d37-af1e-94eae306ea7a",
+   "title": "Propaganda EP",
+   "primary-type": "EP",
+   "secondary-types": [
+    "Remix"
+   ],
+   "first-release-date": "2016-02-19"
+  },
+  {
+   "secondary-types": [
+    "Compilation",
+    "DJ-mix",
+    "Mixtape/Street"
+   ],
+   "primary-type": "Album",
+   "first-release-date": "2006",
+   "title": "Made in France",
+   "disambiguation": "",
+   "id": "d3612514-862f-4592-b995-a414977765ec"
+  },
+  {
+   "first-release-date": "2016-12-30",
+   "secondary-types": [
+    "Remix"
+   ],
+   "primary-type": "Album",
+   "id": "d8786c1c-6ecb-4b4d-8402-ed82f8ae0f14",
+   "disambiguation": "",
+   "title": "Ocho Cinco (Remixes)"
+  }
+ ]
+}
