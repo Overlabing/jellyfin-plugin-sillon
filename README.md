@@ -29,19 +29,20 @@ playback and browsing your existing library work without it. The app's privacy p
     [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track
     asked about. Errors: 400 malformed id, 404 unknown or not offered album, 502 MusicBrainz unavailable, 503
     manual mode. The tracks come from MusicBrainz, so it works for albums that are not on the server yet.
-  - **Singles are hidden** by default, because they are rarely available from download sources while the album
+  - **Singles are hidden** by default, because they may not be available while the album
     that holds the song is. *Hide singles* and *Hide EPs* are plugin settings; neither applies when the catalogue
     is limited to an allow list.
 - **Wishlist and requests.** A user asks for an album; the plugin follows the request until the album is
   in your Jellyfin library, then adds it to that user's favourites and notifies them. Two fulfilment modes:
-  - **Lidarr**: the plugin adds the album to Lidarr with its artist, starts the search, and
-    follows Lidarr's webhook events (grab, import, import failure). A scheduled task (every 5 minutes)
+  - **Lidarr**: the plugin asks Lidarr to add the album with its artist, and
+    follows Lidarr's webhook events (On Grab, On Release Import, On Import Failure). A scheduled task (every 5 minutes)
     catches missed events, retries stalled adds, and fails requests that wait longer than the timeout
     (14 days by default); if the album is imported after that, the request becomes available and the user is
-    told. Until a release is grabbed a request stays `requested`, and request records carry
-    an optional `phase` (`searching`, then `notFoundYet` after 3 days by default) for apps that tell the two
-    apart; older apps show it as waiting. Once a week it asks Lidarr to look for better quality ("cutoff unmet").
-    The artist is monitored, because Lidarr's wanted list and RSS sync skip the albums of an unmonitored artist,
+    told. Until Lidarr reports On Grab a request stays `requested`, and request records carry
+    an optional `phase` for apps that show how long a request has been pending (the API values are `searching`,
+    then `notFoundYet` after 3 days by default); older apps show it as waiting. Once a week it asks Lidarr to check
+    albums below their quality cutoff ("cutoff unmet"); Lidarr may replace them with a better version.
+    The artist is monitored, because Lidarr skips the albums of an unmonitored artist,
     but only the requested album is: the artist's other albums and future releases are left alone. Cancelling a
     request unmonitors its album.
   - **Manual**: requests are only recorded. An administrator marks each one as added once the album is in
@@ -101,7 +102,7 @@ Open the Sillon page in the Jellyfin dashboard. It has five tabs.
    "On Grab", "On Release Import" and "On Import Failure"). The link contains a secret; treat it like a
    password. If Lidarr and Jellyfin see your music at different paths (separate containers), fill in both
    music folders so imported albums can be found.
-3. **Requests**: every request with its state (waiting, downloading, available, not available,
+3. **Requests**: every request with its state (pending, available, not available,
    cancelled). Administrators can cancel any request, mark manual requests as added, and see all users'
    requests.
 4. **Notifications**: choose a mode and see the phones registered for this server. A test button sends a
