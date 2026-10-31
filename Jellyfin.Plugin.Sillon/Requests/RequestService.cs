@@ -276,7 +276,7 @@ public sealed class RequestService
 
         if (ManualMode)
         {
-            throw new RequestNotRetryableException("Relance impossible en mode manuel : seul le mode Lidarr relance une recherche.");
+            throw new RequestNotRetryableException("Relance impossible en mode manuel : seul le mode Lidarr permet une nouvelle tentative.");
         }
 
         int lidarrId;
@@ -1026,7 +1026,7 @@ public sealed class RequestService
     // nobody is told: the only notification a requester gets is the one saying the album arrived, which a later import still sends
     private void FailTimedOut(RequestRecord request, int days)
     {
-        if (!_store.Transition(request.Id, RequestStatus.Live, RequestStatus.Failed, $"introuvable après {days} jours"))
+        if (!_store.Transition(request.Id, RequestStatus.Live, RequestStatus.Failed, $"non disponible après {days} jours"))
         {
             return;
         }

@@ -420,7 +420,7 @@
                             <div class="sl-field-error" data-error-for="RequestTimeoutDays"></div>
                         </div>
                         <div class="inputContainer">
-                            <input is="emby-input" type="number" min="1" max="365" id="NotFoundYetAfterDays" label="Call it not found yet after (days)" />
+                            <input is="emby-input" type="number" min="1" max="365" id="NotFoundYetAfterDays" label="Flag as still pending after (days)" />
                             <div class="fieldDescription" data-s="notFoundYetHelp"></div>
                             <div class="sl-field-error" data-error-for="NotFoundYetAfterDays"></div>
                         </div>
@@ -522,12 +522,12 @@
             var S = {
                 tagline: 'Music requests for your Sillon app',
                 tabs: { overview: 'Overview', requests: 'Requests', lidarr: 'Lidarr', notifications: 'Notifications', settings: 'Settings' },
-                icons: { overview: 'dashboard', requests: 'queue_music', lidarr: 'cloud_download', notifications: 'notifications', settings: 'tune' },
+                icons: { overview: 'dashboard', requests: 'queue_music', lidarr: 'library_add', notifications: 'notifications', settings: 'tune' },
                 overviewTitle: 'Everything at a glance',
                 overviewLead: 'Sillon lets people ask for albums from the Sillon app. This page shows whether everything is working.',
                 requestsTitle: 'Album requests',
                 requestsLead: 'Albums your users have asked for. Sillon follows each one until it shows up in your library.',
-                lidarrTitle: 'Automatic downloads',
+                lidarrTitle: 'Automatic additions',
                 lidarrLead: 'Connect Lidarr and Sillon will add requested albums to it, then tell the person when the album is ready.',
                 notifTitle: 'Notifications',
                 notifLead: 'Send a notification to people\'s phones when the album they asked for is ready to play.',
@@ -546,7 +546,7 @@
                 step4Title: 'Choose where albums go',
                 step4Help: 'These choices come from your Lidarr.',
                 qualityLabel: 'Audio quality',
-                qualityHelp: 'The quality profile Lidarr uses when it looks for an album.',
+                qualityHelp: 'The quality profile used when Sillon asks Lidarr to add an album.',
                 folderLabel: 'Music folder',
                 folderHelp: 'Where Lidarr stores new albums.',
                 metadataLabel: 'Release types',
@@ -606,19 +606,19 @@
                 wishlistTitle: 'Wishlist',
                 wishlistToggle: 'Let people request albums',
                 wishlistHelp: 'When off, the Sillon app hides the request feature. Existing requests are kept.',
-                timeoutHelp: 'A request that is still waiting after this many days is marked as failed.',
-                notFoundYetHelp: 'A request with no release found after this many days is flagged as "not found yet" for apps that show it. It keeps searching until the limit above.',
+                timeoutHelp: 'A request still pending after this many days is marked as failed.',
+                notFoundYetHelp: 'A request pending for this many days is flagged as "still pending" for apps that show it. Sillon keeps trying until the limit above.',
                 searchTracksToggle: 'Find albums by song title',
                 searchTracksHelp: 'Searching for a song offers the albums that contain it, using MusicBrainz (one request a second, answers kept for a day).',
                 deezerHintsToggle: 'Use Deezer to find the best-known artists for a song title (off by default)',
                 deezerHintsHelp: 'Helps with titles many artists have recorded: searching only a song title then offers the albums of the artists Deezer knows best for it first. When on, the search text and this server\'s IP address go to Deezer; no account or user information does. It is for non-commercial private or family use under Deezer\'s terms, which you accept by turning this on:',
                 hideSinglesToggle: 'Hide singles',
-                hideSinglesHelp: 'Singles are rarely available from download sources, while the album that holds the song usually is. Ignored when the catalogue is limited to a list of albums.',
+                hideSinglesHelp: 'Singles may not be available, while the album that holds the song usually is. Ignored when the catalogue is limited to a list of albums.',
                 hideEpsToggle: 'Hide EPs',
                 hideEpsHelp: 'Also hide EPs. Off by default.',
                 limitsTitle: 'Limits',
                 limitsSub: 'Stop one person from asking for too much at once. Enter 0 for no limit.',
-                limitActiveHelp: 'How many requests one person can have waiting or downloading.',
+                limitActiveHelp: 'How many requests one person can have pending.',
                 limitDayHelp: 'How many requests one person can make in a day, cancelled ones included.',
                 exemptLabel: 'Administrators have no limits',
                 foldersTitle: 'Music folders',
@@ -1064,14 +1064,14 @@
                 if (failed > 0) {
                     body.appendChild(h('div', { class: 'sl-note bad' }, [icon('error_outline'), h('div', {}, [
                         h('b', { text: plural(failed, 'request needs', 'requests need') + ' your attention' }),
-                        h('div', { class: 'sl-small', text: 'Sillon could not get ' + (failed === 1 ? 'this album' : 'these albums') + '. You can retry or remove ' + (failed === 1 ? 'it' : 'them') + '.' })
+                        h('div', { class: 'sl-small', text: (failed === 1 ? 'This album is' : 'These albums are') + ' not available. You can retry or remove ' + (failed === 1 ? 'it' : 'them') + '.' })
                     ]), button('Review', function () { reqFilter = 'failed'; showTab('requests'); })]));
                 }
 
                 var l = lidarrSummary(r);
                 var n = notifSummary(r);
                 body.appendChild(h('div', { class: 'sl-grid' }, [
-                    statusCard('cloud_download', 'Automatic downloads', l.chip, l.text, l.cta, 'lidarr'),
+                    statusCard('library_add', 'Automatic additions', l.chip, l.text, l.cta, 'lidarr'),
                     statusCard('notifications', 'Notifications', n.chip, n.text, n.cta, 'notifications')
                 ]));
 
@@ -1088,7 +1088,7 @@
                     }
                     statCard.appendChild(h('div', { class: 'sl-stats' }, [
                         stat(req.requested || 0, 'Requested', 'requested'),
-                        stat(req.downloading || 0, 'Downloading', 'downloading'),
+                        stat(req.downloading || 0, 'Pending', 'downloading'),
                         stat(req.available || 0, 'Available', 'available'),
                         stat(failed, 'Failed', 'failed', true)
                     ]));
@@ -1200,8 +1200,8 @@
 
             // ---- requests
 
-            var statusLabels = { requested: 'Requested', downloading: 'Downloading', available: 'Available', failed: 'Failed', cancelled: 'Cancelled' };
-            var statusIcons = { requested: 'schedule', downloading: 'downloading', available: 'check_circle', failed: 'error', cancelled: 'block' };
+            var statusLabels = { requested: 'Requested', downloading: 'Pending', available: 'Available', failed: 'Failed', cancelled: 'Cancelled' };
+            var statusIcons = { requested: 'schedule', downloading: 'hourglass_empty', available: 'check_circle', failed: 'error', cancelled: 'block' };
             var FILTERS = [['all', 'All'], ['active', 'In progress'], ['available', 'Available'], ['failed', 'Failed']];
 
             function isActive(r) { return r.status === 'requested' || r.status === 'downloading'; }
@@ -1249,14 +1249,14 @@
                 var id = r.id;
                 var actions = h('div', { class: 'sl-actions' });
                 if (lidarrMode && (isActive(r) || r.status === 'failed')) {
-                    actions.appendChild(button(r.status === 'failed' ? 'Try again' : 'Search again', function () { runAction('POST', 'Sillon/v1/requests/' + id + '/retry', 'Searching again.'); }));
+                    actions.appendChild(button('Try again', function () { runAction('POST', 'Sillon/v1/requests/' + id + '/retry', 'Trying again.'); }));
                 }
                 if (!lidarrMode && isActive(r)) {
                     actions.appendChild(button('Mark as available', function () { runAction('POST', 'Sillon/v1/requests/' + id + '/available', 'Marked as available.'); }, { primary: true }));
                 }
                 if (isActive(r)) {
                     actions.appendChild(button('Cancel', function () {
-                        if (confirm('Cancel this request?' + (lidarrMode ? ' Lidarr stops looking for the album.' : ''))) { runAction('DELETE', 'Sillon/v1/requests/' + id, 'Request cancelled.'); }
+                        if (confirm('Cancel this request?' + (lidarrMode ? ' Lidarr stops trying to add the album.' : ''))) { runAction('DELETE', 'Sillon/v1/requests/' + id, 'Request cancelled.'); }
                     }));
                 } else {
                     actions.appendChild(button('Remove', function () {

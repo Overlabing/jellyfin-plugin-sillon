@@ -815,7 +815,7 @@ public class RequestServiceTests
 
         var failed = env.Store.Get(request.Id)!;
         Assert.Equal(RequestStatus.Failed, failed.Status);
-        Assert.Equal("introuvable après 14 jours", failed.Error);
+        Assert.Equal("non disponible après 14 jours", failed.Error);
         Assert.Empty(env.Notifier.Events);
     }
 
@@ -1217,7 +1217,7 @@ public class RequestServiceTests
 
         var ex = await Assert.ThrowsAsync<RequestNotRetryableException>(() => env.Service.RetryAsync(request.Id, TestEnv.User, false, CancellationToken.None));
 
-        Assert.Contains("mode manuel", ex.Message);
+        Assert.Equal("Relance impossible en mode manuel : seul le mode Lidarr permet une nouvelle tentative.", ex.Message);
     }
 
     [Fact]
