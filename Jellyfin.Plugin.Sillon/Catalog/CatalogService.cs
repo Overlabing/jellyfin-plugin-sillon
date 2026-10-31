@@ -13,11 +13,15 @@ public sealed class CatalogService
 {
     private const int MaxSearchAlbums = 40;
     private const int MaxTrackAlbums = 8;
+    private const string OutOfTime = "no answer in time";
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
 
     // the app gives up on a search after 20 seconds, and Lidarr's lookups still have to run after this
     private static readonly TimeSpan DefaultHintBudget = TimeSpan.FromSeconds(6);
+
+    // the plain search has no hints to fall back on, and MusicBrainz can ask it to wait: a little longer, within the same 20 seconds
+    private static readonly TimeSpan PlainTrackBudget = TimeSpan.FromSeconds(9);
 
     private readonly ILidarrProvider _lidarr;
     private readonly RequestStore _requests;
@@ -619,52 +623,91 @@ public sealed class CatalogService
             return Array.Empty<TrackAlbum>();
         }
 
-        // started first: the plain search keeps its place in MusicBrainz's queue
-        var plain = PlainTrackAlbumsAsync(_musicBrainz, parsed, config, ct);
+        // the deadline starts now, whatever the hints take, and they are limited to less
+        using var plainBudget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        plainBudget.CancelAfter(_hintBudget > PlainTrackBudget ? _hintBudget : PlainTrackBudget);
         if (_hints is null || !config.DeezerPopularityHints || parsed.Artist is not null)
         {
-            return await plain.ConfigureAwait(false);
+            var alone = await PlainTrackAlbumsAsync(_musicBrainz, parsed, config, plainBudget.Token, ct).ConfigureAwait(false);
+            WarnIfIncomplete(alone.Failure is null ? 0 : 1, alone.Failure);
+            return alone.Albums;
         }
 
+        // the hints first: MusicBrainz declines a good part of its searches at times, and these are the answers a retry should not cost
         var hinted = await HintedTrackAlbumsAsync(_hints, _musicBrainz, parsed.Title, config, ct).ConfigureAwait(false);
-        return TrackSearch.WithHints(hinted, await plain.ConfigureAwait(false));
+        var answer = await PlainTrackAlbumsAsync(_musicBrainz, parsed, config, plainBudget.Token, ct).ConfigureAwait(false);
+        WarnIfIncomplete(hinted.Missed + (answer.Failure is null ? 0 : 1), hinted.Failure ?? answer.Failure);
+        return TrackSearch.WithHints(hinted.Found, answer.Albums);
     }
 
-    private async Task<IReadOnlyList<TrackAlbum>> PlainTrackAlbumsAsync(IMusicBrainzApi musicBrainz, TrackQuery parsed, PluginConfiguration config, CancellationToken ct)
+    /// <summary>One line per search, however many requests and retries it took: the results are short, and the next search asks again.</summary>
+    private void WarnIfIncomplete(int missed, string? reason)
+    {
+        if (missed > 0)
+        {
+            _logger.LogWarning("Song search incomplete, {Missed} MusicBrainz lookups without an answer ({Reason}): returning the other results", missed, reason);
+        }
+    }
+
+    private async Task<(IReadOnlyList<TrackAlbum> Albums, string? Failure)> PlainTrackAlbumsAsync(IMusicBrainzApi musicBrainz, TrackQuery parsed, PluginConfiguration config, CancellationToken budget, CancellationToken ct)
     {
         try
         {
-            var recordings = await musicBrainz.SearchRecordingsAsync(parsed, ct).ConfigureAwait(false);
-            return TrackSearch.Albums(recordings, parsed, config.HideEps);
+            var recordings = await musicBrainz.SearchRecordingsAsync(parsed, budget).ConfigureAwait(false);
+            return (TrackSearch.Albums(recordings, parsed, config.HideEps), null);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return (Array.Empty<TrackAlbum>(), OutOfTime);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning("Track search failed: {Message}", ex.Message);
-            return Array.Empty<TrackAlbum>();
+            return (Array.Empty<TrackAlbum>(), ex.Message);
         }
     }
 
-    /// <summary>The albums of the artists the hints name, one artist at a time through MusicBrainz's queue and its cache; whatever goes wrong or runs out of time only costs the hints not found yet.</summary>
-    private async Task<IReadOnlyList<IReadOnlyList<TrackAlbum>>> HintedTrackAlbumsAsync(ITrackHints hints, IMusicBrainzApi musicBrainz, string title, PluginConfiguration config, CancellationToken ct)
+    /// <summary>
+    /// The albums of the artists the hints name, one query per artist through MusicBrainz's queue and its cache; whatever goes wrong or runs out of
+    /// time only costs the hints not found yet. When MusicBrainz asks to slow down the remaining artists are not asked for: it would not help,
+    /// and a lesser artist must not pass for the best known one.
+    /// </summary>
+    private async Task<(IReadOnlyList<IReadOnlyList<TrackAlbum>> Found, int Missed, string? Failure)> HintedTrackAlbumsAsync(ITrackHints hints, IMusicBrainzApi musicBrainz, string title, PluginConfiguration config, CancellationToken ct)
     {
         var found = new List<IReadOnlyList<TrackAlbum>>();
+        IReadOnlyList<string> artists = Array.Empty<string>();
+        var answered = 0;
+        string? failure = null;
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
         budget.CancelAfter(_hintBudget);
         try
         {
-            foreach (var artist in await hints.ArtistsForTitleAsync(title, budget.Token).ConfigureAwait(false))
+            artists = await hints.ArtistsForTitleAsync(title, budget.Token).ConfigureAwait(false);
+            foreach (var artist in artists)
             {
                 var query = new TrackQuery(title, artist, AnySpelling: true);
-                var recordings = await musicBrainz.SearchRecordingsAsync(query, budget.Token).ConfigureAwait(false);
-                found.Add(TrackSearch.Albums(recordings, query, config.HideEps));
+                try
+                {
+                    var recordings = await musicBrainz.SearchRecordingsAsync(query, budget.Token).ConfigureAwait(false);
+                    found.Add(TrackSearch.Albums(recordings, query, config.HideEps));
+                    answered++;
+                }
+                catch (MusicBrainzUnavailableException ex)
+                {
+                    failure = ex.Message;
+                    if (ex.Busy)
+                    {
+                        break;
+                    }
+                }
             }
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
+            failure ??= ex is OperationCanceledException ? OutOfTime : ex.GetType().Name;
             _logger.LogDebug("Track hints stopped early: {Reason}", ex.GetType().Name);
         }
 
-        return found;
+        return (found, artists.Count - answered, failure);
     }
 
     /// <summary>Looks the release groups up by id (<c>lidarr:&lt;mbid&gt;</c>), a few at a time to spare Lidarr's upstream; the order of the hits is kept and a failed lookup is skipped.</summary>

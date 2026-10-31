@@ -316,7 +316,7 @@ public class DeezerHintsTests
 
         // each artist offers its best two; the album TLC and the plain search share appears once
         Assert.Equal(new[] { PabloHoney, BestOf, CrazySexyCool, Obscure }, ids);
-        Assert.Equal(new[] { new TrackQuery("Creep", null), new TrackQuery("Creep", "Radiohead", true), new TrackQuery("Creep", "TLC", true), new TrackQuery("Creep", "Daniela Andrade", true) }, mb.Queries);
+        Assert.Equal(new[] { new TrackQuery("Creep", "Radiohead", true), new TrackQuery("Creep", "TLC", true), new TrackQuery("Creep", "Daniela Andrade", true), new TrackQuery("Creep", null) }, mb.Queries);
     }
 
     [Fact]
@@ -547,8 +547,8 @@ public class DeezerHintsTests
         await catalog.SearchAsync("Lemon Tree", CancellationToken.None);
 
         var urls = mbHttp.Requests.Select(r => Uri.UnescapeDataString(r.RequestUri!.Query)).ToList();
-        Assert.Equal("?fmt=json&limit=25&query=recording:\"Lemon Tree\"", urls[0]);
-        Assert.Equal("?fmt=json&limit=100&query=recording:\"Lemon Tree\" AND (artist:\"Fools Garden\" OR artistname:\"Fools Garden\")", urls[1]);
+        Assert.Equal("?fmt=json&limit=25&query=recording:\"Lemon Tree\"", urls[1]);
+        Assert.Equal("?fmt=json&limit=100&query=recording:\"Lemon Tree\" AND (artist:\"Fools Garden\" OR artistname:\"Fools Garden\")", urls[0]);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -44,13 +45,35 @@ public sealed record MbTrack(int Disc, int Position, string Number, string Title
 /// <param name="Tracks">The tracks, disc by disc.</param>
 public sealed record MbTracklist(string ReleaseId, string Title, IReadOnlyList<MbTrack> Tracks);
 
+/// <summary>MusicBrainz gave no answer, which says nothing about whether the thing asked for exists.</summary>
+public sealed class MusicBrainzUnavailableException : Exception
+{
+    /// <summary>Initializes a new instance of the <see cref="MusicBrainzUnavailableException"/> class.</summary>
+    /// <param name="message">What happened; holds no search text.</param>
+    /// <param name="busy">Whether MusicBrainz asked to slow down.</param>
+    /// <param name="retryAfter">How long it asked to wait, when it said.</param>
+    public MusicBrainzUnavailableException(string message, bool busy = false, TimeSpan? retryAfter = null)
+        : base(message)
+    {
+        Busy = busy;
+        RetryAfter = retryAfter;
+    }
+
+    /// <summary>Gets a value indicating whether MusicBrainz asked to slow down, so more requests right now would not help.</summary>
+    public bool Busy { get; }
+
+    /// <summary>Gets how long MusicBrainz asked to wait, null when it did not say.</summary>
+    public TimeSpan? RetryAfter { get; }
+}
+
 /// <summary>What the catalogue needs of MusicBrainz.</summary>
 public interface IMusicBrainzApi
 {
     /// <summary>Searches recordings.</summary>
     /// <param name="query">The track query.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The recordings, best first; empty when MusicBrainz cannot answer.</returns>
+    /// <returns>The recordings, best first; empty only when MusicBrainz answered that there are none.</returns>
+    /// <exception cref="MusicBrainzUnavailableException">MusicBrainz could not answer.</exception>
     Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct);
 
     /// <summary>Lists the releases of a release group.</summary>
@@ -68,7 +91,10 @@ public interface IMusicBrainzApi
 
 /// <summary>
 /// MusicBrainz's web service, used politely: at most one request a second, an identifying User-Agent, a short timeout,
-/// and answers kept for a day (a failure for a few minutes) so a repeated question never reaches it twice.
+/// and answers kept for a day so a repeated question never reaches it twice. A 503 is its way of declining a request, and it also sheds load
+/// across all clients however slowly this one goes (<c>X-RateLimit-Who: search-shed</c> or <c>global</c>, with <c>Retry-After: 0</c>): it is tried
+/// again a little later, or as told by a <c>Retry-After</c>, then every request pauses briefly. A 503 is never remembered against the question;
+/// any other failure is, for seconds.
 /// </summary>
 public sealed class MusicBrainzClient : IMusicBrainzApi
 {
@@ -76,7 +102,14 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     private static readonly TimeSpan MinGap = TimeSpan.FromMilliseconds(1100);
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan Ttl = TimeSpan.FromHours(24);
-    private static readonly TimeSpan FailureTtl = TimeSpan.FromMinutes(5);
+    private const int MaxAttempts = 3;
+    private static readonly TimeSpan FailureTtl = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan FirstBackoff = TimeSpan.FromMilliseconds(1200);
+    private static readonly TimeSpan BusyPause = TimeSpan.FromSeconds(3);
+
+    // a longer Retry-After is not waited for inside a search, whose hints have 6 seconds
+    private static readonly TimeSpan MaxRetryWait = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaxPause = TimeSpan.FromMinutes(10);
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
@@ -88,6 +121,7 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, (DateTimeOffset Expires, object? Value)> _cache = new(StringComparer.Ordinal);
     private DateTimeOffset _lastCall = DateTimeOffset.MinValue;
+    private DateTimeOffset _pausedUntil = DateTimeOffset.MinValue;
 
     /// <summary>Initializes a new instance of the <see cref="MusicBrainzClient"/> class.</summary>
     /// <param name="http">The HTTP client.</param>
@@ -113,76 +147,128 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct)
+    public Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct)
     {
         var lucene = query.ToLucene();
 
         // a hinted artist's recordings are what is wanted, and its studio album can rank past the first compilations
         var limit = query.AnySpelling ? 100 : 25;
         var url = $"/ws/2/recording?fmt=json&limit={limit}&query={Uri.EscapeDataString(lucene)}";
-        return await CallAsync("search:" + TrackQuery.Fold(lucene), url, ParseSearch, ct).ConfigureAwait(false) ?? Array.Empty<MbRecording>();
+        return CallAsync("search:" + TrackQuery.Fold(lucene), url, ParseSearch, ct);
     }
 
     /// <inheritdoc />
     public Task<IReadOnlyList<MbRelease>?> GetReleasesAsync(string releaseGroupId, CancellationToken ct)
-        => CallAsync("rg:" + releaseGroupId.ToLowerInvariant(), $"/ws/2/release-group/{Uri.EscapeDataString(releaseGroupId)}?fmt=json&inc=releases", ParseReleases, ct);
+        => OrNullAsync(CallAsync("rg:" + releaseGroupId.ToLowerInvariant(), $"/ws/2/release-group/{Uri.EscapeDataString(releaseGroupId)}?fmt=json&inc=releases", ParseReleases, ct));
 
     /// <inheritdoc />
     public Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct)
-        => CallAsync("release:" + releaseId.ToLowerInvariant(), $"/ws/2/release/{Uri.EscapeDataString(releaseId)}?fmt=json&inc=recordings", ParseTracklist, ct);
+        => OrNullAsync(CallAsync("release:" + releaseId.ToLowerInvariant(), $"/ws/2/release/{Uri.EscapeDataString(releaseId)}?fmt=json&inc=recordings", ParseTracklist, ct));
 
-    /// <summary>Asks MusicBrainz once per key and day, one request at a time, no more than one a second; null when it cannot answer (kept a few minutes).</summary>
-    private async Task<T?> CallAsync<T>(string key, string path, Func<string, T> parse, CancellationToken ct)
+    private async Task<T?> OrNullAsync<T>(Task<T> call)
+        where T : class
+    {
+        try
+        {
+            return await call.ConfigureAwait(false);
+        }
+        catch (MusicBrainzUnavailableException ex)
+        {
+            _logger.LogWarning("MusicBrainz request failed: {Message}", ex.Message);
+            return null;
+        }
+    }
+
+    /// <summary>Asks MusicBrainz once per key and day, one request at a time, no more than one a second, trying again when it declines.</summary>
+    /// <exception cref="MusicBrainzUnavailableException">It gave no answer.</exception>
+    private async Task<T> CallAsync<T>(string key, string path, Func<string, T> parse, CancellationToken ct)
         where T : class
     {
         if (TryCached(key, out var cached))
         {
-            return (T?)cached;
+            return Known<T>(cached);
         }
 
+        // the gate stays held across a retry: nothing else may reach MusicBrainz meanwhile anyway
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             // another caller may have filled the cache while this one waited
             if (TryCached(key, out cached))
             {
-                return (T?)cached;
+                return Known<T>(cached);
             }
 
-            var wait = _lastCall + MinGap - _now();
-            if (wait > TimeSpan.Zero)
+            var paused = _pausedUntil - _now();
+            if (paused > MaxRetryWait)
             {
-                await _delay(wait, ct).ConfigureAwait(false);
+                throw new MusicBrainzUnavailableException("MusicBrainz asked to slow down", busy: true);
             }
 
-            _lastCall = _now();
-            T? result = null;
-            var ttl = FailureTtl;
-            try
+            if (paused > TimeSpan.Zero)
             {
-                result = parse(await FetchAsync(path, ct).ConfigureAwait(false));
-                ttl = Ttl;
-            }
-            catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException && !ct.IsCancellationRequested)
-            {
-                _logger.LogWarning("MusicBrainz request failed: {Message}", ex.Message);
+                await _delay(paused, ct).ConfigureAwait(false);
             }
 
-            lock (_cache)
+            for (var attempt = 1; ; attempt++)
             {
-                if (_cache.Count >= MaxCached)
+                var wait = _lastCall + MinGap - _now();
+                if (wait > TimeSpan.Zero)
                 {
-                    _cache.Clear();
+                    await _delay(wait, ct).ConfigureAwait(false);
                 }
 
-                _cache[key] = (_now() + ttl, result);
-            }
+                _lastCall = _now();
+                try
+                {
+                    var value = parse(await FetchAsync(path, ct).ConfigureAwait(false));
+                    Remember(key, Ttl, value);
+                    return value;
+                }
+                catch (MusicBrainzUnavailableException declined) when (declined.Busy)
+                {
+                    var asked = declined.RetryAfter ?? TimeSpan.Zero;
+                    if (attempt == MaxAttempts || asked > MaxRetryWait)
+                    {
+                        _pausedUntil = _now() + (asked > BusyPause ? (asked < MaxPause ? asked : MaxPause) : BusyPause);
+                        throw;
+                    }
 
-            return result;
+                    var backoff = (FirstBackoff * attempt) + TimeSpan.FromMilliseconds(Random.Shared.Next(250));
+                    var pause = asked > backoff ? asked : backoff;
+
+                    // still owed if this caller runs out of time during the wait
+                    _pausedUntil = _now() + pause;
+                    _logger.LogDebug("MusicBrainz declined attempt {Attempt}, trying again", attempt);
+                    await _delay(pause, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is HttpRequestException or JsonException or OperationCanceledException && !ct.IsCancellationRequested)
+                {
+                    Remember(key, FailureTtl, null);
+                    throw new MusicBrainzUnavailableException(ex is OperationCanceledException ? "MusicBrainz timed out" : ex.Message);
+                }
+            }
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    private static T Known<T>(object? cached)
+        where T : class
+        => (T?)cached ?? throw new MusicBrainzUnavailableException("MusicBrainz failed moments ago");
+
+    private void Remember(string key, TimeSpan ttl, object? value)
+    {
+        lock (_cache)
+        {
+            if (_cache.Count >= MaxCached)
+            {
+                _cache.Clear();
+            }
+
+            _cache[key] = (_now() + ttl, value);
         }
     }
 
@@ -209,13 +295,32 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
         request.Headers.UserAgent.ParseAdd(_userAgent);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         using var response = await _http.SendAsync(request, timeout.Token).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        {
+            throw new MusicBrainzUnavailableException($"MusicBrainz answered 503{Declined(response)}", busy: true, retryAfter: RetryAfter(response));
+        }
+
         if (!response.IsSuccessStatusCode)
         {
-            // 503 is MusicBrainz asking to slow down
             throw new HttpRequestException($"MusicBrainz answered {(int)response.StatusCode}");
         }
 
         return await response.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false);
+    }
+
+    /// <summary>Which of its limits declined the request, as it names it; tells a load shed from this server's own rate.</summary>
+    private static string Declined(HttpResponseMessage response)
+        => response.Headers.TryGetValues("X-RateLimit-Who", out var who)
+            && who.FirstOrDefault() is { Length: > 0 and <= 40 } name
+            && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')
+                ? $" ({name})"
+                : string.Empty;
+
+    private TimeSpan? RetryAfter(HttpResponseMessage response)
+    {
+        var header = response.Headers.RetryAfter;
+        var wait = header?.Delta ?? (header?.Date is { } date ? date - _now() : null);
+        return wait > TimeSpan.Zero ? wait : null;
     }
 
     private static IReadOnlyList<MbRecording> ParseSearch(string body)
