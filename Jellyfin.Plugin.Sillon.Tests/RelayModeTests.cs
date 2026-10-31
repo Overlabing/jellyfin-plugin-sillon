@@ -456,9 +456,6 @@ public class RelayModeTests
 
         Assert.Equal(RelayCryptoTests.EventJson.Replace("\"r-1\"", "\"1\""), json);
         Assert.Equal("{\"v\":1,\"type\":\"test\"}", Encoding.UTF8.GetString(NotificationEvent.Test.ToProtocolJson()));
-        Assert.Equal(
-            "{\"v\":1,\"type\":\"request.not_found\",\"request_id\":\"9\",\"title\":\"XEU\",\"artist\":\"Vald\"}",
-            Encoding.UTF8.GetString(new NotificationEvent(NotificationEvent.Types.NotFound, 9, "ignored", "XEU", "Vald", 5, 9).ToProtocolJson()));
     }
 
     [Fact]
@@ -506,14 +503,13 @@ public class RelayModeTests
     {
         var partial = new NotificationEvent(NotificationEvent.Types.Available, 1, "alb", "XEU", "Vald", 16, 17);
         var full = new NotificationEvent(NotificationEvent.Types.Available, 1, "alb", "XEU", "Vald", 17, 17);
-        var gone = new NotificationEvent(NotificationEvent.Types.NotFound, 1, string.Empty, "XEU", "Vald", 0, 0);
+        var noAlbum = new NotificationEvent(NotificationEvent.Types.Available, 1, string.Empty, "XEU", "Vald", 0, 0);
 
         Assert.Equal("XEU de Vald est maintenant dans la bibliothèque (16/17 titres)", partial.DirectBody());
         Assert.Equal("XEU de Vald est maintenant dans la bibliothèque", full.DirectBody());
-        Assert.Equal("XEU de Vald est introuvable", gone.DirectBody());
         Assert.Equal("Sillon: notifications are working", NotificationEvent.Test.DirectBody());
-        Assert.Equal(1L, gone.DirectExtra()["request_id"]);
-        Assert.False(gone.DirectExtra().ContainsKey("album_id"));
+        Assert.Equal(1L, noAlbum.DirectExtra()["request_id"]);
+        Assert.False(noAlbum.DirectExtra().ContainsKey("album_id"));
         Assert.Empty(NotificationEvent.Test.DirectExtra());
     }
 

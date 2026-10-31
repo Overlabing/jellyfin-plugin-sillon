@@ -1,5 +1,6 @@
 using Jellyfin.Plugin.Sillon.Configuration;
 using Jellyfin.Plugin.Sillon.Lidarr;
+using Jellyfin.Plugin.Sillon.Push;
 using Jellyfin.Plugin.Sillon.Requests;
 using Jellyfin.Plugin.Sillon.Storage;
 using Xunit;
@@ -607,8 +608,7 @@ public class RequestServiceTests
         env.Now += TimeSpan.FromDays(15);
         await env.Service.ReconcileAsync(CancellationToken.None);
         Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
-        env.Notifier.Sent.Clear();
-        env.Notifier.Events.Clear();
+        Assert.Empty(env.Notifier.Events);
         return (env, request);
     }
 
@@ -804,7 +804,7 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task Reconcile_PastTheTimeout_FailsTheRequest_AndTellsTheRequester()
+    public async Task Reconcile_PastTheTimeout_FailsTheRequest_AndSendsNothing()
     {
         var (env, request) = await Requested();
         using var _ = env;
@@ -816,7 +816,65 @@ public class RequestServiceTests
         var failed = env.Store.Get(request.Id)!;
         Assert.Equal(RequestStatus.Failed, failed.Status);
         Assert.Equal("introuvable après 14 jours", failed.Error);
-        Assert.Equal("XEU de Vald est introuvable", Assert.Single(env.Notifier.Sent).Body);
+        Assert.Empty(env.Notifier.Events);
+    }
+
+    [Fact]
+    public async Task Reconcile_AnAddThatNeverWorkedPastTheTimeout_FailsTheRequest_AndSendsNothing()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.MonitorArtistError = new LidarrException("boom");
+        env.Lidarr.AddGate = new TaskCompletionSource();
+        using var client = new CancellationTokenSource();
+        var pending = env.Service.CreateAsync(TestEnv.Input(), client.Token);
+        client.Cancel();
+        var request = await pending;
+        env.Lidarr.AddGate.SetResult();
+        await env.Service.WaitAsync();
+        Assert.Null(env.Store.Get(request.Id)!.LidarrAlbumId);
+        env.Now = env.Now.AddDays(15);
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Failed, env.Store.Get(request.Id)!.Status);
+        Assert.Empty(env.Notifier.Events);
+    }
+
+    [Fact]
+    public async Task AnArrivedAlbum_SendsOneAvailableNotification()
+    {
+        var (env, request) = await Requested();
+        using var _ = env;
+        env.Library.AlbumPresent = true;
+
+        await env.Service.OnImportAsync(new[] { "alb-1" }, new[] { Folder }, CancellationToken.None);
+        await env.Service.WaitAsync();
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        var sent = Assert.Single(env.Notifier.Events);
+        Assert.Equal(NotificationEvent.Types.Available, sent.Type);
+        Assert.Equal(request.Id, sent.RequestId);
+    }
+
+    [Fact]
+    public async Task AFailedRequestRecoveredLater_SendsExactlyOneAvailableNotification()
+    {
+        var (env, request) = await TimedOut();
+        using var _ = env;
+        env.Lidarr.Albums[101] = Imported(101);
+        env.Library.AlbumPresent = true;
+
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+        await env.Service.ReconcileAsync(CancellationToken.None);
+        await env.Service.WaitAsync();
+
+        Assert.Equal(RequestStatus.Available, env.Store.Get(request.Id)!.Status);
+        var sent = Assert.Single(env.Notifier.Events);
+        Assert.Equal(NotificationEvent.Types.Available, sent.Type);
+        Assert.Equal(request.Id, sent.RequestId);
     }
 
     [Fact]
