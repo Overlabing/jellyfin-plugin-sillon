@@ -223,11 +223,19 @@ public sealed class RequestService
             throw new RequestNotActiveException();
         }
 
-        if (request.LidarrAlbumId is { } lidarrId)
+        // without a stored id the add may have reached Lidarr all the same; an add still running stops by itself once the request is cancelled
+        if (request.LidarrAlbumId is not null || !ManualMode)
         {
             try
             {
-                await _lidarr.Create().MonitorAlbumsAsync(new[] { (int)lidarrId }, false, ct).ConfigureAwait(false);
+                var lidarr = _lidarr.Create();
+                var albumIds = request.LidarrAlbumId is { } lidarrId
+                    ? new[] { (int)lidarrId }
+                    : (await lidarr.GetAlbumsByForeignIdAsync(request.ForeignAlbumId, ct).ConfigureAwait(false)).Select(a => a.Id).ToArray();
+                if (albumIds.Length > 0)
+                {
+                    await lidarr.MonitorAlbumsAsync(albumIds, false, ct).ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -417,7 +425,8 @@ public sealed class RequestService
         await CutoffSearchAsync(ct).ConfigureAwait(false);
 
         var live = _store.ListByStatus(RequestStatus.Requested, RequestStatus.Downloading);
-        if (live.Count == 0)
+        var failed = _store.ListByStatus(RequestStatus.Failed).Where(r => r.LidarrAlbumId is not null).ToList();
+        if (live.Count == 0 && failed.Count == 0)
         {
             return;
         }
@@ -491,6 +500,44 @@ public sealed class RequestService
             else if (album.Monitored == false || (queueRead && imported == 0))
             {
                 await ReSearchAsync(request, lidarr, (int)lidarrId, ct).ConfigureAwait(false);
+            }
+        }
+
+        if (queueRead)
+        {
+            await RecoverFailedAsync(failed, lidarr, queued, ct).ConfigureAwait(false);
+        }
+    }
+
+    // a failed album stays monitored, so a release found after the timeout still imports; no webhook settles it since the request is no longer live.
+    // Only the album's newest request is told: an older failed one was replaced by the request the user made since
+    private async Task RecoverFailedAsync(IReadOnlyList<RequestRecord> failed, ILidarrApi lidarr, HashSet<int> queued, CancellationToken ct)
+    {
+        foreach (var request in failed)
+        {
+            var lidarrId = (int)request.LidarrAlbumId!.Value;
+            if (queued.Contains(lidarrId)
+                || !_store.Newest(new[] { request.ForeignAlbumId }).TryGetValue(request.ForeignAlbumId, out var newest)
+                || newest.Id != request.Id)
+            {
+                continue;
+            }
+
+            LidarrAlbum album;
+            try
+            {
+                album = await lidarr.GetAlbumAsync(lidarrId, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("Reconcile: reading the album failed request={Id}: {Message}", request.Id, ex.Message);
+                continue;
+            }
+
+            var (imported, total) = Counts(album);
+            if (imported > 0)
+            {
+                MarkAvailable(request, await AlbumFoldersAsync(lidarr, lidarrId, album, ct).ConfigureAwait(false), imported, total, RequestStatus.Failed);
             }
         }
     }
@@ -624,9 +671,11 @@ public sealed class RequestService
         var config = _config();
         var existing = await lidarr.GetAlbumsByForeignIdAsync(request.ForeignAlbumId, ct).ConfigureAwait(false);
         int id;
+        int artistId;
         if (existing.Count > 0)
         {
             id = existing[0].Id;
+            artistId = existing[0].ArtistId;
             try
             {
                 await lidarr.SetAnyReleaseOkAsync(id, ct).ConfigureAwait(false);
@@ -650,7 +699,7 @@ public sealed class RequestService
                         QualityProfileId = config.LidarrQualityProfileId,
                         MetadataProfileId = config.LidarrMetadataProfileId,
                         RootFolderPath = config.LidarrRootFolder,
-                        Monitored = false,
+                        Monitored = true,
                         MonitorNewItems = "none",
                         AddOptions = new LidarrAddArtistOptions { Monitor = "none", SearchForMissingAlbums = false }
                     },
@@ -658,6 +707,7 @@ public sealed class RequestService
                 },
                 ct).ConfigureAwait(false);
             id = added.Id;
+            artistId = added.ArtistId;
         }
 
         if (id == 0)
@@ -666,13 +716,44 @@ public sealed class RequestService
         }
 
         await WaitForRefreshAsync(lidarr, id, ct).ConfigureAwait(false);
+        if (await UnmonitorIfCancelledAsync(request.Id, lidarr, id, ct).ConfigureAwait(false))
+        {
+            return id;
+        }
+
+        // Lidarr keeps the flags of an artist it already holds whatever the add asks for
+        if (artistId != 0)
+        {
+            await lidarr.MonitorArtistAsync(artistId, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            _logger.LogWarning("Lidarr named no artist for the album, the artist's monitoring is unchanged request={Id} album={Album}", request.Id, id);
+        }
+
         if (existing.Count == 0 || existing[0].Monitored != true)
         {
             await lidarr.MonitorAlbumsAsync(new[] { id }, true, ct).ConfigureAwait(false);
         }
 
         await lidarr.AlbumSearchAsync(new[] { id }, ct).ConfigureAwait(false);
+
+        // a cancellation may have landed between the check above and the monitor call
+        await UnmonitorIfCancelledAsync(request.Id, lidarr, id, ct).ConfigureAwait(false);
         return id;
+    }
+
+    // a cancellation that lands during the add cannot undo what the add does next, so the add undoes it itself
+    private async Task<bool> UnmonitorIfCancelledAsync(long requestId, ILidarrApi lidarr, int albumId, CancellationToken ct)
+    {
+        if (_store.Get(requestId)?.Status != RequestStatus.Cancelled)
+        {
+            return false;
+        }
+
+        await lidarr.MonitorAlbumsAsync(new[] { albumId }, false, ct).ConfigureAwait(false);
+        _logger.LogInformation("Request cancelled during the Lidarr add, album unmonitored request={Id} album={Album}", requestId, albumId);
+        return true;
     }
 
     private void SetDownloading(RequestRecord request)
@@ -743,10 +824,10 @@ public sealed class RequestService
         return folders;
     }
 
-    private string MarkAvailable(RequestRecord request, IReadOnlyList<string> lidarrFolders, int imported, int total)
+    private string MarkAvailable(RequestRecord request, IReadOnlyList<string> lidarrFolders, int imported, int total, params string[] fromStatuses)
     {
         var from = request.Status;
-        if (!_store.Transition(request.Id, RequestStatus.Live, RequestStatus.Available, string.Empty))
+        if (!_store.Transition(request.Id, fromStatuses.Length > 0 ? fromStatuses : RequestStatus.Live, RequestStatus.Available, string.Empty))
         {
             // cancelled, failed or already imported by a concurrent event
             return $"request {request.Id}: already settled";

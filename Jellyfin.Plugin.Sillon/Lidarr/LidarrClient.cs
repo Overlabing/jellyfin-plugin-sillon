@@ -69,7 +69,7 @@ public interface ILidarrApi
     /// <returns>Zero or one album.</returns>
     Task<IReadOnlyList<LidarrAlbum>> GetAlbumsByForeignIdAsync(string foreignAlbumId, CancellationToken ct = default);
 
-    /// <summary>Adds an album (and its artist, unmonitored).</summary>
+    /// <summary>Adds an album (and its artist, when Lidarr does not hold it yet).</summary>
     /// <param name="album">The album.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The added album.</returns>
@@ -81,6 +81,12 @@ public interface ILidarrApi
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A task.</returns>
     Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default);
+
+    /// <summary>Makes Lidarr monitor an artist, writing only when the flag was off. The artist's other albums and <c>monitorNewItems</c> stay as they are.</summary>
+    /// <param name="artistId">The Lidarr artist id.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A task.</returns>
+    Task MonitorArtistAsync(int artistId, CancellationToken ct = default);
 
     /// <summary>Queues an AlbumSearch command.</summary>
     /// <param name="ids">The Lidarr album ids.</param>
@@ -197,6 +203,20 @@ public sealed class LidarrClient : ILidarrApi
     /// <inheritdoc />
     public Task MonitorAlbumsAsync(IReadOnlyList<int> ids, bool monitored, CancellationToken ct = default)
         => SendAsync<JsonElement>(HttpMethod.Put, "/api/v1/album/monitor", new { albumIds = ids, monitored }, Normal, ct, allowEmpty: true);
+
+    /// <inheritdoc />
+    public async Task MonitorArtistAsync(int artistId, CancellationToken ct = default)
+    {
+        var artist = await SendAsync<LidarrArtist>(HttpMethod.Get, $"/api/v1/artist/{artistId}", null, Normal, ct).ConfigureAwait(false);
+        if (artist.Monitored)
+        {
+            return;
+        }
+
+        // the editor only writes the fields it is sent
+        await SendAsync<JsonElement>(
+            HttpMethod.Put, "/api/v1/artist/editor", new { artistIds = new[] { artistId }, monitored = true }, Normal, ct, allowEmpty: true).ConfigureAwait(false);
+    }
 
     /// <inheritdoc />
     public Task AlbumSearchAsync(IReadOnlyList<int> ids, CancellationToken ct = default)

@@ -32,12 +32,17 @@ public class RequestsOverHttpTests
             {
                 return RefuseAdd
                     ? new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("SECRET-DETAIL") }
-                    : Json("{\"id\":41,\"foreignAlbumId\":\"alb-1\"}");
+                    : Json("{\"id\":41,\"foreignAlbumId\":\"alb-1\",\"artistId\":9}");
             }
 
             if (path == "/api/v1/album/41" && request.Method == HttpMethod.Get)
             {
                 return Json("{\"id\":41,\"duration\":240000}");
+            }
+
+            if (path == "/api/v1/artist/9" && request.Method == HttpMethod.Get)
+            {
+                return Json("{\"id\":9,\"monitored\":false}");
             }
 
             return Json("[]");
@@ -69,13 +74,15 @@ public class RequestsOverHttpTests
         var request = await service.CreateAsync(TestEnv.Input(), CancellationToken.None);
 
         Assert.Equal(41, request.LidarrAlbumId);
-        Assert.Equal(5, handler.Calls.Count);
+        Assert.Equal(7, handler.Calls.Count);
         Assert.Equal("GET /api/v1/album?includeAllArtistAlbums=false&foreignAlbumId=alb-1", handler.Calls[0]);
         Assert.StartsWith("POST /api/v1/album {\"foreignAlbumId\":\"alb-1\",\"monitored\":true,", handler.Calls[1]);
         Assert.Contains("\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/data/media/music\"", handler.Calls[1]);
         Assert.Equal("GET /api/v1/album/41", handler.Calls[2]);
-        Assert.Equal("PUT /api/v1/album/monitor {\"albumIds\":[41],\"monitored\":true}", handler.Calls[3]);
-        Assert.Equal("POST /api/v1/command {\"name\":\"AlbumSearch\",\"albumIds\":[41]}", handler.Calls[4]);
+        Assert.Equal("GET /api/v1/artist/9", handler.Calls[3]);
+        Assert.Equal("PUT /api/v1/artist/editor {\"artistIds\":[9],\"monitored\":true}", handler.Calls[4]);
+        Assert.Equal("PUT /api/v1/album/monitor {\"albumIds\":[41],\"monitored\":true}", handler.Calls[5]);
+        Assert.Equal("POST /api/v1/command {\"name\":\"AlbumSearch\",\"albumIds\":[41]}", handler.Calls[6]);
     }
 
     [Fact]

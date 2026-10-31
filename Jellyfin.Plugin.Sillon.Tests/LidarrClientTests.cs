@@ -221,7 +221,7 @@ public class LidarrClientTests
     }
 
     [Fact]
-    public async Task AddAlbum_PostsTheUnmonitoredArtistPayload()
+    public async Task AddAlbum_PostsTheMonitoredArtistPayload()
     {
         var (client, handler) = Make(_ => Json("{\"id\":41,\"foreignAlbumId\":\"m\"}"));
 
@@ -230,14 +230,38 @@ public class LidarrClientTests
             ForeignAlbumId = "m",
             Monitored = true,
             AnyReleaseOk = true,
-            Artist = new LidarrAddArtist { ForeignArtistId = "a", QualityProfileId = 2, MetadataProfileId = 1, RootFolderPath = "/music" }
+            Artist = new LidarrAddArtist { ForeignArtistId = "a", QualityProfileId = 2, MetadataProfileId = 1, RootFolderPath = "/music", Monitored = true }
         });
 
         Assert.Equal(41, added.Id);
         Assert.Equal(HttpMethod.Post, handler.Requests[0].Method);
         Assert.Equal(
-            "{\"foreignAlbumId\":\"m\",\"monitored\":true,\"anyReleaseOk\":true,\"artist\":{\"foreignArtistId\":\"a\",\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/music\",\"monitored\":false,\"monitorNewItems\":\"none\",\"addOptions\":{\"monitor\":\"none\",\"searchForMissingAlbums\":false}},\"addOptions\":{\"searchForNewAlbum\":false}}",
+            "{\"foreignAlbumId\":\"m\",\"monitored\":true,\"anyReleaseOk\":true,\"artist\":{\"foreignArtistId\":\"a\",\"qualityProfileId\":2,\"metadataProfileId\":1,\"rootFolderPath\":\"/music\",\"monitored\":true,\"monitorNewItems\":\"none\",\"addOptions\":{\"monitor\":\"none\",\"searchForMissingAlbums\":false}},\"addOptions\":{\"searchForNewAlbum\":false}}",
             handler.Bodies[0]);
+    }
+
+    [Fact]
+    public async Task MonitorArtist_OfAnUnmonitoredArtist_WritesOnlyTheMonitoredFlag()
+    {
+        var (client, handler) = Make(r => Json(r.Method == HttpMethod.Get ? "{\"id\":7,\"monitored\":false,\"monitorNewItems\":\"all\"}" : "[]"));
+
+        await client.MonitorArtistAsync(7);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("/api/v1/artist/7", handler.Requests[0].RequestUri!.AbsolutePath);
+        Assert.Equal(HttpMethod.Put, handler.Requests[1].Method);
+        Assert.Equal("/api/v1/artist/editor", handler.Requests[1].RequestUri!.AbsolutePath);
+        Assert.Equal("{\"artistIds\":[7],\"monitored\":true}", handler.Bodies[1]);
+    }
+
+    [Fact]
+    public async Task MonitorArtist_OfAMonitoredArtist_DoesNotWrite()
+    {
+        var (client, handler) = Make(_ => Json("{\"id\":7,\"monitored\":true}"));
+
+        await client.MonitorArtistAsync(7);
+
+        Assert.Equal(HttpMethod.Get, Assert.Single(handler.Requests).Method);
     }
 
     [Fact]
