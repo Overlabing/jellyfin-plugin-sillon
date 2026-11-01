@@ -18,18 +18,16 @@ public sealed class CatalogService
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
 
-    // the app gives up on a search after 20 seconds, and Lidarr's lookups still have to run after this
-    private static readonly TimeSpan DefaultHintBudget = TimeSpan.FromSeconds(6);
+    // Lidarr's votes on an artist named exactly as typed, from which the text is taken to mean the artist and no song is looked for. A real artist people
+    // vote on has dozens (Radiohead); DJ Snake has 1, and a song title's namesake has few, so those keep the song search: too low costs a request, too high loses nothing.
+    private const int SureArtistVotes = 10;
 
-    // the plain search has no hints to fall back on, and MusicBrainz can ask it to wait: a little longer, within the same 20 seconds
-    private static readonly TimeSpan PlainTrackBudget = TimeSpan.FromSeconds(9);
+    // what a search has in all: what is known by then is its answer. The app gives up after 20 seconds, which is far too long to look at a spinner
+    private static readonly TimeSpan DefaultSearchDeadline = TimeSpan.FromSeconds(5);
 
     // the artist page, from its first request; what is left of the 20 seconds goes to the search by name
     private static readonly TimeSpan DefaultArtistBudget = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan NameSearchBudget = TimeSpan.FromSeconds(3);
-
-    // runs beside the song search, which has its own budgets
-    private static readonly TimeSpan DefaultSearchBudget = TimeSpan.FromSeconds(8);
 
     private readonly ILidarrProvider _lidarr;
     private readonly RequestStore _requests;
@@ -39,9 +37,8 @@ public sealed class CatalogService
     private readonly IMusicBrainzApi? _musicBrainz;
     private readonly Func<DateTimeOffset> _now;
     private readonly ITrackHints? _hints;
-    private readonly TimeSpan _hintBudget;
+    private readonly TimeSpan _searchDeadline;
     private readonly TimeSpan _artistBudget;
-    private readonly TimeSpan _searchBudget;
     private readonly ArtistDiscography? _discography;
     private readonly SemaphoreSlim _catalogLock = new(1, 1);
     private string? _catalogKey;
@@ -57,8 +54,8 @@ public sealed class CatalogService
     /// <param name="musicBrainz">MusicBrainz, for the search by track title; without it a search only matches artist and album names.</param>
     /// <param name="now">The clock; the system clock when null.</param>
     /// <param name="hints">The popularity hints, only asked when the administrator turned them on.</param>
-    /// <param name="hintBudget">How long the hints may take in all, keeping what they found by then; 6 seconds when null.</param>
-    /// <param name="discographyBudget">How long listing an artist's albums may take, keeping what it found by then; 15 seconds for the artist page and 8 for a search when null.</param>
+    /// <param name="searchDeadline">How long a search may take, its answer being what is known by then; 5 seconds when null.</param>
+    /// <param name="discographyBudget">How long the artist page's list of albums may take, keeping what it found by then; 15 seconds when null.</param>
     /// <param name="metadata">Lidarr's metadata service, for the whole list of an artist's albums at once; MusicBrainz and a lookup per album when null, or when it does not answer.</param>
     /// <param name="browseWait">How long the metadata service's list waits for the joint albums MusicBrainz adds to it; 3 seconds when null.</param>
     public CatalogService(
@@ -70,15 +67,14 @@ public sealed class CatalogService
         IMusicBrainzApi? musicBrainz = null,
         Func<DateTimeOffset>? now = null,
         ITrackHints? hints = null,
-        TimeSpan? hintBudget = null,
+        TimeSpan? searchDeadline = null,
         TimeSpan? discographyBudget = null,
         IArtistMetadata? metadata = null,
         TimeSpan? browseWait = null)
     {
         _artistBudget = discographyBudget ?? DefaultArtistBudget;
-        _searchBudget = discographyBudget ?? DefaultSearchBudget;
         _hints = hints;
-        _hintBudget = hintBudget ?? DefaultHintBudget;
+        _searchDeadline = searchDeadline ?? DefaultSearchDeadline;
         _musicBrainz = musicBrainz;
         _now = now ?? (() => DateTimeOffset.UtcNow);
         _lidarr = lidarr;
@@ -89,37 +85,22 @@ public sealed class CatalogService
         _discography = musicBrainz is null ? null : new ArtistDiscography(musicBrainz, _now, metadata, browseWait);
     }
 
-    /// <summary>Searches artists and albums.</summary>
+    /// <summary>Searches artists and albums. Everything has one deadline, and what is known by then is the answer: whatever failed or ran out of time only costs its own results.</summary>
     /// <param name="query">The search text.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The artists and albums.</returns>
-    /// <exception cref="CatalogException">The catalogue is unavailable.</exception>
+    /// <exception cref="CatalogException">The catalogue is unavailable, and nothing else could answer.</exception>
     public async Task<CatalogSearchResult> SearchAsync(string query, CancellationToken ct)
     {
         var lidarr = RequireLidarr();
         var config = _config();
         var allowed = config.AllowedReleaseGroups();
-        var lookup = LookupAlbumsOrNoneAsync(lidarr, query, ct);
-        var trackHits = TrackAlbumsOrNoneAsync(query, config, ct);
-        IReadOnlyList<LidarrSearchItem> items;
-        try
-        {
-            items = await lidarr.SearchAsync(query, ct).ConfigureAwait(false);
-        }
-        catch (LidarrException ex)
-        {
-            _logger.LogError("Lidarr search failed: {Message}", ex.Message);
-            await lookup.ConfigureAwait(false);
-
-            // the cached allow-list catalogue can still answer
-            if (allowed.Count == 0)
-            {
-                throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
-            }
-
-            items = Array.Empty<LidarrSearchItem>();
-            lookup = Task.FromResult<IReadOnlyList<LidarrAlbum>>(Array.Empty<LidarrAlbum>());
-        }
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(_searchDeadline);
+        var lookup = LookupAlbumsOrNoneAsync(lidarr, query, deadline.Token, ct);
+        var search = SearchOrFailedAsync(lidarr, query, deadline.Token, ct);
+        var trackHits = TrackAlbumsOrNoneAsync(query, config, search, deadline.Token, ct);
+        var (items, failed) = await search.ConfigureAwait(false);
 
         var artists = new List<CatalogArtist>();
         var albums = new List<LidarrAlbum>();
@@ -128,7 +109,10 @@ public sealed class CatalogService
 
         // only worth asking for when the query names an artist, and never when the catalogue is limited to a list
         var named = allowed.Count == 0 ? NamedArtist(items, query) : null;
-        var studio = named is null ? Task.FromResult<IReadOnlyList<LidarrAlbum>>(Array.Empty<LidarrAlbum>()) : StudioAlbumsAsync(lidarr, named, config, ct);
+        var studio = named is null ? Task.FromResult<IReadOnlyList<LidarrAlbum>>(Array.Empty<LidarrAlbum>()) : StudioAlbumsAsync(lidarr, named, config, deadline.Token, ct);
+
+        // the list is resolved through Lidarr as a whole and kept, whatever one search has left: without this, a long one would never get to the end of it
+        var listed = allowed.Count > 0 ? await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false) : Array.Empty<LidarrAlbum>();
 
         void Add(LidarrAlbum album)
         {
@@ -157,15 +141,22 @@ public sealed class CatalogService
             }
         }
 
-        // the albums that hold the track searched for, resolved through Lidarr so a request takes the usual path
+        // the albums that hold the track searched for, as MusicBrainz tells them: a request goes through Lidarr by the ids alone. An allowed album stays exactly what the list resolved
         var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
         var hits = (await trackHits.ConfigureAwait(false)).Where(h => allowed.Count == 0 || allowed.Contains(h.ReleaseGroupId)).Take(MaxTrackAlbums).ToList();
+        var trackAlbums = new List<LidarrAlbum>(hits.Count);
         foreach (var hit in hits)
         {
             tracks[hit.ReleaseGroupId] = hit;
+            if (allowed.Count == 0)
+            {
+                trackAlbums.Add(ArtistDiscography.ToAlbum(hit.Group!));
+            }
+            else if (listed.FirstOrDefault(a => a.ForeignAlbumId.Equals(hit.ReleaseGroupId, StringComparison.OrdinalIgnoreCase)) is { } album)
+            {
+                trackAlbums.Add(album);
+            }
         }
-
-        var trackAlbums = await ResolveTrackAlbumsAsync(lidarr, hits, ct).ConfigureAwait(false);
 
         // a popular artist's album comes before the many same-title albums Lidarr knows
         foreach (var album in trackAlbums.Where(a => tracks[a.ForeignAlbumId].Hinted))
@@ -209,7 +200,7 @@ public sealed class CatalogService
         if (allowed.Count > 0)
         {
             // Lidarr answers a search by artist name with the artist alone: match the cached allowed albums too
-            foreach (var album in await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false))
+            foreach (var album in listed)
             {
                 if (Matches(album.Title, query) || Matches(album.Artist?.ArtistName, query))
                 {
@@ -224,6 +215,12 @@ public sealed class CatalogService
             // an artist is offered only through an allowed album
             var offered = albums.Select(a => a.Artist?.ForeignArtistId).ToHashSet(StringComparer.Ordinal);
             artists.RemoveAll(a => !offered.Contains(a.Mbid));
+        }
+
+        // only what answers nothing at all is a failure: Lidarr being down must not hide what MusicBrainz gave
+        if (failed && albums.Count == 0 && artists.Count == 0 && allowed.Count == 0)
+        {
+            throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
         }
 
         return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null, tracks));
@@ -490,126 +487,47 @@ public sealed class CatalogService
         => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
 
     /// <summary>
-    /// Among entries of one artist that share a normalized title (case, diacritics and punctuation folded), drops the lesser kinds of release:
-    /// only the best kind present survives (Album, else EP, else Single, else anything else). Albums are never dropped for one another: cast recordings,
-    /// soundtracks, live albums and re-recordings are distinct release groups that share a title, so all of them stay, the most likely one first
-    /// (no secondary type, then more releases, more tracks, the earlier date). The ordered siblings take the places the group held in the list.
-    /// Entries without a same-title sibling, and entries without an artist id, are untouched.
+    /// Drops the EPs, singles and the like of an artist that has an album of the same title (case, diacritics and punctuation aside). Same-title albums are distinct release groups
+    /// (cast recordings, soundtracks, live albums), so all stay, the most likely one first: Lidarr's order can open "Les Misérables" on a Japanese cast. They take the places the group held.
     /// </summary>
     /// <param name="albums">The albums found by a search.</param>
-    /// <returns>The albums without the same-title lesser kinds, same-title albums ordered by likelihood.</returns>
+    /// <returns>The albums without the lesser kinds, same-title albums ordered by likelihood.</returns>
     public static IReadOnlyList<LidarrAlbum> PreferFullRelease(IReadOnlyList<LidarrAlbum> albums)
     {
-        var groups = new Dictionary<(string Artist, string Title), List<LidarrAlbum>>();
-        foreach (var album in albums)
-        {
-            if (album.Artist is not { ForeignArtistId.Length: > 0 } artist || NormalizeTitle(album.Title).Length == 0)
-            {
-                continue;
-            }
+        static bool IsAlbum(LidarrAlbum album) => album.AlbumType.Trim().Equals("album", StringComparison.OrdinalIgnoreCase);
+        static (string Artist, string Title)? KeyOf(LidarrAlbum album)
+            => album.Artist is { ForeignArtistId.Length: > 0 } artist && TrackQuery.Fold(album.Title) is { Length: > 0 } title ? (artist.ForeignArtistId, title) : null;
 
-            var key = (artist.ForeignArtistId, NormalizeTitle(album.Title));
-            if (!groups.TryGetValue(key, out var group))
-            {
-                groups[key] = group = new List<LidarrAlbum>();
-            }
-
-            group.Add(album);
-        }
-
-        var ordered = groups.ToDictionary(
-            g => g.Key,
-            g =>
-            {
-                var best = g.Value.Min(KindRank);
-                return new Queue<LidarrAlbum>(g.Value
-                    .Where(a => KindRank(a) == best)
-                    .OrderBy(a => a.SecondaryTypes is { Count: > 0 } ? 1 : 0)
-                    .ThenByDescending(ReleaseCount)
-                    .ThenByDescending(OfficialCount)
-                    .ThenByDescending(TrackCount)
-                    .ThenBy(DateOf));
-            });
-
+        var sameTitle = albums
+            .Where(a => IsAlbum(a) && KeyOf(a) is not null)
+            .GroupBy(a => KeyOf(a)!.Value)
+            .ToDictionary(g => g.Key, g => new Queue<LidarrAlbum>(g.OrderBy(a => a.SecondaryTypes is { Count: > 0 } ? 1 : 0).ThenByDescending(a => a.Releases?.Count ?? 0).ThenBy(DateOf)));
         var result = new List<LidarrAlbum>(albums.Count);
         foreach (var album in albums)
         {
-            if (album.Artist is not { ForeignArtistId.Length: > 0 } artist || NormalizeTitle(album.Title).Length == 0)
+            if (KeyOf(album) is not { } key || (!IsAlbum(album) && !sameTitle.ContainsKey(key)))
             {
                 result.Add(album);
-                continue;
             }
-
-            var group = groups[(artist.ForeignArtistId, NormalizeTitle(album.Title))];
-            if (KindRank(album) != group.Min(KindRank))
+            else if (IsAlbum(album))
             {
-                continue;
+                result.Add(sameTitle[key].Dequeue());
             }
-
-            result.Add(ordered[(artist.ForeignArtistId, NormalizeTitle(album.Title))].Dequeue());
         }
 
         return result;
     }
-
-    private static int KindRank(LidarrAlbum album)
-        => album.AlbumType.Trim().ToLowerInvariant() switch
-        {
-            "album" => 0,
-            "ep" => 1,
-            "single" => 2,
-            _ => 3,
-        };
-
-    private static int ReleaseCount(LidarrAlbum album) => album.Releases?.Count ?? 0;
-
-    private static int OfficialCount(LidarrAlbum album)
-        => album.Releases?.Count(r => r.Status.Equals("Official", StringComparison.OrdinalIgnoreCase)) ?? 0;
-
-    private static int TrackCount(LidarrAlbum album)
-        => album.Releases is { Count: > 0 } releases ? releases.Max(r => r.TrackCount) : 0;
-
-    /// <summary>What tells an album from its same-title siblings: the release group's disambiguation, else that of its first release.</summary>
-    private static string DisambiguationOf(LidarrAlbum album)
-        => album.Disambiguation.Trim().Length > 0
-            ? album.Disambiguation
-            : album.Releases?.Select(r => r.Disambiguation.Trim()).FirstOrDefault(d => d.Length > 0) ?? string.Empty;
 
     private static DateTime DateOf(LidarrAlbum album)
         => album.ReleaseDate is { Length: > 0 } text && DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var date)
             ? date
             : DateTime.MaxValue;
 
-    /// <summary>Folds a title for comparison: case, diacritics and punctuation are ignored, spaces collapsed.</summary>
-    private static string NormalizeTitle(string? title)
-    {
-        var builder = new System.Text.StringBuilder();
-        var pendingSpace = false;
-        foreach (var c in (title ?? string.Empty).Normalize(System.Text.NormalizationForm.FormKD))
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            if (char.IsLetterOrDigit(c))
-            {
-                if (pendingSpace && builder.Length > 0)
-                {
-                    builder.Append(' ');
-                }
-
-                pendingSpace = false;
-                builder.Append(char.ToLowerInvariant(c));
-            }
-            else if (char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c))
-            {
-                pendingSpace = true;
-            }
-        }
-
-        return builder.ToString();
-    }
+    /// <summary>What tells an album from its same-title siblings: the release group's disambiguation, else that of its first release.</summary>
+    private static string DisambiguationOf(LidarrAlbum album)
+        => album.Disambiguation.Trim().Length > 0
+            ? album.Disambiguation
+            : album.Releases?.Select(r => r.Disambiguation.Trim()).FirstOrDefault(d => d.Length > 0) ?? string.Empty;
 
     private static bool Matches(string? text, string query)
         => !string.IsNullOrEmpty(text)
@@ -680,173 +598,125 @@ public sealed class CatalogService
             || (config.HideEps && type.Equals("ep", StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task<IReadOnlyList<TrackAlbum>> TrackAlbumsOrNoneAsync(string query, PluginConfiguration config, CancellationToken ct)
+    /// <summary>
+    /// The albums that hold the song searched for: those of the artists the hints name when they give any, else those of the title alone, unless Lidarr shows
+    /// the text is an artist's name. At most one question to MusicBrainz, two when one about the hinted artists finds nothing. Whatever goes wrong only costs the song results.
+    /// </summary>
+    private async Task<IReadOnlyList<TrackAlbum>> TrackAlbumsOrNoneAsync(string query, PluginConfiguration config, Task<(IReadOnlyList<LidarrSearchItem> Items, bool Failed)> search, CancellationToken deadline, CancellationToken ct)
     {
         if (_musicBrainz is null || !config.SearchTracks || TrackQuery.Parse(query) is not { } parsed)
         {
             return Array.Empty<TrackAlbum>();
         }
 
-        // the deadline starts now, whatever the hints take, and they are limited to less
-        using var plainBudget = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        plainBudget.CancelAfter(_hintBudget > PlainTrackBudget ? _hintBudget : PlainTrackBudget);
-        if (_hints is null || !config.DeezerPopularityHints || parsed.Artist is not null)
-        {
-            var alone = await PlainTrackAlbumsAsync(_musicBrainz, parsed, config, plainBudget.Token, ct).ConfigureAwait(false);
-            WarnIfIncomplete(alone.Failure is null ? 0 : 1, alone.Failure);
-            return alone.Albums;
-        }
-
-        // the hints first: MusicBrainz declines a good part of its searches at times, and these are the answers a retry should not cost
-        var hinted = await HintedTrackAlbumsAsync(_hints, _musicBrainz, parsed.Title, config, ct).ConfigureAwait(false);
-        var answer = await PlainTrackAlbumsAsync(_musicBrainz, parsed, config, plainBudget.Token, ct).ConfigureAwait(false);
-        WarnIfIncomplete(hinted.Missed + (answer.Failure is null ? 0 : 1), hinted.Failure ?? answer.Failure);
-        return TrackSearch.WithHints(hinted.Found, answer.Albums);
-    }
-
-    /// <summary>One line per search, however many requests and retries it took: the results are short, and the next search asks again.</summary>
-    private void WarnIfIncomplete(int missed, string? reason)
-    {
-        if (missed > 0)
-        {
-            _logger.LogWarning("Song search incomplete, {Missed} MusicBrainz lookups without an answer ({Reason}): returning the other results", missed, reason);
-        }
-    }
-
-    private async Task<(IReadOnlyList<TrackAlbum> Albums, string? Failure)> PlainTrackAlbumsAsync(IMusicBrainzApi musicBrainz, TrackQuery parsed, PluginConfiguration config, CancellationToken budget, CancellationToken ct)
-    {
         try
         {
-            var recordings = await musicBrainz.SearchRecordingsAsync(parsed, budget).ConfigureAwait(false);
-            return (TrackSearch.Albums(recordings, parsed, config.HideEps), null);
+            if (_hints is not null && config.DeezerPopularityHints && parsed.Artist is null)
+            {
+                var hinted = await HintedTrackAlbumsAsync(_hints, _musicBrainz, parsed.Title, config, deadline, ct).ConfigureAwait(false);
+                if (hinted.Count > 0)
+                {
+                    return hinted;
+                }
+            }
+
+            var (items, _) = await search.ConfigureAwait(false);
+            if (NamesASureArtist(items, query))
+            {
+                return Array.Empty<TrackAlbum>();
+            }
+
+            return TrackSearch.Albums(await _musicBrainz.SearchRecordingsAsync(parsed, deadline).ConfigureAwait(false), parsed, config.HideEps);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return (Array.Empty<TrackAlbum>(), OutOfTime);
+            WarnSongSearchIncomplete(OutOfTime);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            return (Array.Empty<TrackAlbum>(), ex.Message);
+            WarnSongSearchIncomplete(ex is MusicBrainzUnavailableException ? ex.Message : ex.GetType().Name);
         }
+
+        return Array.Empty<TrackAlbum>();
     }
 
-    /// <summary>
-    /// The albums of the artists the hints name, one query per artist through MusicBrainz's queue and its cache; whatever goes wrong or runs out of
-    /// time only costs the hints not found yet. When MusicBrainz asks to slow down the remaining artists are not asked for: it would not help,
-    /// and a lesser artist must not pass for the best known one.
-    /// </summary>
-    private async Task<(IReadOnlyList<IReadOnlyList<TrackAlbum>> Found, int Missed, string? Failure)> HintedTrackAlbumsAsync(ITrackHints hints, IMusicBrainzApi musicBrainz, string title, PluginConfiguration config, CancellationToken ct)
+    /// <summary>One line per search, however many requests and retries it took: the results are short, and the next search asks again.</summary>
+    private void WarnSongSearchIncomplete(string reason)
+        => _logger.LogWarning("Song search incomplete, no answer from MusicBrainz ({Reason}): returning the other results", reason);
+
+    /// <summary>The albums of the artists the hints name, all asked for in one question through MusicBrainz's queue and its cache. A hint service that fails, or knows nothing, gives nothing, which leaves the plain path.</summary>
+    private async Task<IReadOnlyList<TrackAlbum>> HintedTrackAlbumsAsync(ITrackHints hints, IMusicBrainzApi musicBrainz, string title, PluginConfiguration config, CancellationToken deadline, CancellationToken ct)
     {
-        var found = new List<IReadOnlyList<TrackAlbum>>();
-        IReadOnlyList<string> artists = Array.Empty<string>();
-        var answered = 0;
-        string? failure = null;
-        using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        budget.CancelAfter(_hintBudget);
+        IReadOnlyList<string> artists;
         try
         {
-            artists = await hints.ArtistsForTitleAsync(title, budget.Token).ConfigureAwait(false);
-            foreach (var artist in artists)
-            {
-                var query = new TrackQuery(title, artist, AnySpelling: true);
-                try
-                {
-                    var recordings = await musicBrainz.SearchRecordingsAsync(query, budget.Token).ConfigureAwait(false);
-                    found.Add(TrackSearch.Albums(recordings, query, config.HideEps));
-                    answered++;
-                }
-                catch (MusicBrainzUnavailableException ex)
-                {
-                    failure = ex.Message;
-                    if (ex.Busy)
-                    {
-                        break;
-                    }
-                }
-            }
+            artists = await hints.ArtistsForTitleAsync(title, deadline).ConfigureAwait(false);
         }
-        catch (Exception ex) when (!ct.IsCancellationRequested)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            failure ??= ex is OperationCanceledException ? OutOfTime : ex.GetType().Name;
-            _logger.LogDebug("Track hints stopped early: {Reason}", ex.GetType().Name);
+            _logger.LogDebug("Track hints failed: {Reason}", ex.GetType().Name);
+            return Array.Empty<TrackAlbum>();
         }
 
-        return (found, artists.Count - answered, failure);
+        if (artists.Count == 0)
+        {
+            return Array.Empty<TrackAlbum>();
+        }
+
+        var question = new TrackQuery(title, artists[0], AnySpelling: true, OtherArtists: artists.Skip(1).ToList());
+        return TrackSearch.Hinted(await musicBrainz.SearchRecordingsAsync(question, deadline).ConfigureAwait(false), question, config.HideEps);
     }
 
-    /// <summary>Looks the release groups up by id (<c>lidarr:&lt;mbid&gt;</c>), a few at a time to spare Lidarr's upstream; the order of the hits is kept and a failed lookup is skipped.</summary>
-    private async Task<IReadOnlyList<LidarrAlbum>> ResolveTrackAlbumsAsync(ILidarrApi lidarr, IReadOnlyList<TrackAlbum> hits, CancellationToken ct)
+    /// <summary>Whether Lidarr's first artist is called exactly what was typed, with the votes to show it is who was meant.</summary>
+    private static bool NamesASureArtist(IReadOnlyList<LidarrSearchItem> items, string query)
     {
-        using var gate = new SemaphoreSlim(3);
-        var lookups = hits.Select(async hit =>
-        {
-            await gate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                return (await lidarr.LookupAlbumsAsync("lidarr:" + hit.ReleaseGroupId, ct).ConfigureAwait(false))
-                    .FirstOrDefault(a => string.Equals(a.ForeignAlbumId, hit.ReleaseGroupId, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (LidarrException ex)
-            {
-                _logger.LogWarning("Lidarr lookup of the track album {Album} failed: {Message}", hit.ReleaseGroupId, ex.Message);
-                return null;
-            }
-            finally
-            {
-                gate.Release();
-            }
-        }).ToList();
-        return (await Task.WhenAll(lookups).ConfigureAwait(false)).OfType<LidarrAlbum>().ToList();
+        var top = items.Select(i => i.Artist).OfType<LidarrArtist>().FirstOrDefault(a => a.ForeignArtistId.Length > 0);
+        return top is { Ratings.Votes: >= SureArtistVotes } && TrackQuery.Fold(top.ArtistName) == TrackQuery.Fold(query) && TrackQuery.Fold(query).Length > 0;
     }
 
     /// <summary>
     /// The artist a query names: Lidarr's first artist must be called exactly that (case, diacritics and punctuation aside), or the query is taken for something else.
-    /// Among namesakes, the one with the most votes, then the one Lidarr holds, then the first listed.
+    /// Among namesakes, the one with the most votes, then the one Lidarr holds, then the first listed. Nobody when that one has no votes and Lidarr does not hold it: nothing says it is who was meant.
     /// </summary>
     private static LidarrArtist? NamedArtist(IReadOnlyList<LidarrSearchItem> items, string query)
     {
-        var wanted = NormalizeTitle(query);
+        var wanted = TrackQuery.Fold(query);
         var artists = items.Select(i => i.Artist).OfType<LidarrArtist>().Where(a => a.ForeignArtistId.Length > 0).ToList();
-        if (wanted.Length == 0 || artists.Count == 0 || NormalizeTitle(artists[0].ArtistName) != wanted)
+        if (wanted.Length == 0 || artists.Count == 0 || TrackQuery.Fold(artists[0].ArtistName) != wanted)
         {
             return null;
         }
 
-        return artists
-            .Where(a => NormalizeTitle(a.ArtistName) == wanted)
+        var named = artists
+            .Where(a => TrackQuery.Fold(a.ArtistName) == wanted)
             .OrderByDescending(a => a.Ratings?.Votes ?? 0)
             .ThenByDescending(a => a.Id > 0)
             .First();
+        return named.Id > 0 || (named.Ratings?.Votes ?? 0) > 0 ? named : null;
     }
 
-    /// <summary>The studio albums of the artist a search names, from Lidarr when it holds the artist, else as on the artist page; nothing, rather than a failure, when they cannot be had.</summary>
-    private async Task<IReadOnlyList<LidarrAlbum>> StudioAlbumsAsync(ILidarrApi lidarr, LidarrArtist artist, PluginConfiguration config, CancellationToken ct)
+    /// <summary>The studio albums of the artist a search names, from Lidarr when it holds the artist, else from the metadata service's one answer; nothing, rather than a failure, when they cannot be had.</summary>
+    private async Task<IReadOnlyList<LidarrAlbum>> StudioAlbumsAsync(ILidarrApi lidarr, LidarrArtist artist, PluginConfiguration config, CancellationToken deadline, CancellationToken ct)
     {
-        IEnumerable<LidarrAlbum> albums = Array.Empty<LidarrAlbum>();
-        if (artist.Id > 0)
+        try
         {
-            try
+            if (artist.Id > 0)
             {
-                albums = await lidarr.GetAlbumsByArtistAsync(artist.Id, ct).ConfigureAwait(false);
-            }
-            catch (LidarrException ex)
-            {
-                _logger.LogWarning("Lidarr albums of the artist failed: {Message}", ex.Message);
-            }
-        }
-        else if (_discography is not null)
-        {
-            var answer = await _discography.AlbumsAsync(lidarr, artist.ForeignArtistId, config, ArtistDiscography.Search(_searchBudget), ct).ConfigureAwait(false);
-            WarnIfDiscographyIncomplete(answer);
-            if (answer.Listed)
-            {
-                return answer.Albums;
+                return ArtistDiscography.BestStudioAlbums(await lidarr.GetAlbumsByArtistAsync(artist.Id, deadline).ConfigureAwait(false));
             }
 
-            albums = answer.Albums;
+            return _discography is null ? Array.Empty<LidarrAlbum>() : await _discography.ListedStudioAlbumsAsync(artist.ForeignArtistId, config, deadline).ConfigureAwait(false);
+        }
+        catch (LidarrException ex)
+        {
+            _logger.LogWarning("Lidarr albums of the artist failed: {Message}", ex.Message);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Artist albums incomplete: {Reason}", OutOfTime);
         }
 
-        return ArtistDiscography.BestStudioAlbums(albums);
+        return Array.Empty<LidarrAlbum>();
     }
 
     private void WarnIfDiscographyIncomplete(DiscographyAnswer answer)
@@ -857,17 +727,40 @@ public sealed class CatalogService
         }
     }
 
-    private async Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsOrNoneAsync(ILidarrApi lidarr, string query, CancellationToken ct)
+    private async Task<IReadOnlyList<LidarrAlbum>> LookupAlbumsOrNoneAsync(ILidarrApi lidarr, string query, CancellationToken deadline, CancellationToken ct)
     {
         try
         {
-            return await lidarr.LookupAlbumsAsync(query, ct).ConfigureAwait(false);
+            return await lidarr.LookupAlbumsAsync(query, deadline).ConfigureAwait(false);
         }
         catch (LidarrException ex)
         {
             _logger.LogWarning("Lidarr album lookup failed: {Message}", ex.Message);
-            return Array.Empty<LidarrAlbum>();
         }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning("Lidarr album lookup failed: {Message}", OutOfTime);
+        }
+
+        return Array.Empty<LidarrAlbum>();
+    }
+
+    private async Task<(IReadOnlyList<LidarrSearchItem> Items, bool Failed)> SearchOrFailedAsync(ILidarrApi lidarr, string query, CancellationToken deadline, CancellationToken ct)
+    {
+        try
+        {
+            return (await lidarr.SearchAsync(query, deadline).ConfigureAwait(false), false);
+        }
+        catch (LidarrException ex)
+        {
+            _logger.LogError("Lidarr search failed: {Message}", ex.Message);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError("Lidarr search failed: {Message}", OutOfTime);
+        }
+
+        return (Array.Empty<LidarrSearchItem>(), true);
     }
 
     private static CatalogArtist ToArtist(LidarrArtist artist)

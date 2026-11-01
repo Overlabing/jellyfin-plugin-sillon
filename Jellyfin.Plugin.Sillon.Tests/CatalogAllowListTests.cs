@@ -40,7 +40,7 @@ public class CatalogAllowListTests
         => new(new HttpClient(new Handler(respond)), "1.0.0.0", NullLogger.Instance, delay: (_, _) => Task.CompletedTask, baseUrl: "https://mb.test");
 
     private static string Recording(string artist, string groupId) => $$$"""
-        {"recordings":[{"id":"r","score":100,"title":"Creep","artist-credit":[{"name":"{{{artist}}}"}],
+        {"recordings":[{"id":"r","score":100,"title":"Creep","artist-credit":[{"name":"{{{artist}}}","artist":{"id":"id-{{{artist}}}","name":"{{{artist}}}"}}],
           "releases":[{"id":"x","title":"A","date":"1993","release-group":{"id":"{{{groupId}}}","title":"A","primary-type":"Album"}}]}]}
         """;
 
@@ -84,7 +84,7 @@ public class CatalogAllowListTests
         using var env = DirectionlessEnv();
         var outside = string.Concat(Enumerable.Range(0, 12).Select(i => $$$"""{"release-group":{"id":"out-{{{i}}}","title":"O","primary-type":"Album"}},"""));
         var body = $$$"""
-            {"recordings":[{"id":"r","score":100,"title":"Directionless","artist-credit":[{"name":"Broke For Free"}],
+            {"recordings":[{"id":"r","score":100,"title":"Directionless","artist-credit":[{"name":"Broke For Free","artist":{"id":"id-bff","name":"Broke For Free"}}],
               "releases":[{{{outside}}}{"release-group":{"id":"{{{Directionless}}}","title":"Directionless","primary-type":"EP"}}]}]}
             """;
 
@@ -149,6 +149,47 @@ public class CatalogAllowListTests
         var result = await Catalog(env).SearchAsync("Directionless", CancellationToken.None);
 
         Assert.Equal(LostAndDirectionless, Assert.Single(result.Albums).Mbid);
+    }
+
+    [Theory]
+    [InlineData("Creep", "Radiohead", PabloHoney)]
+    [InlineData("DJ Snake", "DJ Snake", PabloHoney)]
+    public async Task AllowList_AnythingElse_GivesNoAlbum(string query, string artist, string found)
+    {
+        using var env = DirectionlessEnv();
+        env.Lidarr.OnSearch = _ => Fixture<List<LidarrSearchItem>>("lidarr_search_dj_snake.json");
+        var listed = env.Lidarr.OnLookup;
+        env.Lidarr.OnLookup = term => term.StartsWith("lidarr:", StringComparison.Ordinal) ? listed(term) : Fixture<List<LidarrAlbum>>("lidarr_lookup_pablo_honey.json");
+        var mb = MusicBrainz((_, _) => Ok(Recording(artist, found)));
+
+        var result = await Catalog(env, mb).SearchAsync(query, CancellationToken.None);
+
+        Assert.Empty(result.Albums);
+    }
+
+    [Fact]
+    public async Task AllowList_BrokeForFree_GivesDirectionlessOnly_AsLidarrResolvedIt()
+    {
+        using var env = DirectionlessEnv();
+        var mb = MusicBrainz((_, _) => Ok("""{"recordings":[]}"""));
+
+        var album = Assert.Single((await Catalog(env, mb).SearchAsync("Broke For Free", CancellationToken.None)).Albums);
+
+        Assert.Equal((Directionless, "EP", 1), (album.Mbid, album.AlbumType, album.DiscCount));
+        Assert.True(album.TrackCount > 0);
+    }
+
+    [Fact]
+    public async Task AllowList_ASongHitOnAListedAlbum_IsTheAlbumAsLidarrResolvedIt_NotAsMusicBrainzTellsIt()
+    {
+        using var env = DirectionlessEnv();
+        var mb = MusicBrainz((_, _) => Ok(Recording("Broke For Free", Directionless)));
+
+        var album = Assert.Single((await Catalog(env, mb).SearchAsync("Creep", CancellationToken.None)).Albums);
+
+        Assert.Equal((Directionless, "Directionless", "EP"), (album.Mbid, album.Title, album.AlbumType));
+        Assert.True(album.TrackCount > 0);
+        Assert.Equal("Creep", album.MatchedTrack!.Title);
     }
 
     // ---- the disc count

@@ -14,9 +14,9 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="Year">The earliest release year seen, 0 when unknown.</param>
 /// <param name="Disc">The disc the track is on in the first release listed, 0 when unknown.</param>
 /// <param name="Position">The track's position on that disc, 0 when unknown.</param>
-/// <param name="ArtistId">The MusicBrainz id of the artist credited first, empty when unknown; a browse tells it.</param>
+/// <param name="ArtistId">The MusicBrainz id of the artist credited first, empty when unknown.</param>
 /// <param name="ArtistName">The name of the artist credited first, empty when unknown.</param>
-/// <param name="Date">The first release date as MusicBrainz gives it, empty when unknown; a browse tells it.</param>
+/// <param name="Date">The first release date as MusicBrainz gives it, empty when unknown; a search tells that of what it found, so at best near the album's.</param>
 public sealed record MbReleaseGroup(string Id, string Title, string PrimaryType, IReadOnlyList<string> SecondaryTypes, int Year, int Disc = 0, int Position = 0, string ArtistId = "", string ArtistName = "", string Date = "");
 
 /// <summary>A recording found by a track search.</summary>
@@ -127,7 +127,7 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
     private static readonly TimeSpan FirstBackoff = TimeSpan.FromMilliseconds(1200);
     private static readonly TimeSpan BusyPause = TimeSpan.FromSeconds(3);
 
-    // a longer Retry-After is not waited for inside a search, whose hints have 6 seconds
+    // a longer Retry-After is not waited for: a search has less than that in all
     private static readonly TimeSpan MaxRetryWait = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MaxPause = TimeSpan.FromMinutes(10);
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -367,13 +367,24 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
                     continue;
                 }
 
-                var year = release.Date is { Length: >= 4 } d && int.TryParse(d.AsSpan(0, 4), out var y) ? y : 0;
+                // a search lists some of an album's releases, maybe only a late reissue; the recording's first date is near a studio album's, but says nothing of a compilation's
+                var date = release.Date ?? string.Empty;
+                if ((g.SecondaryTypes is null or { Count: 0 }) && r.FirstReleaseDate is { Length: > 0 } first && (date.Length == 0 || string.CompareOrdinal(first, date) < 0))
+                {
+                    date = first;
+                }
+
+                var year = date.Length >= 4 && int.TryParse(date.AsSpan(0, 4), out var y) ? y : 0;
                 var medium = release.Media?.FirstOrDefault(m => m.Track is { Count: > 0 });
                 var number = medium?.Track?[0].Number;
                 var position = int.TryParse(number, out var n) ? n : 0;
+
+                // a release says who it is credited to when that is not the recording's artist: Various Artists on a compilation
+                var credited = (release.ArtistCredit ?? r.ArtistCredit)?.FirstOrDefault()?.Artist;
                 groups.Add(new MbReleaseGroup(
                     g.Id, g.Title ?? release.Title ?? string.Empty, g.PrimaryType ?? string.Empty, g.SecondaryTypes ?? new List<string>(), year,
-                    position > 0 ? Math.Max(1, medium!.Position) : 0, position));
+                    position > 0 ? Math.Max(1, medium!.Position) : 0, position,
+                    credited?.Id ?? string.Empty, credited?.Name ?? string.Empty, date));
             }
 
             list.Add(new MbRecording(
@@ -472,6 +483,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
         [JsonPropertyName("artist-credit")]
         public List<MbCredit>? ArtistCredit { get; init; }
 
+        [JsonPropertyName("first-release-date")]
+        public string? FirstReleaseDate { get; init; }
+
         [JsonPropertyName("releases")]
         public List<MbRawRelease>? Releases { get; init; }
     }
@@ -516,6 +530,9 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
 
         [JsonPropertyName("release-group")]
         public MbRawGroup? ReleaseGroup { get; init; }
+
+        [JsonPropertyName("artist-credit")]
+        public List<MbCredit>? ArtistCredit { get; init; }
     }
 
     private sealed class MbRawGroup

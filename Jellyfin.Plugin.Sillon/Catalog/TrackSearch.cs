@@ -10,7 +10,39 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="Disc">The disc of the track on the first release MusicBrainz listed, 0 when unknown.</param>
 /// <param name="Position">The track's position on that disc, 0 when unknown.</param>
 /// <param name="Hinted">Whether it comes from an artist a popularity hint named.</param>
-public sealed record TrackAlbum(string ReleaseGroupId, string Track, int Rank, int Hits, int Year, string RecordingId = "", int Disc = 0, int Position = 0, bool Hinted = false);
+/// <param name="Group">The release group, which is all a request needs of the album.</param>
+public sealed record TrackAlbum(string ReleaseGroupId, string Track, int Rank, int Hits, int Year, string RecordingId = "", int Disc = 0, int Position = 0, bool Hinted = false, MbReleaseGroup? Group = null);
+
+/// <summary>The one order of the kinds of release.</summary>
+public static class ReleaseKind
+{
+    /// <summary>The rank of an EP.</summary>
+    public const int Ep = 3;
+
+    /// <summary>Ranks a release group: studio albums first, then other albums, compilations and live albums, EPs, singles, and anything else.</summary>
+    /// <param name="primaryType">The primary type.</param>
+    /// <param name="secondaryTypes">The secondary types.</param>
+    /// <returns>The rank, the lower the better.</returns>
+    public static int Rank(string primaryType, IReadOnlyList<string> secondaryTypes)
+    {
+        switch (primaryType.Trim().ToLowerInvariant())
+        {
+            case "album":
+                if (secondaryTypes.Count == 0)
+                {
+                    return 0;
+                }
+
+                return secondaryTypes.Any(t => t.Trim().ToLowerInvariant() is "compilation" or "live") ? 2 : 1;
+            case "ep":
+                return Ep;
+            case "single":
+                return Ep + 1;
+            default:
+                return Ep + 2;
+        }
+    }
+}
 
 /// <summary>Turns MusicBrainz recordings into the albums to offer for a track search.</summary>
 public static class TrackSearch
@@ -47,15 +79,16 @@ public static class TrackSearch
 
             foreach (var group in recording.ReleaseGroups)
             {
-                var rank = RankOf(group, hideEps);
-                if (rank < 0)
+                // a request names the artist Lidarr knows the album by: without one it could not be made
+                var rank = ReleaseKind.Rank(group.PrimaryType, group.SecondaryTypes);
+                if (rank > ReleaseKind.Ep || (rank == ReleaseKind.Ep && hideEps) || group.ArtistId.Length == 0)
                 {
                     continue;
                 }
 
                 found[group.Id] = found.TryGetValue(group.Id, out var seen)
-                    ? seen with { Hits = seen.Hits + 1, Year = EarlierYear(seen.Year, group.Year) }
-                    : new TrackAlbum(group.Id, recording.Title, rank, 1, group.Year, recording.Id, group.Disc, group.Position);
+                    ? seen with { Hits = seen.Hits + 1, Year = EarlierYear(seen.Year, group.Year), Group = Earlier(seen.Group!, group) }
+                    : new TrackAlbum(group.Id, recording.Title, rank, 1, group.Year, recording.Id, group.Disc, group.Position, Group: group);
             }
         }
 
@@ -67,38 +100,22 @@ public static class TrackSearch
     }
 
     /// <summary>
-    /// Puts the albums of the hinted artists first, in the order of the hint, then the plain results, each release group once. An artist
-    /// offers its best albums only, so that one with many compilations leaves room for the next artists and the plain results.
+    /// The albums of the hinted artists, from the one answer to a question about all of them, in the order of the hint. An artist offers its best
+    /// albums only, so that one with many compilations leaves room for the next artists.
     /// </summary>
-    /// <param name="hinted">The albums found for each hinted artist, most popular artist first.</param>
-    /// <param name="plain">The albums found by the title alone.</param>
-    /// <returns>The albums, hinted ones flagged.</returns>
-    public static IReadOnlyList<TrackAlbum> WithHints(IReadOnlyList<IReadOnlyList<TrackAlbum>> hinted, IReadOnlyList<TrackAlbum> plain)
-        => hinted
-            .SelectMany(albums => albums.Take(MaxAlbumsPerHintedArtist))
+    /// <param name="recordings">The recordings found.</param>
+    /// <param name="query">What was asked, naming the hinted artists.</param>
+    /// <param name="hideEps">Whether EPs are dropped.</param>
+    /// <returns>The albums, flagged as hinted, each release group once.</returns>
+    public static IReadOnlyList<TrackAlbum> Hinted(IReadOnlyList<MbRecording> recordings, TrackQuery query, bool hideEps)
+        => query.Artists
+            .SelectMany(artist => Albums(recordings, query with { Artist = artist, OtherArtists = null }, hideEps).Take(MaxAlbumsPerHintedArtist))
             .Select(album => album with { Hinted = true })
-            .Concat(plain)
             .DistinctBy(album => album.ReleaseGroupId, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
     private static int EarlierYear(int a, int b) => a == 0 ? b : b == 0 ? a : Math.Min(a, b);
 
-    private static int RankOf(MbReleaseGroup group, bool hideEps)
-    {
-        var secondary = group.SecondaryTypes.Select(t => t.Trim().ToLowerInvariant()).ToList();
-        switch (group.PrimaryType.Trim().ToLowerInvariant())
-        {
-            case "album":
-                if (secondary.Count == 0)
-                {
-                    return 0;
-                }
-
-                return secondary.Contains("compilation") || secondary.Contains("live") ? 2 : 1;
-            case "ep":
-                return hideEps ? -1 : 3;
-            default:
-                return -1;
-        }
-    }
+    private static MbReleaseGroup Earlier(MbReleaseGroup seen, MbReleaseGroup group)
+        => group.Date.Length > 0 && (seen.Date.Length == 0 || string.CompareOrdinal(group.Date, seen.Date) < 0) ? seen with { Date = group.Date } : seen;
 }

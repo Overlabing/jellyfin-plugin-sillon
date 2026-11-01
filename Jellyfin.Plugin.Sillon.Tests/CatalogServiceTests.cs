@@ -453,12 +453,11 @@ public class CatalogServiceTests
     }
 
     [Fact]
-    public async Task Search_RanksAlbumThenAlbumWithSecondaryTypesThenEpThenSingle_TiesByTracksThenDate()
+    public async Task Search_SameTitle_AnAlbumDropsTheLesserKinds_AlbumsWithoutSecondaryTypesFirst_ThenTheMostEditions_ThenTheEarliest()
     {
         Assert.Equal(new[] { "live" }, await SearchIds(Rel("ep", "X", "EP", 5), Rel("single", "X", "Single", 1), Rel("live", "X", "Album", 8, secondary: new[] { "Live" })));
         Assert.Equal(new[] { "plain", "live" }, await SearchIds(Rel("live", "X", "Album", 20, secondary: new[] { "Live" }), Rel("plain", "X", "Album", 8)));
-        Assert.Equal(new[] { "ep" }, await SearchIds(Rel("single", "X", "Single", 3), Rel("ep", "X", "EP", 3)));
-        Assert.Equal(new[] { "long", "short" }, await SearchIds(Rel("short", "X", "Album", 9), Rel("long", "X", "Album", 14)));
+        Assert.Equal(new[] { "single", "ep" }, await SearchIds(Rel("single", "X", "Single", 3), Rel("ep", "X", "EP", 3)));
         Assert.Equal(new[] { "early", "late" }, await SearchIds(Rel("late", "X", "Album", 9, "2020-01-01"), Rel("early", "X", "Album", 9, "2010-01-01")));
     }
 

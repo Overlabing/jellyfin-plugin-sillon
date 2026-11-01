@@ -9,15 +9,12 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="Albums">The albums: studio albums first, the newest first within a kind.</param>
 /// <param name="Complete">Whether what the sources could tell was had in time, so that a search by the artist's name has nothing to add.</param>
 /// <param name="Failure">What was not had, when anything; holds no search text.</param>
-/// <param name="Listed">Whether the albums come from the metadata service's whole list, already chosen for a search, and so without releases to tell them apart.</param>
-internal sealed record DiscographyAnswer(IReadOnlyList<LidarrAlbum> Albums, bool Complete, string? Failure, bool Listed = false);
+internal sealed record DiscographyAnswer(IReadOnlyList<LidarrAlbum> Albums, bool Complete, string? Failure);
 
 /// <summary>How much an artist's albums may cost.</summary>
 /// <param name="Budget">How long the whole may take; what was resolved by then is kept.</param>
 /// <param name="Browse">No further page is asked of MusicBrainz past this time, so that the lookups have some of the budget.</param>
-/// <param name="MaxLookups">The most albums to resolve.</param>
-/// <param name="StudioOnly">Whether only albums without a secondary type are wanted.</param>
-internal sealed record DiscographyLimits(TimeSpan Budget, TimeSpan Browse, int MaxLookups, bool StudioOnly);
+internal sealed record DiscographyLimits(TimeSpan Budget, TimeSpan Browse);
 
 /// <summary>
 /// An artist's albums when Lidarr does not hold the artist. Lidarr's metadata service lists them all in one request, without a lookup per album, since a request goes through
@@ -30,7 +27,6 @@ internal sealed class ArtistDiscography
     private const int MaxPages = 10;
     private const int Concurrency = 3;
     private const int MaxArtistPageLookups = 150;
-    private const int MaxSearchLookups = 40;
     private const int MaxSearchAlbums = 12;
     private const int MaxListedSearchAlbums = 40;
     private const int MaxKept = 2000;
@@ -65,12 +61,7 @@ internal sealed class ArtistDiscography
     /// <summary>The limits of an artist page.</summary>
     /// <param name="budget">The time left.</param>
     /// <returns>The limits.</returns>
-    public static DiscographyLimits ArtistPage(TimeSpan budget) => new(budget, budget * BrowseShare, MaxArtistPageLookups, false);
-
-    /// <summary>The limits of a search that names an artist.</summary>
-    /// <param name="budget">The time left.</param>
-    /// <returns>The limits.</returns>
-    public static DiscographyLimits Search(TimeSpan budget) => new(budget, budget * BrowseShare, MaxSearchLookups, true);
+    public static DiscographyLimits ArtistPage(TimeSpan budget) => new(budget, budget * BrowseShare);
 
     /// <summary>What a search puts first of an artist: the studio albums with the most editions, which leaves out the odd unofficial one, the newest first.</summary>
     /// <param name="albums">The artist's albums.</param>
@@ -82,6 +73,34 @@ internal sealed class ArtistDiscography
             .Take(MaxSearchAlbums)
             .OrderByDescending(a => CatalogService.YearOf(a.ReleaseDate))
             .ToList();
+
+    /// <summary>The studio albums a search puts first for an artist Lidarr does not hold: from the metadata service's one answer, or none. A keystroke asks nothing of MusicBrainz and looks nothing up.</summary>
+    /// <param name="artistId">The artist's MusicBrainz id.</param>
+    /// <param name="config">The settings, for the types they hide.</param>
+    /// <param name="ct">The search's deadline.</param>
+    /// <returns>The albums, the newest first.</returns>
+    public async Task<IReadOnlyList<LidarrAlbum>> ListedStudioAlbumsAsync(string artistId, PluginConfiguration config, CancellationToken ct)
+    {
+        if (_metadata is null || await _metadata.GetArtistAsync(artistId, ct).ConfigureAwait(false) is not { } answer)
+        {
+            return Array.Empty<LidarrAlbum>();
+        }
+
+        var artist = ToArtist(answer);
+        return answer.Albums
+            .Where(a => IsListed(a, config, studioOnly: true))
+            .OrderByDescending(a => CatalogService.YearOf(a.ReleaseDate))
+            .ThenBy(a => a.Title, StringComparer.Ordinal)
+            .Take(MaxListedSearchAlbums)
+            .Select(a => ToAlbum(a, artist))
+            .ToList();
+    }
+
+    /// <summary>A release group found by a search for a song, in the form Lidarr gives it, named after the artist it is credited to.</summary>
+    /// <param name="group">The release group.</param>
+    /// <returns>The album.</returns>
+    public static LidarrAlbum ToAlbum(MbReleaseGroup group)
+        => ToAlbum(group, new LidarrArtist { ForeignArtistId = group.ArtistId, ArtistName = group.ArtistName });
 
     /// <summary>Lists the albums. Never fails for MusicBrainz, Lidarr or the budget, only when the caller gives up.</summary>
     /// <param name="lidarr">Lidarr.</param>
@@ -104,11 +123,10 @@ internal sealed class ArtistDiscography
 
         // the oldest first: when the limits cut the list short, what goes is the late unofficial compilations an old artist has by the hundred, not the albums
         var wanted = groups
-            .Where(g => !limits.StudioOnly || IsStudio(g))
             .OrderBy(Rank)
             .ThenBy(g => g.Year == 0 ? int.MaxValue : g.Year)
             .ThenBy(g => g.Title, StringComparer.Ordinal)
-            .Take(limits.MaxLookups)
+            .Take(MaxArtistPageLookups)
             .ToList();
 
         using var gate = new SemaphoreSlim(Concurrency);
@@ -155,7 +173,22 @@ internal sealed class ArtistDiscography
             return null;
         }
 
-        var artist = new LidarrArtist
+        var artist = ToArtist(answer);
+        var (others, failure) = await JointAlbumsAsync(artistId, answer, config, limits, ct).ConfigureAwait(false);
+        var albums = answer.Albums
+            .Where(a => IsListed(a, config, studioOnly: false))
+            .Select(a => (Group: new MbReleaseGroup(a.Id, a.Title, a.Type, a.SecondaryTypes, CatalogService.YearOf(a.ReleaseDate)), Album: ToAlbum(a, artist)))
+            .Concat(others.Select(g => (Group: g, Album: ToAlbum(g, artist))))
+            .OrderBy(a => Rank(a.Group))
+            .ThenByDescending(a => a.Group.Year)
+            .ThenBy(a => a.Group.Title, StringComparer.Ordinal)
+            .Select(a => a.Album)
+            .ToList();
+        return new DiscographyAnswer(albums, true, failure);
+    }
+
+    private static LidarrArtist ToArtist(MetadataArtist answer)
+        => new()
         {
             ForeignArtistId = answer.Id,
             ArtistName = answer.Name,
@@ -164,19 +197,6 @@ internal sealed class ArtistDiscography
             Genres = answer.Genres.ToList(),
             Images = answer.Images.Select(i => new LidarrImage { CoverType = i.CoverType, RemoteUrl = i.Url }).ToList(),
         };
-        var (others, failure) = await JointAlbumsAsync(artistId, answer, config, limits, ct).ConfigureAwait(false);
-        var albums = answer.Albums
-            .Where(a => IsListed(a, config, limits))
-            .Select(a => (Group: new MbReleaseGroup(a.Id, a.Title, a.Type, a.SecondaryTypes, CatalogService.YearOf(a.ReleaseDate)), Album: ToAlbum(a, artist)))
-            .Concat(others.Select(g => (Group: g, Album: ToAlbum(g, artist))))
-            .OrderBy(a => Rank(a.Group))
-            .ThenByDescending(a => a.Group.Year)
-            .ThenBy(a => a.Group.Title, StringComparer.Ordinal)
-            .Take(limits.StudioOnly ? MaxListedSearchAlbums : int.MaxValue)
-            .Select(a => a.Album)
-            .ToList();
-        return new DiscographyAnswer(albums, true, failure, Listed: true);
-    }
 
     /// <summary>
     /// What MusicBrainz credits to the artist and the service does not list: joint albums that name someone else first, and whatever the service has not caught up with.
@@ -194,7 +214,7 @@ internal sealed class ArtistDiscography
 
         var (groups, failure) = await browse.ConfigureAwait(false);
         var known = listed.Albums.SelectMany(a => a.OldIds.Append(a.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return (groups.Where(g => !known.Contains(g.Id) && (!limits.StudioOnly || IsStudio(g)) && !IsSpokenOnly(g.SecondaryTypes)).ToList(), failure);
+        return (groups.Where(g => !known.Contains(g.Id) && !IsSpokenOnly(g.SecondaryTypes)).ToList(), failure);
     }
 
     /// <summary>One browse per artist at most, whoever asks and however soon they give up: it goes on after the wait, at MusicBrainz's pace, for the next visit to find.</summary>
@@ -228,17 +248,17 @@ internal sealed class ArtistDiscography
         }
     }
 
-    private static bool IsListed(MetadataAlbum album, PluginConfiguration config, DiscographyLimits limits)
+    private static bool IsListed(MetadataAlbum album, PluginConfiguration config, bool studioOnly)
     {
         var wantedType = album.Type.ToLowerInvariant() switch
         {
             "album" => true,
-            "ep" => !config.HideEps && !limits.StudioOnly,
-            "single" => !config.HideSingles && !limits.StudioOnly,
+            "ep" => !config.HideEps && !studioOnly,
+            "single" => !config.HideSingles && !studioOnly,
             _ => false,
         };
         return wantedType
-            && (!limits.StudioOnly || album.SecondaryTypes.Count == 0)
+            && (!studioOnly || album.SecondaryTypes.Count == 0)
             && IsOfficial(album)
             && !IsSpokenOnly(album.SecondaryTypes);
     }
@@ -388,23 +408,7 @@ internal sealed class ArtistDiscography
         }
     }
 
-    private static bool IsStudio(MbReleaseGroup group)
-        => group.PrimaryType.Equals("album", StringComparison.OrdinalIgnoreCase) && group.SecondaryTypes.Count == 0;
-
-    /// <summary>Studio albums first, so that a budget or the cap only costs the rest: EPs, other albums (compilations, live, ...), then whatever has both a lesser type and a secondary one.</summary>
-    private static int Rank(MbReleaseGroup group)
-    {
-        var album = group.PrimaryType.Equals("album", StringComparison.OrdinalIgnoreCase);
-        var ep = group.PrimaryType.Equals("ep", StringComparison.OrdinalIgnoreCase);
-        var plain = group.SecondaryTypes.Count == 0;
-        return (album, ep, plain) switch
-        {
-            (true, _, true) => 0,
-            (_, true, true) => 1,
-            (true, _, false) => 2,
-            _ => 3,
-        };
-    }
+    private static int Rank(MbReleaseGroup group) => ReleaseKind.Rank(group.PrimaryType, group.SecondaryTypes);
 
     /// <summary>A release group known from unofficial releases alone is not something a request can be expected to find.</summary>
     private static bool IsOffered(LidarrAlbum album)

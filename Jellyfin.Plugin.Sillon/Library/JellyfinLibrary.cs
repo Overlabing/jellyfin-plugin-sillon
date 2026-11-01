@@ -15,6 +15,7 @@ public sealed class JellyfinLibrary : IJellyfinLibrary
     private readonly IUserManager _userManager;
     private readonly IUserDataManager _userDataManager;
     private readonly ILibraryMonitor _libraryMonitor;
+    private readonly LibraryAlbumCache _albums;
 
     /// <summary>Initializes a new instance of the <see cref="JellyfinLibrary"/> class.</summary>
     /// <param name="libraryManager">The library manager.</param>
@@ -28,6 +29,12 @@ public sealed class JellyfinLibrary : IJellyfinLibrary
         _userManager = userManager;
         _userDataManager = userDataManager;
         _libraryMonitor = libraryMonitor;
+        _albums = new LibraryAlbumCache(ReadAlbums);
+
+        // a singleton, for as long as the server: these never need detaching
+        _libraryManager.ItemAdded += OnItemChanged;
+        _libraryManager.ItemUpdated += OnItemChanged;
+        _libraryManager.ItemRemoved += OnItemChanged;
     }
 
     /// <inheritdoc />
@@ -68,20 +75,29 @@ public sealed class JellyfinLibrary : IJellyfinLibrary
     }
 
     /// <inheritdoc />
-    public IReadOnlySet<string> FindAlbums(IReadOnlyList<AlbumKey> albums)
+    public IReadOnlySet<string> FindAlbums(IReadOnlyList<AlbumKey> albums) => _albums.Held(albums);
+
+    private void OnItemChanged(object? sender, ItemChangeEventArgs e)
     {
-        // one read of the albums instead of up to two queries per album, which a discography of hundreds would feel
-        var items = _libraryManager.GetItemList(new InternalItemsQuery
+        if (e.Item is MusicAlbum)
+        {
+            _albums.Invalidate();
+        }
+    }
+
+    /// <summary>One read of the albums instead of up to two queries per album, which a discography of hundreds would feel.</summary>
+    private IReadOnlyList<LibraryAlbum> ReadAlbums()
+        => _libraryManager.GetItemList(new InternalItemsQuery
         {
             IncludeItemTypes = new[] { BaseItemKind.MusicAlbum },
             Recursive = true
-        });
-        var library = items.OfType<MusicAlbum>().Select(a => new LibraryAlbum(
+        })
+        .OfType<MusicAlbum>()
+        .Select(a => new LibraryAlbum(
             MusicBrainzKeys.Select(k => a.TryGetProviderId(k, out var value) ? value : null).OfType<string>().ToList(),
             a.Name,
-            a.AlbumArtist));
-        return LibraryAlbum.Held(library, albums);
-    }
+            a.AlbumArtist))
+        .ToList();
 
     /// <inheritdoc />
     public string? FindAlbumByPath(string jellyfinFolder)
