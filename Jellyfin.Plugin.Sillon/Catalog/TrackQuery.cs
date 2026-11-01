@@ -7,7 +7,8 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="Title">The track title as typed.</param>
 /// <param name="Artist">The artist as typed, null when the text does not name one.</param>
 /// <param name="AnySpelling">Whether a recording credited under another spelling counts too: the artist comes from a hint, spelled the hint's way.</param>
-public sealed record TrackQuery(string Title, string? Artist, bool AnySpelling = false)
+/// <param name="OtherArtists">More artists the same question may answer for, so that several hints cost one request.</param>
+public sealed record TrackQuery(string Title, string? Artist, bool AnySpelling = false, IReadOnlyList<string>? OtherArtists = null)
 {
     private static readonly string[] Separators = { " - ", " – ", " — ", " by ", " par " };
 
@@ -44,6 +45,10 @@ public sealed record TrackQuery(string Title, string? Artist, bool AnySpelling =
         return new TrackQuery(query, null);
     }
 
+    /// <summary>Gets the artists asked for, in order.</summary>
+    public IReadOnlyList<string> Artists
+        => Artist is null ? Array.Empty<string>() : new[] { Artist }.Concat(OtherArtists ?? Array.Empty<string>()).ToList();
+
     /// <summary>Builds the Lucene query of MusicBrainz's recording search.</summary>
     /// <returns>The query text.</returns>
     public string ToLucene()
@@ -55,10 +60,13 @@ public sealed record TrackQuery(string Title, string? Artist, bool AnySpelling =
 
         // artist is the name as credited on the recording, artistname the artist's main name: "Fool's Garden" is credited on the
         // studio album of the artist MusicBrainz calls "Fools Garden", and only one of the two fields finds it under the other spelling
-        var artist = Escape(Artist);
-        return AnySpelling
-            ? $"recording:\"{Escape(Title)}\" AND (artist:\"{artist}\" OR artistname:\"{artist}\")"
-            : $"recording:\"{Escape(Title)}\" AND artist:\"{artist}\"";
+        if (!AnySpelling)
+        {
+            return $"recording:\"{Escape(Title)}\" AND artist:\"{Escape(Artist)}\"";
+        }
+
+        var artists = Artists.Select(Escape).Select(a => $"artist:\"{a}\" OR artistname:\"{a}\"");
+        return $"recording:\"{Escape(Title)}\" AND ({string.Join(" OR ", artists)})";
     }
 
     /// <summary>Folds a name for comparison: case, diacritics and punctuation are ignored, spaces collapsed.</summary>

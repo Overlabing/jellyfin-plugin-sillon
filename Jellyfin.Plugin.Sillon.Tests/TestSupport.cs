@@ -45,10 +45,17 @@ internal sealed class FakeLidarr : ILidarrApi, ILidarrProvider
     public Task<LidarrStatus> GetStatusAsync(CancellationToken ct = default)
         => StatusError is null ? Task.FromResult(new LidarrStatus("2.9.6.4552")) : Task.FromException<LidarrStatus>(StatusError);
 
-    public Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
+    public Func<string, CancellationToken, Task>? BeforeSearch { get; set; }
+
+    public async Task<IReadOnlyList<LidarrSearchItem>> SearchAsync(string term, CancellationToken ct = default)
     {
         SearchTerms.Add(term);
-        return Task.FromResult(OnSearch(term));
+        if (BeforeSearch is not null)
+        {
+            await BeforeSearch(term, ct);
+        }
+
+        return OnSearch(term);
     }
 
     public List<string> LookupTerms { get; } = new();

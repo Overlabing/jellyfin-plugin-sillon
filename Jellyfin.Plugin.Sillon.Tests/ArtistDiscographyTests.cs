@@ -103,13 +103,25 @@ public class ArtistDiscographyTests
         return env;
     }
 
-    private static CatalogService Catalog(TestEnv env, IMusicBrainzApi? musicBrainz, TimeSpan? budget = null, ITrackHints? hints = null)
-        => new(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, musicBrainz, hints: hints, discographyBudget: budget);
+    private static CatalogService Catalog(TestEnv env, IMusicBrainzApi? musicBrainz, TimeSpan? budget = null, ITrackHints? hints = null, IArtistMetadata? metadata = null)
+        => new(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, musicBrainz, hints: hints, discographyBudget: budget, metadata: metadata);
+
+    private sealed class Listing(params (string Id, int Year)[] albums) : IArtistMetadata
+    {
+        public List<string> Asked { get; } = new();
+
+        public Task<MetadataArtist?> GetArtistAsync(string artistId, CancellationToken ct)
+        {
+            Asked.Add(artistId);
+            var listed = albums.Select(a => new MetadataAlbum(a.Id, "title " + a.Id, "Album", Array.Empty<string>(), new[] { "Official" }, $"{a.Year}-01-01", Array.Empty<string>())).ToList();
+            return Task.FromResult<MetadataArtist?>(new MetadataArtist(artistId, "DJ Snake", string.Empty, "Person", Array.Empty<string>(), Array.Empty<MetadataImage>(), listed));
+        }
+    }
 
     private static MbReleaseGroup Group(string id, int year = 2000, string type = "Album", params string[] secondary)
         => new(id, "title " + id, type, secondary, year);
 
-    private static LidarrAlbum Album(string id, string type = "Album", string status = "Official", int releases = 1, string artist = DjSnake, string[]? secondary = null, string date = "2000-01-01T00:00:00Z")
+    private static LidarrAlbum Album(string id, string type = "Album", string status = "Official", int releases = 1, string artist = DjSnake, string[]? secondary = null, string date = "2000-01-01T00:00:00Z", int held = 0)
         => new()
         {
             ForeignAlbumId = id,
@@ -118,7 +130,7 @@ public class ArtistDiscographyTests
             ReleaseDate = date,
             SecondaryTypes = secondary?.ToList(),
             Releases = Enumerable.Range(0, releases).Select(_ => new LidarrRelease { Status = status, MediumCount = 1, TrackCount = 10 }).ToList(),
-            Artist = new LidarrArtist { ForeignArtistId = artist, ArtistName = "DJ Snake" },
+            Artist = new LidarrArtist { Id = held, ForeignArtistId = artist, ArtistName = "DJ Snake" },
         };
 
     private static FakeBrowse Browsing(params MbReleaseGroup[] groups)
@@ -469,31 +481,22 @@ public class ArtistDiscographyTests
     private static IReadOnlyList<string> Ids(CatalogSearchResult result) => result.Albums.Select(a => a.Mbid).ToList();
 
     [Fact]
-    public async Task Search_ByArtistName_PutsTheStudioAlbumsOnTop_OfThatArtistOnly()
+    public async Task Search_ByArtistName_PutsTheServicesStudioAlbumsOnTop_OfThatArtistOnly()
     {
         using var env = Production();
         var mb = new FakeBrowse { Answer = (_, _) => RealPageAsync() };
+        var metadata = new Listing((Encore, 2016), (Nomad, 2025), (CarteBlanche, 2019));
 
-        var result = await Catalog(env, mb).SearchAsync("dj snake", CancellationToken.None);
+        var result = await Catalog(env, mb, metadata: metadata).SearchAsync("dj snake", CancellationToken.None);
 
-        Assert.Equal(new[] { Nomad, CarteBlanche, Encore, Presents }, Ids(result).Take(4));
-        Assert.Equal(DjSnake, Assert.Single(mb.Calls).Artist);
+        Assert.Equal(new[] { Nomad, CarteBlanche, Encore }, Ids(result).Take(3));
+        Assert.Equal(DjSnake, Assert.Single(metadata.Asked));
+        Assert.Empty(mb.Calls);
+        Assert.DoesNotContain(env.Lidarr.LookupTerms, t => t.StartsWith("lidarr:", StringComparison.Ordinal));
     }
 
     private static Task<MbReleaseGroupPage> RealPageAsync()
         => RealMusicBrainz().Client.BrowseReleaseGroupsAsync(DjSnake, new[] { "album", "ep" }, 0, CancellationToken.None);
-
-    [Fact]
-    public async Task Search_ByArtistName_LeavesOutCompilationsAndEpsFromTheTop_AndDoesNotLookThemUp()
-    {
-        using var env = Production();
-
-        await Catalog(env, RealMusicBrainz().Client).SearchAsync("DJ Snake", CancellationToken.None);
-
-        Assert.DoesNotContain("lidarr:" + ShangChi, env.Lidarr.LookupTerms);
-        Assert.DoesNotContain("lidarr:" + LeanOnEp, env.Lidarr.LookupTerms);
-        Assert.Contains("lidarr:" + Encore, env.Lidarr.LookupTerms);
-    }
 
     [Theory]
     [InlineData("DJ SNAKE")]
@@ -502,11 +505,11 @@ public class ArtistDiscographyTests
     public async Task Search_TheNameIsComparedAsTitlesAre(string query)
     {
         using var env = Production();
-        var mb = Browsing(Group(Encore));
+        var metadata = new Listing((Encore, 2016));
 
-        await Catalog(env, mb).SearchAsync(query, CancellationToken.None);
+        await Catalog(env, Browsing(Group(Encore)), metadata: metadata).SearchAsync(query, CancellationToken.None);
 
-        Assert.Single(mb.Calls);
+        Assert.Single(metadata.Asked);
     }
 
     [Theory]
@@ -548,11 +551,11 @@ public class ArtistDiscographyTests
             new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = Namesake, ArtistName = "DJ Snake", Ratings = new LidarrRatings { Votes = 0 } } },
             new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = DjSnake, ArtistName = "DJ Snake", Ratings = new LidarrRatings { Votes = 5 } } },
         };
-        var mb = Browsing();
+        var metadata = new Listing((Encore, 2016));
 
-        await Catalog(env, mb).SearchAsync("DJ Snake", CancellationToken.None);
+        await Catalog(env, Browsing(), metadata: metadata).SearchAsync("DJ Snake", CancellationToken.None);
 
-        Assert.Equal(DjSnake, Assert.Single(mb.Calls).Artist);
+        Assert.Equal(DjSnake, Assert.Single(metadata.Asked));
     }
 
     [Fact]
@@ -574,23 +577,16 @@ public class ArtistDiscographyTests
     }
 
     [Fact]
-    public async Task Search_ManyStudioAlbums_AreCapped_ToThoseWithTheMostEditions_NewestFirst()
+    public async Task Search_ManyStudioAlbumsLidarrHolds_AreCapped_ToThoseWithTheMostEditions_NewestFirst()
     {
-        using var env = Production();
-        var groups = Enumerable.Range(0, 30).Select(i => Group("g" + i, 1960 + i)).ToArray();
-        var mb = Browsing(groups);
-        env.Lidarr.OnLookup = term =>
+        using var env = new TestEnv();
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Artist = new LidarrArtist { Id = 7, ForeignArtistId = DjSnake, ArtistName = "DJ Snake" } } };
+        for (var i = 0; i < 30; i++)
         {
-            if (!term.StartsWith("lidarr:", StringComparison.Ordinal))
-            {
-                return Array.Empty<LidarrAlbum>();
-            }
+            env.Lidarr.Albums[i + 1] = Album("g" + i, releases: i < 12 ? 10 : 1, date: $"{1960 + i}-01-01T00:00:00Z", held: 7);
+        }
 
-            var i = int.Parse(term["lidarr:g".Length..], System.Globalization.CultureInfo.InvariantCulture);
-            return new[] { Album("g" + i, releases: i < 12 ? 10 : 1, date: $"{1960 + i}-01-01T00:00:00Z") };
-        };
-
-        var result = await Catalog(env, mb).SearchAsync("DJ Snake", CancellationToken.None);
+        var result = await Catalog(env, Browsing()).SearchAsync("DJ Snake", CancellationToken.None);
 
         Assert.Equal(Enumerable.Range(0, 12).Reverse().Select(i => "g" + i), Ids(result).Take(12));
         Assert.DoesNotContain("g20", Ids(result));
@@ -603,27 +599,32 @@ public class ArtistDiscographyTests
         env.Config.DeezerPopularityHints = true;
         var mb = new FakeBrowse
         {
-            Answer = (_, _) => Task.FromResult(new MbReleaseGroupPage(new[] { Group(Encore, 2016) }, 1)),
             Recordings = q => new[]
             {
-                new MbRecording("DJ Snake", q.Artist ?? "Someone", 100, new[] { Group(q.Artist is null ? "plain-hit" : "hinted-hit") }),
+                new MbRecording("DJ Snake", q.Artist ?? "Someone", 100, new[] { Group(q.Artist is null ? "plain-hit" : "hinted-hit") with { ArtistId = "famous", ArtistName = "Famous" } }),
             },
         };
-        var known = Fixture<List<LidarrAlbum>>("lidarr_lookup_dj_snake_albums.json");
-        env.Lidarr.OnLookup = term => term switch
-        {
-            "lidarr:hinted-hit" => new[] { Album("hinted-hit", artist: "famous") },
-            "lidarr:plain-hit" => new[] { Album("plain-hit", artist: "else") },
-            _ when term.StartsWith("lidarr:", StringComparison.Ordinal) => known.Where(a => a.ForeignAlbumId == term["lidarr:".Length..]).ToList(),
-            _ => new[] { Album("title-match", artist: "another") },
-        };
+        env.Lidarr.OnLookup = term => term.StartsWith("lidarr:", StringComparison.Ordinal) ? Array.Empty<LidarrAlbum>() : new[] { Album("title-match", artist: "another") };
 
-        var result = await Catalog(env, mb, hints: new Hints("Famous")).SearchAsync("DJ Snake", CancellationToken.None);
+        var result = await Catalog(env, mb, hints: new Hints("Famous"), metadata: new Listing((Encore, 2016))).SearchAsync("DJ Snake", CancellationToken.None);
 
         var ids = Ids(result).ToList();
         Assert.Equal("hinted-hit", ids[0]);
         Assert.Equal(Encore, ids[1]);
         Assert.True(ids.IndexOf(Presents) < ids.IndexOf("title-match"));
+        Assert.DoesNotContain("plain-hit", ids);
+        Assert.Equal(1, mb.RecordingSearches);
+    }
+
+    [Fact]
+    public async Task Search_TheSongsThatAreNotHinted_ComeLast()
+    {
+        using var env = Production();
+        var mb = new FakeBrowse { Recordings = _ => new[] { new MbRecording("DJ Snake", "Someone", 100, new[] { Group("plain-hit") with { ArtistId = "else", ArtistName = "Else" } }) } };
+
+        var ids = Ids(await Catalog(env, mb, metadata: new Listing((Encore, 2016))).SearchAsync("DJ Snake", CancellationToken.None));
+
+        Assert.Equal(Encore, ids[0]);
         Assert.Equal("plain-hit", ids[^1]);
     }
 
@@ -631,13 +632,11 @@ public class ArtistDiscographyTests
     public async Task Search_TheArtistsAlbums_DoNotTakeTheRoomOfTheOtherResults()
     {
         using var env = Production();
-        var mb = Browsing(Group(Encore, 2016), Group(Nomad, 2025), Group(CarteBlanche, 2019));
-        var known = Fixture<List<LidarrAlbum>>("lidarr_lookup_dj_snake_albums.json");
         env.Lidarr.OnLookup = term => term.StartsWith("lidarr:", StringComparison.Ordinal)
-            ? known.Where(a => a.ForeignAlbumId == term["lidarr:".Length..]).ToList()
+            ? Array.Empty<LidarrAlbum>()
             : Enumerable.Range(0, 60).Select(i => Album("other" + i, artist: "other" + i)).ToArray();
 
-        var result = await Catalog(env, mb).SearchAsync("DJ Snake", CancellationToken.None);
+        var result = await Catalog(env, Browsing(), metadata: new Listing((Encore, 2016), (Nomad, 2025), (CarteBlanche, 2019))).SearchAsync("DJ Snake", CancellationToken.None);
 
         // the DJ Snake Presents of the search comes among the 40, and three on top of them
         Assert.Equal(43, result.Albums.Count);
@@ -665,22 +664,56 @@ public class ArtistDiscographyTests
     }
 
     [Fact]
-    public async Task Search_BudgetExceeded_KeepsWhatResolved()
+    public async Task Search_TheServicePastTheDeadline_CostsItsAlbumsOnly()
     {
         using var env = Production();
-        var mb = Browsing(Group(Encore, 2016), Group(Nomad, 2025));
-        env.Lidarr.BeforeLookup = async (term, ct) =>
+        var result = await new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, Browsing(), metadata: new StuckMetadata(), searchDeadline: TimeSpan.FromMilliseconds(100))
+            .SearchAsync("DJ Snake", CancellationToken.None);
+
+        Assert.Equal(Presents, Assert.Single(result.Albums).Mbid);
+    }
+
+    private sealed class StuckMetadata : IArtistMetadata
+    {
+        public async Task<MetadataArtist?> GetArtistAsync(string artistId, CancellationToken ct)
         {
-            if (term == "lidarr:" + Nomad)
-            {
-                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
-            }
-        };
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return null;
+        }
+    }
 
-        var result = await Catalog(env, mb, TimeSpan.FromMilliseconds(100)).SearchAsync("DJ Snake", CancellationToken.None);
+    [Fact]
+    public async Task Search_LidarrPastTheDeadline_CostsItsResults_NotWhatElseAnswered()
+    {
+        using var env = Production();
+        env.Lidarr.BeforeSearch = (_, ct) => Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        var mb = new FakeBrowse { Recordings = _ => new[] { new MbRecording("DJ Snake", "Someone", 100, new[] { Group("song-hit") with { ArtistId = "else", ArtistName = "Else" } }) } };
 
-        Assert.Equal(Encore, Ids(result)[0]);
-        Assert.DoesNotContain(Nomad, Ids(result));
+        // the song search waits for what Lidarr says of the text, then has no time left
+        var catalog = new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, mb, hints: new Hints("Someone"), searchDeadline: TimeSpan.FromMilliseconds(100));
+        env.Config.DeezerPopularityHints = true;
+
+        Assert.Equal("song-hit", Assert.Single((await catalog.SearchAsync("DJ Snake", CancellationToken.None)).Albums).Mbid);
+    }
+
+    [Fact]
+    public async Task Search_NothingAnswersByTheDeadline_IsAFailure_NotAnEmptyResult()
+    {
+        using var env = Production();
+        env.Lidarr.BeforeSearch = (_, ct) => Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        var catalog = new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, Browsing(), searchDeadline: TimeSpan.FromMilliseconds(100));
+
+        Assert.Equal(502, (await Assert.ThrowsAsync<CatalogException>(() => catalog.SearchAsync("DJ Snake", CancellationToken.None))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Search_TheCallerLeaving_IsNotTakenForTheDeadline()
+    {
+        using var env = Production();
+        env.Lidarr.BeforeSearch = (_, ct) => Task.Delay(Timeout.InfiniteTimeSpan, ct);
+        using var left = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Catalog(env, Browsing()).SearchAsync("DJ Snake", left.Token));
     }
 
     // ---- the allow list stays absolute

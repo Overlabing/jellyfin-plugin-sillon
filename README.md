@@ -16,8 +16,10 @@ playback and browsing your existing library work without it. The app's privacy p
   the manual wishlist below is available).
   - **Search by song.** Typing a track title (`Creep`, `Radiohead - Creep`, `Creep by Radiohead`) also offers the
     albums that contain it, studio albums first, then compilations and live albums. The plugin asks
-    MusicBrainz directly (one request a second, an identifying User-Agent, answers kept for a day) and
-    resolves each album through Lidarr, so requests follow the usual path. Switch it off with *Find albums by song title*.
+    MusicBrainz directly (one request a second, an identifying User-Agent, answers kept for a day). Its answer says all a request
+    needs, and a request follows the usual path through Lidarr by the album's id. Track count, disc count, label and disambiguation
+    are not known at this stage: the apps leave them out, and the tracklist endpoint gives the tracks when an album is opened.
+    The song search is skipped when Lidarr's first artist is called exactly what was typed and has at least 10 votes. Switch it off with *Find albums by song title*.
     Each album found this way carries an optional `matchedTrack` (`title`, `recordingMbid`, and `disc` and
     `position` when known).
   - **Popularity hints from Deezer (optional, off by default).** A title many artists have recorded can bury the
@@ -28,11 +30,13 @@ playback and browsing your existing library work without it. The app's privacy p
     service Lidarr itself gets its metadata from (see [Lidarr's metadata service](#lidarrs-metadata-service)), leaving out what is
     known from bootlegs or promotional releases alone, interviews, broadcasts and the types the settings hide. MusicBrainz adds the joint albums
     that service does not list, because they name someone else first: the page waits 3 seconds for those at most, and whatever arrives later is there on
-    the next visit. A search for the artist's exact name puts the artist's studio albums first, up to 40, after any popularity hint.
-    Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds. A request follows the usual
+    the next visit. A search for the artist's exact name puts the artist's studio albums first, up to 40, after any popularity hint: those Lidarr holds, else
+    the metadata service's list, and nothing more when it does not answer. Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds,
+    and none of them when that one has no vote and is not held. A request follows the usual
     path through Lidarr. Track count, disc count, label and disambiguation are not known at this stage: the apps leave them out, and the tracklist
     endpoint gives the tracks when an album is opened. If the service fails, times out or answers something unexpected, MusicBrainz lists the albums and each one goes
-    through Lidarr's id lookup, bounded in time (15 seconds for the page, 8 for the search). An allow list never reaches any of this.
+    through Lidarr's id lookup, within 15 seconds; this is for the page, a search asks no more than the service. An allow list never reaches any of this.
+  - **A search has 5 seconds.** What is known by then is its answer. Lidarr failing or running out of time only costs its own results, unless there is nothing else to show.
   - **Tracklist of a catalogue album.** `GET /Sillon/v1/catalog/album/{mbid}/tracks[?recording=<mbid>][&track=<title>]`
     (`mbid` is the album's release group id) returns `{albumMbid, releaseMbid, title, discCount, tracks:
     [{disc, position, number, title, durationMs?, recordingMbid, matched?}]}`, where `matched` flags the track
@@ -140,19 +144,17 @@ names the plugin and its version. It is for non-commercial private or family use
 [Deezer's terms](https://developers.deezer.com/termsofuse), which you accept by turning it on.
 
 **What it does.** The plugin keeps Deezer's top tracks whose title is exactly the one searched for, takes up to three
-of their artists, looks each one up on MusicBrainz (still one request a second), and offers up to two albums per
-artist before the other results. Lookups are answered from a cache on your server for 7 days (Deezer) and a day
+of their artists, looks them up on MusicBrainz in one request, and offers up to two albums per artist before the other
+results. It asks MusicBrainz about the title alone only when that finds nothing. Lookups are answered from a cache on your server for 7 days (Deezer) and a day
 (MusicBrainz). Nothing from Deezer is shown or stored other than those artist names.
 
-**The cost.** A title searched for the first time takes about 3 seconds longer, because of MusicBrainz's pace; the
-hints stop after 6 seconds at most and keep what they found. If Deezer fails, times out or knows nothing, the search
+**The cost.** One more request, to Deezer, within the search's 5 seconds. If Deezer fails, times out or knows nothing, the search
 answers as it would without the option, and the plugin leaves Deezer alone for 5 minutes.
 
 **When MusicBrainz is busy.** MusicBrainz sheds load by declining requests with a 503, however slowly this server asks.
 The plugin tries again up to twice, waiting as long as a `Retry-After` asks (up to 5 seconds; longer, and it stops asking
-for that long), then pauses for a few seconds. The hinted artists are asked for first, one query each, then the title
-alone. A search still returns what it has and logs one warning, naming the limit that declined. Nothing is remembered from
-a 503, so the next search asks again, and only for what it is missing.
+for that long), then pauses for a few seconds, and the search asks nothing more of it. A search still returns what it has and
+logs one warning, naming the limit that declined. Nothing is remembered from a 503, so the next search asks again.
 
 ## Notifications
 

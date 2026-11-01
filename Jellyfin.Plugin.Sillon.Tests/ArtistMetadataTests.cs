@@ -63,6 +63,8 @@ public class ArtistMetadataTests
     {
         public int Browses { get; private set; }
 
+        public int Searches { get; private set; }
+
         public IReadOnlyList<MbReleaseGroup> Groups { get; init; } = Array.Empty<MbReleaseGroup>();
 
         public Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
@@ -71,7 +73,11 @@ public class ArtistMetadataTests
             return Task.FromResult(new MbReleaseGroupPage(Groups, Groups.Count));
         }
 
-        public Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<MbRecording>>(Array.Empty<MbRecording>());
+        public Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct)
+        {
+            Searches++;
+            return Task.FromResult<IReadOnlyList<MbRecording>>(Array.Empty<MbRecording>());
+        }
 
         public Task<IReadOnlyList<MbRelease>?> GetReleasesAsync(string releaseGroupId, CancellationToken ct) => Task.FromResult<IReadOnlyList<MbRelease>?>(null);
 
@@ -238,9 +244,9 @@ public class ArtistMetadataTests
             new[]
             {
                 "Let It Be", "Abbey Road", "Revolver", "Please Please Me",
+                "Let It Be… Naked", "Help!",
+                "1964 US Albums in Mono", "1", "Yellow Submarine Songtrack", "Anthology 1", "Live at the BBC", "The Beatles at the Hollywood Bowl", "The Alternate Magical Mystery Tour",
                 "Norwegian Wood", "Help!", "The Beatles’ Hits",
-                "1964 US Albums in Mono", "Let It Be… Naked", "1", "Yellow Submarine Songtrack", "Anthology 1", "Live at the BBC", "The Beatles at the Hollywood Bowl", "Help!",
-                "The Alternate Magical Mystery Tour",
             },
             Titles(result.Albums));
         Assert.Equal(new[] { Beatles }, metadata.Asked);
@@ -484,14 +490,15 @@ public class ArtistMetadataTests
     }
 
     [Fact]
-    public async Task Search_AddsAStudioAlbumMadeJointly_ButNoOtherKindOfJointAlbum()
+    public async Task Search_ListsTheServicesAnswerAlone_WithoutBrowsingMusicBrainz()
     {
         using var env = Env(DjSnake, "DJ Snake");
         var mb = new FakeBrowse { Groups = new[] { LeanOn, new MbReleaseGroup("joint", "Joint Album", "Album", Array.Empty<string>(), 2020, ArtistId: MajorLazer, ArtistName: "Major Lazer") } };
 
         var result = await Catalog(env, mb, new FakeMetadata(_ => DjSnakeListed)).SearchAsync("DJ Snake", CancellationToken.None);
 
-        Assert.Equal(new[] { "Nomad", "Joint Album" }, Titles(result.Albums));
+        Assert.Equal(new[] { "Nomad" }, Titles(result.Albums));
+        Assert.Equal(0, mb.Browses);
     }
 
     [Theory]
@@ -630,18 +637,41 @@ public class ArtistMetadataTests
     }
 
     [Fact]
-    public async Task Search_WhenTheServiceGivesNoAnswer_FallsBackOnMusicBrainz()
+    public async Task Search_WhenTheServiceGivesNoAnswer_ExpandsNothing_AndAsksMusicBrainzNothing()
     {
         using var env = Env();
-        env.Lidarr.OnLookup = term => term == "lidarr:" + AbbeyRoad
-            ? new[] { new LidarrAlbum { ForeignAlbumId = AbbeyRoad, Title = "Abbey Road", AlbumType = "Album", Artist = new LidarrArtist { ForeignArtistId = Beatles, ArtistName = "The Beatles" }, Releases = new List<LidarrRelease> { new() { Status = "Official" } } } }
-            : Array.Empty<LidarrAlbum>();
         var mb = new FakeBrowse { Groups = new[] { new MbReleaseGroup(AbbeyRoad, "Abbey Road", "Album", Array.Empty<string>(), 1969) } };
 
         var result = await Catalog(env, mb, new FakeMetadata(_ => null)).SearchAsync("The Beatles", CancellationToken.None);
 
-        Assert.Equal("Abbey Road", Assert.Single(result.Albums).Title);
-        Assert.Equal(1, mb.Browses);
+        Assert.Empty(result.Albums);
+        Assert.Equal(0, mb.Browses);
+        Assert.DoesNotContain(env.Lidarr.LookupTerms, t => t.StartsWith("lidarr:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Search_ANamesakeWithoutAVote_IsNeverExpanded()
+    {
+        using var env = new TestEnv();
+        env.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = Beatles, ArtistName = "The Beatles", Ratings = new LidarrRatings { Votes = 0 } } } };
+        var metadata = new FakeMetadata(_ => Parsed(BeatlesAnswer));
+
+        var result = await Catalog(env, new FakeBrowse(), metadata).SearchAsync("The Beatles", CancellationToken.None);
+
+        Assert.Empty(result.Albums);
+        Assert.Empty(metadata.Asked);
+    }
+
+    [Fact]
+    public async Task Search_AnExactArtistWithVotes_MakesNoCallToMusicBrainzAtAll()
+    {
+        using var env = Env();
+        var mb = new FakeBrowse();
+
+        await Catalog(env, mb, new FakeMetadata(_ => Parsed(BeatlesAnswer))).SearchAsync("the beatles", CancellationToken.None);
+
+        Assert.Equal(0, mb.Browses);
+        Assert.Equal(0, mb.Searches);
     }
 
     // ---- the search

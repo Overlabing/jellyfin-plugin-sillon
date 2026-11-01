@@ -18,10 +18,12 @@ public class MusicBrainzBusyTests
 
     private static readonly TrackQuery Plain = new("Creep", null);
 
-    private static string Body(string artist, string groupId) => $$$"""
-        {"recordings":[{"id":"r","score":100,"title":"Creep","artist-credit":[{"name":"{{{artist}}}"}],
-          "releases":[{"id":"x","title":"A","date":"1993","release-group":{"id":"{{{groupId}}}","title":"A","primary-type":"Album"}}]}]}
+    private static string Recording(string artist, string groupId) => $$$"""
+        {"id":"r-{{{artist}}}","score":100,"title":"Creep","artist-credit":[{"name":"{{{artist}}}","artist":{"id":"id-{{{artist}}}","name":"{{{artist}}}"}}],
+          "releases":[{"id":"x","title":"A","date":"1993","release-group":{"id":"{{{groupId}}}","title":"A","primary-type":"Album"}}]}
         """;
+
+    private static string Body(string artist, string groupId) => $$$"""{"recordings":[{{{Recording(artist, groupId)}}}]}""";
 
     private static HttpResponseMessage Ok(string body)
         => new(HttpStatusCode.OK) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
@@ -159,7 +161,7 @@ public class MusicBrainzBusyTests
             ? new[] { new LidarrAlbum { ForeignAlbumId = term["lidarr:".Length..], Title = "A", AlbumType = "Album", Artist = new LidarrArtist { ArtistName = "x", ForeignArtistId = "y" } } }
             : Array.Empty<LidarrAlbum>();
         var log = new Warnings<CatalogService>();
-        return (new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, log, musicBrainz, hints: hints, hintBudget: budget), env, log);
+        return (new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, log, musicBrainz, hints: hints, searchDeadline: budget), env, log);
     }
 
     private static async Task<IReadOnlyList<string>> Ids(CatalogService catalog, string query)
@@ -341,34 +343,43 @@ public class MusicBrainzBusyTests
             return Declined();
         }
 
-        return Ok(query.Contains("Radiohead", StringComparison.Ordinal) ? Body("Radiohead", PabloHoney)
-            : query.Contains("TLC", StringComparison.Ordinal) ? Body("TLC", CrazySexyCool)
-            : Body("Someone", Obscure));
+        var found = new List<string>();
+        if (query.Contains("Radiohead", StringComparison.Ordinal))
+        {
+            found.Add(Recording("Radiohead", PabloHoney));
+        }
+
+        if (query.Contains("TLC", StringComparison.Ordinal))
+        {
+            found.Add(Recording("TLC", CrazySexyCool));
+        }
+
+        return Ok($$$"""{"recordings":[{{{(found.Count > 0 ? string.Join(',', found) : Recording("Someone", Obscure))}}}]}""");
     };
 
     [Fact]
-    public async Task Search_HintedLookupsDeclined_KeepsThePlainResults_WithOneWarning_AndTheNextSearchHasThem()
+    public async Task Search_TheQuestionAboutTheHintsDeclined_AsksNothingMore_WithOneWarning_AndTheNextSearchHasThem()
     {
         var down = true;
         var (client, handler, clock, _) = Make(Creep(q => down && q.Contains("artist:", StringComparison.Ordinal)));
         var (catalog, env, log) = Catalog(client, new Hints("Radiohead", "TLC"));
         using var _ = env;
 
-        Assert.Equal(new[] { Obscure }, await Ids(catalog, "Creep"));
+        Assert.Empty(await Ids(catalog, "Creep"));
 
-        // three tries for the best-known artist, the next artist is not asked for, then the plain query
-        Assert.Equal(4, handler.Queries.Count);
+        // its three tries, one question for both artists, and no plain question either: MusicBrainz asked to slow down
+        Assert.Equal(3, handler.Queries.Count);
         Assert.Contains("503", Assert.Single(log.Lines), StringComparison.Ordinal);
         Assert.DoesNotContain("Creep", log.Lines[0], StringComparison.OrdinalIgnoreCase);
 
         down = false;
         clock.Advance(TimeSpan.FromSeconds(6));
-        Assert.Equal(new[] { PabloHoney, CrazySexyCool, Obscure }, await Ids(catalog, "Creep"));
+        Assert.Equal(new[] { PabloHoney, CrazySexyCool }, await Ids(catalog, "Creep"));
         Assert.Single(log.Lines);
     }
 
     [Fact]
-    public async Task Search_APlainLookupDeclinedToTheEnd_KeepsTheHints_WithOneWarning()
+    public async Task Search_AHintedAnswer_MakesThePlainQuestionUnnecessary()
     {
         var (client, handler, _, _) = Make(Creep(q => !q.Contains("artist:", StringComparison.Ordinal)));
         var (catalog, env, log) = Catalog(client, new Hints("Radiohead"));
@@ -376,8 +387,8 @@ public class MusicBrainzBusyTests
 
         Assert.Equal(new[] { PabloHoney }, await Ids(catalog, "Creep"));
 
-        Assert.Equal(4, handler.Queries.Count);
-        Assert.Single(log.Lines);
+        Assert.Single(handler.Queries);
+        Assert.Empty(log.Lines);
     }
 
     [Fact]
@@ -388,21 +399,8 @@ public class MusicBrainzBusyTests
         var (catalog, env, log) = Catalog(client, new Hints("Radiohead", "TLC"));
         using var _ = env;
 
-        Assert.Equal(new[] { PabloHoney, CrazySexyCool, Obscure }, await Ids(catalog, "Creep"));
+        Assert.Equal(new[] { PabloHoney, CrazySexyCool }, await Ids(catalog, "Creep"));
         Assert.Empty(log.Lines);
-    }
-
-    [Fact]
-    public async Task Search_AnArtistWhoseQueryFailsOtherwise_DoesNotCostTheNextOne()
-    {
-        var (client, _, _, _) = Make((request, _) => Uri.UnescapeDataString(request.RequestUri!.Query).Contains("Radiohead", StringComparison.Ordinal)
-            ? new HttpResponseMessage(HttpStatusCode.BadRequest)
-            : Creep(_ => false)(request, 0));
-        var (catalog, env, log) = Catalog(client, new Hints("Radiohead", "TLC"));
-        using var _ = env;
-
-        Assert.Equal(new[] { CrazySexyCool, Obscure }, await Ids(catalog, "Creep"));
-        Assert.Single(log.Lines);
     }
 
     [Fact]
@@ -417,7 +415,7 @@ public class MusicBrainzBusyTests
     }
 
     [Fact]
-    public async Task Search_OutOfHintBudget_SaysSo_AndKeepsWhatItHas()
+    public async Task Search_PastTheDeadline_SaysSo_AndKeepsWhatItHas()
     {
         var mb = new StuckOnArtists();
         var (catalog, env, log) = Catalog(mb, new Hints("Radiohead"), TimeSpan.FromMilliseconds(50));

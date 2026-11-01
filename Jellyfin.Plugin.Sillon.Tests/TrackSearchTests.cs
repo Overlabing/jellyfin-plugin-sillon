@@ -20,7 +20,7 @@ public class TrackSearchTests
     private const string CreepEp = "11111111-0000-0000-0000-000000000005";
 
     private static MbReleaseGroup Group(string id, string type, int year = 1993, params string[] secondary)
-        => new(id, "T-" + id[^1], type, secondary, year);
+        => new(id, "T-" + id[^1], type, secondary, year, ArtistId: Radiohead, ArtistName: "Radiohead");
 
     private static MbRecording Rec(string title, string artist, int score, params MbReleaseGroup[] groups)
         => new(title, artist, score, groups);
@@ -313,9 +313,9 @@ public class TrackSearchTests
         var pablo = result.Albums.Single(a => a.Mbid == PabloHoney).MatchedTrack!;
         Assert.Equal((1, 2), (pablo.Disc, pablo.Position));
         Assert.Equal(new TrackQuery("creep", null), Assert.Single(mb.Queries));
-        // resolved through Lidarr's id lookup, so a request takes the existing path
-        Assert.Contains("lidarr:" + PabloHoney, env.Lidarr.LookupTerms);
-        Assert.DoesNotContain("lidarr:" + CreepSingle, env.Lidarr.LookupTerms);
+        // told by MusicBrainz, nothing to ask Lidarr album by album; a request goes through it by the ids
+        Assert.DoesNotContain(env.Lidarr.LookupTerms, t => t.StartsWith("lidarr:", StringComparison.Ordinal));
+        Assert.All(result.Albums, a => Assert.Equal((Radiohead, "Radiohead"), (a.ArtistMbid, a.Artist)));
     }
 
     [Fact]
@@ -369,16 +369,158 @@ public class TrackSearchTests
     }
 
     [Fact]
-    public async Task Search_AFailedLidarrLookupSkipsThatAlbumOnly()
+    public async Task Search_LidarrDown_DoesNotHideWhatMusicBrainzGave()
     {
-        var (env, catalog, _) = MakeCatalog();
+        var (env, catalog, _) = MakeCatalog(e =>
+        {
+            e.Lidarr.OnSearch = _ => throw new LidarrException("boom");
+            e.Lidarr.OnLookup = _ => throw new LidarrException("boom");
+        });
         using var _ = env;
-        var inner = env.Lidarr.OnLookup;
-        env.Lidarr.OnLookup = term => term == "lidarr:" + Anthology ? throw new LidarrException("boom") : inner(term);
 
         var result = await catalog.SearchAsync("creep", CancellationToken.None);
 
-        Assert.Equal(PabloHoney, Assert.Single(result.Albums).Mbid);
+        Assert.Equal(new[] { PabloHoney, Anthology }, result.Albums.Select(a => a.Mbid));
+    }
+
+    [Fact]
+    public async Task Search_LidarrDown_AndNothingElseToShow_IsStillAFailure()
+    {
+        var (env, catalog, _) = MakeCatalog(e => e.Lidarr.OnSearch = _ => throw new LidarrException("boom"), mbThrows: true);
+        using var _ = env;
+        env.Lidarr.OnLookup = _ => Array.Empty<LidarrAlbum>();
+
+        Assert.Equal(502, (await Assert.ThrowsAsync<CatalogException>(() => catalog.SearchAsync("creep", CancellationToken.None))).StatusCode);
+    }
+
+    // ---- when a song is looked for
+
+    private static LidarrSearchItem ArtistItem(string name, int votes, string id = "artist-id")
+        => new() { Artist = new LidarrArtist { ForeignArtistId = id, ArtistName = name, Ratings = new LidarrRatings { Votes = votes } } };
+
+    [Theory]
+    [InlineData("radiohead", "Radiohead", 86, false)] // exactly the name, with votes: nothing to ask
+    [InlineData("the beatles", "The Beatles", 10, false)] // the threshold itself
+    [InlineData("DJ Snake", "DJ Snake", 1, true)] // his votes on Lidarr's metadata are that few
+    [InlineData("the beatles", "The Beatles", 9, true)]
+    [InlineData("Creep", "Creep", 2, true)] // a band's name, and a famous song's
+    [InlineData("radiohed", "Radiohead", 86, true)] // not the name typed
+    public async Task Search_AnExactArtistWithVotes_AsksMusicBrainzNothing(string query, string name, int votes, bool asks)
+    {
+        var (env, catalog, mb) = MakeCatalog(e => e.Lidarr.OnSearch = _ => new[] { ArtistItem(name, votes) });
+        using var _ = env;
+
+        await catalog.SearchAsync(query, CancellationToken.None);
+
+        Assert.Equal(asks ? 1 : 0, mb.Queries.Count);
+    }
+
+    [Fact]
+    public async Task Search_LidarrDown_StillLooksForTheSong()
+    {
+        var (env, catalog, mb) = MakeCatalog(e => e.Lidarr.OnSearch = _ => throw new LidarrException("boom"));
+        using var _ = env;
+
+        // nothing of the song, and Lidarr down: the failure remains, after asking
+        await Assert.ThrowsAsync<CatalogException>(() => catalog.SearchAsync("radiohead", CancellationToken.None));
+
+        Assert.Single(mb.Queries);
+    }
+
+    // ---- several hints, one question
+
+    [Fact]
+    public void ToLucene_AsksForAllTheHintedArtistsAtOnce_UnderAnySpelling()
+        => Assert.Equal(
+            "recording:\"Creep\" AND (artist:\"Radiohead\" OR artistname:\"Radiohead\" OR artist:\"TLC\" OR artistname:\"TLC\")",
+            new TrackQuery("Creep", "Radiohead", true, new[] { "TLC" }).ToLucene());
+
+    [Fact]
+    public void Hinted_FollowsTheOrderOfTheHint_NotOfTheAnswer_TwoAlbumsAnArtist()
+    {
+        var recordings = new[]
+        {
+            Rec("Creep", "TLC", 100, Group("tlc", "Album")),
+            Rec("Creep", "Radiohead", 100, Group("a", "Album"), Group("b", "Album", 1994), Group("c", "Album", 1995)),
+            Rec("Creep", "Someone Else", 100, Group("other", "Album")),
+        };
+
+        var albums = TrackSearch.Hinted(recordings, new TrackQuery("Creep", "Radiohead", true, new[] { "TLC" }), hideEps: false);
+
+        Assert.Equal(new[] { "a", "b", "tlc" }, albums.Select(a => a.ReleaseGroupId));
+        Assert.All(albums, a => Assert.True(a.Hinted));
+    }
+
+    // ---- what a request needs comes from the answer
+
+    private const string CreepOnACompilation = """
+        {"recordings":[{"id":"rec","score":100,"title":"Creep","artist-credit":[{"name":"Radiohead","artist":{"id":"a74b1b7f-71a5-4011-9441-d0b5e4122711","name":"Radiohead"}}],
+          "releases":[
+            {"id":"r1","title":"Pablo Honey","date":"1993-02-22","release-group":{"id":"cd76f76b-ff15-3784-a71d-4da3078a6851","title":"Pablo Honey","primary-type":"Album"},
+              "media":[{"position":1,"track":[{"number":"2","title":"Creep"}]}]},
+            {"id":"r2","title":"Pablo Honey","date":"1992","release-group":{"id":"cd76f76b-ff15-3784-a71d-4da3078a6851","title":"Pablo Honey","primary-type":"Album"}},
+            {"id":"r3","title":"90s Hits","date":"2001-05-01","artist-credit":[{"name":"Various Artists","artist":{"id":"89ad4ac3-39f7-470e-963a-56509c546377","name":"Various Artists"}}],
+              "release-group":{"id":"various","title":"90s Hits","primary-type":"Album","secondary-types":["Compilation"]}}]}]}
+        """;
+
+    [Fact]
+    public async Task Client_TellsTheArtistOfEachReleaseGroup_VariousArtistsOnACompilation_AsLidarrHasIt()
+    {
+        var (client, _, _) = MakeClient(_ => Ok(CreepOnACompilation));
+
+        var found = await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None);
+        var albums = TrackSearch.Albums(found, new TrackQuery("Creep", null), hideEps: false);
+
+        var pablo = albums[0].Group!;
+        Assert.Equal(("Pablo Honey", "a74b1b7f-71a5-4011-9441-d0b5e4122711", "Radiohead", "1992"), (pablo.Title, pablo.ArtistId, pablo.ArtistName, pablo.Date));
+        var various = albums[1].Group!;
+        Assert.Equal(("89ad4ac3-39f7-470e-963a-56509c546377", "Various Artists"), (various.ArtistId, various.ArtistName));
+    }
+
+    /// <summary>On a real day MusicBrainz's answer for "Creep" named Pablo Honey by its 2009 reissue alone, where Lidarr says 1993.</summary>
+    [Fact]
+    public async Task Client_AStudioAlbumKnownByALateReissue_TakesTheRecordingsDate_ACompilationKeepsItsOwn()
+    {
+        var (client, _, _) = MakeClient(_ => Ok("""
+            {"recordings":[{"id":"rec","score":100,"title":"Creep","first-release-date":"1992-09-21","artist-credit":[{"name":"Radiohead","artist":{"id":"a74b","name":"Radiohead"}}],
+              "releases":[
+                {"id":"r1","date":"2009-03-24","release-group":{"id":"pablo","title":"Pablo Honey","primary-type":"Album"}},
+                {"id":"r2","date":"2001-05-01","release-group":{"id":"hits","title":"90s Hits","primary-type":"Album","secondary-types":["Compilation"]}}]}]}
+            """));
+
+        var groups = Assert.Single(await client.SearchRecordingsAsync(new TrackQuery("Creep", null), CancellationToken.None)).ReleaseGroups;
+
+        Assert.Equal(("1992-09-21", 1992), (groups[0].Date, groups[0].Year));
+        Assert.Equal(("2001-05-01", 2001), (groups[1].Date, groups[1].Year));
+    }
+
+    [Fact]
+    public async Task Request_OfASongHit_PostsToLidarrWhatALookedUpAlbumPosts()
+    {
+        var (client, _, _) = MakeClient(_ => Ok(CreepOnACompilation));
+        var found = Assert.Single(JsonSerializer.Deserialize<List<LidarrAlbum>>(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "lidarr_lookup_pablo_honey.json")), new JsonSerializerOptions(JsonSerializerDefaults.Web))!);
+
+        // the album as the search gives it, without a release, and as Lidarr's lookup gives it, with 36
+        using var env = new TestEnv();
+        var catalog = new CatalogService(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, client, () => env.Now);
+        var hit = (await catalog.SearchAsync("Creep", CancellationToken.None)).Albums.First();
+        Assert.Equal(found.ForeignAlbumId, hit.Mbid);
+        Assert.Equal(0, hit.TrackCount);
+        Assert.NotEmpty(found.Releases!);
+
+        await Post(env, hit.Mbid, hit.ArtistMbid, hit.Title, hit.Artist, hit.Year, hit.CoverUrl);
+        using var other = new TestEnv();
+        await Post(other, found.ForeignAlbumId, found.Artist!.ForeignArtistId, found.Title, found.Artist.ArtistName, CatalogService.YearOf(found.ReleaseDate), CatalogService.CoverOf(found.Images));
+
+        // the same body to the same endpoint, so Lidarr does the same: it reads the album's id and the artist's options, and fetches the rest itself
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        Assert.Equal(JsonSerializer.Serialize(Assert.Single(other.Lidarr.Added), options), JsonSerializer.Serialize(Assert.Single(env.Lidarr.Added), options));
+        Assert.Equal(other.Lidarr.Searched, env.Lidarr.Searched);
+        Assert.Equal(found.ForeignAlbumId, env.Lidarr.Added[0].ForeignAlbumId);
+        Assert.Equal(found.Artist.ForeignArtistId, env.Lidarr.Added[0].Artist.ForeignArtistId);
+
+        static Task Post(TestEnv env, string album, string artist, string title, string artistName, int year, string cover)
+            => env.Service.CreateAsync(new Requests.NewRequest(TestEnv.User, "name", album, artist, title, artistName, year, cover), CancellationToken.None);
     }
 
     // ---- request status mapping (wire value unchanged, optional phase)

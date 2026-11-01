@@ -281,18 +281,20 @@ public class DeezerHintsTests
         public Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct) => Task.FromResult<MbTracklist?>(null);
     }
 
-    private static MbReleaseGroup Group(string id, string type = "Album", params string[] secondary) => new(id, "T", type, secondary, 1993);
+    private static MbReleaseGroup Group(string id, string type = "Album", params string[] secondary) => new(id, "T " + id, type, secondary, 1993, ArtistId: "artist-id", ArtistName: "An Artist");
 
     private static MbRecording Rec(string artist, params MbReleaseGroup[] groups) => new("Creep", artist, 100, groups, "rec-" + artist);
 
     // MusicBrainz's text ranking of "Creep": 3,542 recordings, the first ones by nobody famous
-    private static IReadOnlyList<MbRecording> CreepOnMusicBrainz(TrackQuery query) => query.Artist switch
-    {
-        null => new[] { Rec("Some Cover Band", Group(Obscure)) },
-        "Radiohead" => new[] { Rec("Radiohead", Group(PabloHoney), Group(CreepSingle, "Single"), Group(BestOf, "Album", "Compilation"), Group(Later, "Album", "Live")) },
-        "TLC" => new[] { Rec("TLC", Group(CrazySexyCool), Group(Obscure)) },
-        _ => Array.Empty<MbRecording>(),
-    };
+    private static IReadOnlyList<MbRecording> CreepOnMusicBrainz(TrackQuery query)
+        => query.Artist is null
+            ? new[] { Rec("Some Cover Band", Group(Obscure)) }
+            : query.Artists.SelectMany(artist => artist switch
+            {
+                "Radiohead" => new[] { Rec("Radiohead", Group(PabloHoney), Group(CreepSingle, "Single"), Group(BestOf, "Album", "Compilation"), Group(Later, "Album", "Live")) },
+                "TLC" => new[] { Rec("TLC", Group(CrazySexyCool), Group(Obscure)) },
+                _ => Array.Empty<MbRecording>(),
+            }).ToList();
 
     private static (TestEnv Env, CatalogService Catalog) Make(IMusicBrainzApi mb, ITrackHints hints, bool on = true, TimeSpan? budget = null, Action<TestEnv>? arrange = null)
     {
@@ -309,7 +311,7 @@ public class DeezerHintsTests
         => (await catalog.SearchAsync(query, CancellationToken.None)).Albums.Select(a => a.Mbid).ToList();
 
     [Fact]
-    public async Task Search_Creep_OffersPabloHoneyFirst_ThenThePlainResults_WithoutDuplicates()
+    public async Task Search_Creep_OffersPabloHoneyFirst_FromOneQuestion()
     {
         var mb = new FakeMusicBrainz(CreepOnMusicBrainz);
         var (env, catalog) = Make(mb, Client(Answers(CreepJson)));
@@ -317,9 +319,11 @@ public class DeezerHintsTests
 
         var ids = await Ids(catalog, "Creep");
 
-        // each artist offers its best two; the album TLC and the plain search share appears once
+        // one question, however many artists; each artist offers its best two, and with those found the title alone is not asked
         Assert.Equal(new[] { PabloHoney, BestOf, CrazySexyCool, Obscure }, ids);
-        Assert.Equal(new[] { new TrackQuery("Creep", "Radiohead", true), new TrackQuery("Creep", "TLC", true), new TrackQuery("Creep", "Daniela Andrade", true), new TrackQuery("Creep", null) }, mb.Queries);
+        Assert.Equal(
+            "recording:\"Creep\" AND (artist:\"Radiohead\" OR artistname:\"Radiohead\" OR artist:\"TLC\" OR artistname:\"TLC\" OR artist:\"Daniela Andrade\" OR artistname:\"Daniela Andrade\")",
+            Assert.Single(mb.Queries).ToLucene());
     }
 
     [Fact]
@@ -498,16 +502,47 @@ public class DeezerHintsTests
     }
 
     [Fact]
-    public async Task Search_OutOfTime_KeepsTheHintsFoundSoFar_AndThePlainResults()
+    public async Task Search_PastTheDeadline_AnswersWithWhatLidarrGave()
     {
-        var mb = new FakeMusicBrainz(CreepOnMusicBrainz)
-        {
-            Before = (q, ct) => q.Artist == "TLC" ? Task.Delay(Timeout.InfiniteTimeSpan, ct) : Task.CompletedTask,
-        };
-        var (env, catalog) = Make(mb, Client(Answers(CreepJson)), budget: TimeSpan.FromMilliseconds(100));
+        var mb = new FakeMusicBrainz(CreepOnMusicBrainz) { Before = (_, ct) => Task.Delay(Timeout.InfiniteTimeSpan, ct) };
+        var (env, catalog) = Make(mb, Client(Answers(CreepJson)), budget: TimeSpan.FromMilliseconds(100), arrange: e =>
+            e.Lidarr.OnSearch = _ => new[] { new LidarrSearchItem { Album = new LidarrAlbum { ForeignAlbumId = "lidarr-own", Title = "Creep", AlbumType = "Album" } } });
         using var _ = env;
 
-        Assert.Equal(new[] { PabloHoney, BestOf, Obscure }, await Ids(catalog, "Creep"));
+        Assert.Equal(new[] { "lidarr-own" }, await Ids(catalog, "Creep"));
+    }
+
+    [Fact]
+    public async Task Search_NoAlbumFromTheHints_AsksTheTitleAlone()
+    {
+        var mb = new FakeMusicBrainz(q => q.Artist is null ? new[] { Rec("Some Cover Band", Group(Obscure)) } : Array.Empty<MbRecording>());
+        var (env, catalog) = Make(mb, Client(Answers(CreepJson)));
+        using var _ = env;
+
+        Assert.Equal(new[] { Obscure }, await Ids(catalog, "Creep"));
+        Assert.Equal(2, mb.Queries.Count);
+    }
+
+    /// <summary>The first five of Deezer's answers, as the plugin asks for them (limit=5), trimmed to what it reads. Saved on 2026-11-01.</summary>
+    public static TheoryData<string, (string Title, string Artist)[], string[]> RealAnswers => new()
+    {
+        { "DJ Snake", new[] { ("Combien pour la nuit", "Mylène Farmer"), ("Sans amarres", "Mylène Farmer"), ("Let Me Love You", "DJ Snake"), ("Lean On", "Major Lazer"), ("Loco Contigo", "DJ Snake") }, Array.Empty<string>() },
+        { "The Beatles", new[] { ("Let It Be (Remastered 2009)", "The Beatles"), ("Here Comes The Sun (Remastered 2009)", "The Beatles"), ("Come Together (Remastered 2009)", "The Beatles"), ("Hey Jude (Remastered 2015)", "The Beatles"), ("Twist And Shout (Remastered 2009)", "The Beatles") }, Array.Empty<string>() },
+        { "Radiohead", new[] { ("Creep", "Radiohead"), ("No Surprises", "Radiohead"), ("Let Down", "Radiohead"), ("Karma Police", "Radiohead"), ("Burn the Witch", "Radiohead") }, Array.Empty<string>() },
+        { "radiohed", new[] { ("Radiohed", "Valenxiaga"), ("Creep", "Radiohead"), ("No Surprises", "Radiohead"), ("Let Down", "Radiohead"), ("Karma Police", "Radiohead") }, new[] { "Valenxiaga" } },
+        { "Creep", new[] { ("Creep", "Radiohead"), ("Creep (Acoustic)", "Radiohead"), ("Creep", "TLC"), ("Creep", "Daniela Andrade"), ("Creep", "Stone Temple Pilots") }, new[] { "Radiohead", "TLC", "Daniela Andrade" } },
+        { "Lemon Tree", new[] { ("Lemon Tree", "Fools Garden"), ("Lemon Tree", "Alle Farben"), ("Lemon Tree", "Post Malone"), ("Lemon Tree (Acoustic)", "Kaiak"), ("Lemon Tree", "Gustixa") }, new[] { "Fools Garden", "Alle Farben", "Post Malone" } },
+        { "la main verte", new[] { ("La main verte (Live)", "Tryo"), ("La main verte (Live)", "Tryo"), ("La Main Verte", "Rémi Guichard"), ("La main verte", "Michel Hubert"), ("La main verte (Live)", "Tryo") }, new[] { "Rémi Guichard", "Michel Hubert" } },
+    };
+
+    /// <summary>A hint needs a track named exactly what was typed: an artist's collaboration or popular tracks never promote anyone for a search by a name.</summary>
+    [Theory]
+    [MemberData(nameof(RealAnswers))]
+    public async Task Provider_OnRealAnswers_NamesOnlyTheArtistsOfATrackOfThatExactTitle(string query, (string Title, string Artist)[] tracks, string[] expected)
+    {
+        var client = Client(Answers(Answer(tracks.Select(t => (t.Title, t.Title, "", 1, t.Artist, "An Album")).ToArray())));
+
+        Assert.Equal(expected, await client.ArtistsForTitleAsync(query, CancellationToken.None));
     }
 
     [Fact]
@@ -531,12 +566,14 @@ public class DeezerHintsTests
         using var _ = env;
 
         await catalog.SearchAsync("Creep", CancellationToken.None);
-        Assert.Equal(4, mbHttp.Requests.Count);
+
+        // the question about the hints found nothing, so the title alone is asked too
+        Assert.Equal(2, mbHttp.Requests.Count);
         Assert.All(starts.Zip(starts.Skip(1)), pair => Assert.True(pair.Second - pair.First >= TimeSpan.FromSeconds(1)));
 
         // the same search again: nothing reaches MusicBrainz
         await catalog.SearchAsync("creep", CancellationToken.None);
-        Assert.Equal(4, mbHttp.Requests.Count);
+        Assert.Equal(2, mbHttp.Requests.Count);
     }
 
     [Fact]
