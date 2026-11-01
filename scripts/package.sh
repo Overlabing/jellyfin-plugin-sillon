@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-version="0.9.1.0"
+version="0.9.2.0"
 target_abi="12.2.0.0"
 guid="1daed904-1b05-483c-8544-16cb6dcced54"
 
@@ -26,7 +26,7 @@ cat > "$stage/meta.json" <<JSON
   "category": "Music",
   "overview": "Music requests for the Sillon app.",
   "description": "Connects Jellyfin to Lidarr so music requests made from the Sillon app can be fulfilled automatically.",
-  "changelog": "The album catalogue is steadier when MusicBrainz is busy: a busy answer is retried and never remembered as an empty result, and the next lookup recovers sooner. An album's disc count now follows what most editions have. A requester is notified only when the album has arrived. The admin page and README use clearer wording.",
+  "changelog": "An artist Lidarr does not hold now shows the whole discography at once on the artist page, joint albums included. A query for an artist's exact name puts that artist's studio albums first. An allow list stays absolute and reaches none of this.",
   "status": "Active",
   "autoUpdate": false
 }
