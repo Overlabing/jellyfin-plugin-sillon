@@ -96,7 +96,7 @@ Add the Sillon plugin repository to Jellyfin, then install the plugin from the c
 To install by hand instead, download `Sillon_<version>.zip` from the
 [latest release](https://github.com/Overlabing/jellyfin-plugin-sillon/releases/latest), unzip it (it holds
 `Jellyfin.Plugin.Sillon.dll` and `meta.json`) into a folder named `Sillon_<version>` inside Jellyfin's
-`plugins` directory (for example `/config/plugins/Sillon_0.9.2.0/` in the official Docker image), and
+`plugins` directory (for example `/config/plugins/Sillon_0.9.3.0/` in the official Docker image), and
 restart Jellyfin.
 
 Requests and registered devices are stored in `requests.json` and `devices.json` in the plugin's data

@@ -1,7 +1,7 @@
 ---
 name: "Sillon"
 guid: "1daed904-1b05-483c-8544-16cb6dcced54"
-version: "0.9.2.0"
+version: "0.9.3.0"
 targetAbi: "12.2.0.0"
 framework: "net10.0"
 owner: "Overlabing"
@@ -11,8 +11,8 @@ description: >
   can be fulfilled automatically.
 category: "Music"
 changelog: >
-  An artist Lidarr does not hold now shows the whole discography at once on the artist page, joint albums included.
-  A query for an artist's exact name puts that artist's studio albums first.
+  The catalogue search is lighter and gives its final answer within one 5-second deadline, with far fewer outside calls.
+  Song hits and the artist page follow the same shorter path, so the app is no longer left waiting on a slow lookup.
   An allow list stays absolute and reaches none of this.
 artifacts:
   - "Jellyfin.Plugin.Sillon.dll"
