@@ -14,6 +14,7 @@ public sealed class CatalogService
 {
     private const int MaxSearchAlbums = 40;
     private const int MaxTrackAlbums = 8;
+    private static readonly TimeSpan PictureGrace = TimeSpan.FromMilliseconds(400);
     internal const string OutOfTime = "no answer in time";
     private static readonly TimeSpan CatalogTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan CatalogRetry = TimeSpan.FromMinutes(5);
@@ -37,6 +38,7 @@ public sealed class CatalogService
     private readonly IMusicBrainzApi? _musicBrainz;
     private readonly Func<DateTimeOffset> _now;
     private readonly ITrackHints? _hints;
+    private readonly IArtistMetadata? _metadata;
     private readonly TimeSpan _searchDeadline;
     private readonly TimeSpan _artistBudget;
     private readonly ArtistDiscography? _discography;
@@ -74,6 +76,7 @@ public sealed class CatalogService
     {
         _artistBudget = discographyBudget ?? DefaultArtistBudget;
         _hints = hints;
+        _metadata = metadata;
         _searchDeadline = searchDeadline ?? DefaultSearchDeadline;
         _musicBrainz = musicBrainz;
         _now = now ?? (() => DateTimeOffset.UtcNow);
@@ -102,128 +105,112 @@ public sealed class CatalogService
         var trackHits = TrackAlbumsOrNoneAsync(query, config, search, deadline.Token, ct);
         var (items, failed) = await search.ConfigureAwait(false);
 
-        var artists = new List<CatalogArtist>();
-        var albums = new List<LidarrAlbum>();
-        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
-        var limit = MaxSearchAlbums;
-
         // only worth asking for when the query names an artist, and never when the catalogue is limited to a list
-        var named = allowed.Count == 0 ? NamedArtist(items, query) : null;
+        var named = allowed.Count == 0 ? SearchRanking.Meant(items.Select(i => i.Artist).OfType<LidarrArtist>().ToList(), query, limited: false).Artist : null;
+
+        // an artist Lidarr holds has its pictures in Lidarr's own folder, which the app cannot reach: the metadata service has them, asked for at the same time as the albums
+        var pictures = named is not null && !ToArtist(named).Images.Any() ? PicturesOrNoneAsync(named.ForeignArtistId, deadline.Token, ct) : Task.FromResult<IReadOnlyList<CatalogImage>>(Array.Empty<CatalogImage>());
         var studio = named is null ? Task.FromResult<IReadOnlyList<LidarrAlbum>>(Array.Empty<LidarrAlbum>()) : StudioAlbumsAsync(lidarr, named, config, deadline.Token, ct);
 
         // the list is resolved through Lidarr as a whole and kept, whatever one search has left: without this, a long one would never get to the end of it
         var listed = allowed.Count > 0 ? await AllowedCatalogAsync(lidarr, allowed, ct).ConfigureAwait(false) : Array.Empty<LidarrAlbum>();
 
-        void Add(LidarrAlbum album)
-        {
-            if (allowed.Count > 0 && !allowed.Contains(album.ForeignAlbumId))
-            {
-                return;
-            }
-
-            if (IsHidden(album, config, allowed))
-            {
-                return;
-            }
-
-            if (seen.TryGetValue(album.ForeignAlbumId, out var index))
-            {
-                // the combined search can omit the releases the album lookup carries
-                if (albums[index].Releases is not { Count: > 0 } && album.Releases is { Count: > 0 })
-                {
-                    albums[index] = album;
-                }
-            }
-            else if (albums.Count < limit)
-            {
-                seen[album.ForeignAlbumId] = albums.Count;
-                albums.Add(album);
-            }
-        }
+        // what is offered at all: only the allowed albums when there is a list, never what the settings hide, and nothing known from bootlegs and promotional copies alone
+        bool Offered(LidarrAlbum album)
+            => album.ForeignAlbumId.Length > 0
+                && (allowed.Count > 0 ? allowed.Contains(album.ForeignAlbumId) : !SearchRanking.IsUnofficial(album))
+                && !IsHidden(album, config, allowed);
 
         // the albums that hold the track searched for, as MusicBrainz tells them: a request goes through Lidarr by the ids alone. An allowed album stays exactly what the list resolved
         var tracks = new Dictionary<string, TrackAlbum>(StringComparer.OrdinalIgnoreCase);
         var hits = (await trackHits.ConfigureAwait(false)).Where(h => allowed.Count == 0 || allowed.Contains(h.ReleaseGroupId)).Take(MaxTrackAlbums).ToList();
-        var trackAlbums = new List<LidarrAlbum>(hits.Count);
+        var songAlbums = new List<(LidarrAlbum Album, TrackAlbum Song)>(hits.Count);
         foreach (var hit in hits)
         {
             tracks[hit.ReleaseGroupId] = hit;
             if (allowed.Count == 0)
             {
-                trackAlbums.Add(ArtistDiscography.ToAlbum(hit.Group!));
+                songAlbums.Add((ArtistDiscography.ToAlbum(hit.Group!), hit));
             }
             else if (listed.FirstOrDefault(a => a.ForeignAlbumId.Equals(hit.ReleaseGroupId, StringComparison.OrdinalIgnoreCase)) is { } album)
             {
-                trackAlbums.Add(album);
+                songAlbums.Add((album, hit));
             }
         }
 
-        // a popular artist's album comes before the many same-title albums Lidarr knows
-        foreach (var album in trackAlbums.Where(a => tracks[a.ForeignAlbumId].Hinted))
-        {
-            Add(album);
-        }
-
-        // on top of the usual cap: what the search finds otherwise keeps its room
-        var artistAlbums = await studio.ConfigureAwait(false);
-        limit += artistAlbums.Count;
-        foreach (var album in artistAlbums)
-        {
-            Add(album);
-        }
-
-        foreach (var item in items)
-        {
-            if (item.Artist is { ForeignArtistId.Length: > 0 })
-            {
-                artists.Add(ToArtist(item.Artist));
-            }
-            else if (item.Album is { ForeignAlbumId.Length: > 0 })
-            {
-                Add(item.Album);
-            }
-        }
-
-        foreach (var album in await lookup.ConfigureAwait(false))
-        {
-            if (album.ForeignAlbumId.Length > 0)
-            {
-                Add(album);
-            }
-        }
-
-        foreach (var album in trackAlbums.Where(a => !tracks[a.ForeignAlbumId].Hinted))
-        {
-            Add(album);
-        }
-
+        var artists = items.Select(i => i.Artist).OfType<LidarrArtist>().ToList();
+        var found = items.Select(i => i.Artist is { ForeignArtistId.Length: > 0 } ? null : i.Album).OfType<LidarrAlbum>().Concat(await lookup.ConfigureAwait(false)).Where(Offered).ToList();
         if (allowed.Count > 0)
         {
             // Lidarr answers a search by artist name with the artist alone: match the cached allowed albums too
-            foreach (var album in listed)
+            foreach (var album in listed.Where(a => Matches(a.Title, query) || Matches(a.Artist?.ArtistName, query)))
             {
-                if (Matches(album.Title, query) || Matches(album.Artist?.ArtistName, query))
+                found.Add(album);
+                if (album.Artist is { ForeignArtistId.Length: > 0 } owner)
                 {
-                    Add(album);
-                    if (album.Artist is { ForeignArtistId.Length: > 0 } owner && !artists.Any(a => a.Mbid == owner.ForeignArtistId))
-                    {
-                        artists.Add(ToArtist(owner));
-                    }
+                    artists.Add(owner);
                 }
             }
+        }
 
-            // an artist is offered only through an allowed album
-            var offered = albums.Select(a => a.Artist?.ForeignArtistId).ToHashSet(StringComparer.Ordinal);
-            artists.RemoveAll(a => !offered.Contains(a.Mbid));
+        var studioAlbums = (await studio.ConfigureAwait(false)).Where(Offered).ToList();
+        var pool = new SearchPool(query, artists, studioAlbums, songAlbums.Where(s => Offered(s.Album)).ToList(), found, allowed.Count > 0);
+        var ranked = SearchRanking.Rank(pool, MaxSearchAlbums + studioAlbums.Count);
+        var sentArtists = ranked.Artists.Select(ToArtist).ToList();
+
+        // an artist is offered only through an allowed album
+        if (allowed.Count > 0)
+        {
+            var offered = ranked.Albums.Select(a => a.Artist?.ForeignArtistId).ToHashSet(StringComparer.Ordinal);
+            sentArtists.RemoveAll(a => !offered.Contains(a.Mbid));
         }
 
         // only what answers nothing at all is a failure: Lidarr being down must not hide what MusicBrainz gave
-        if (failed && albums.Count == 0 && artists.Count == 0 && allowed.Count == 0)
+        if (failed && ranked.Albums.Count == 0 && sentArtists.Count == 0 && allowed.Count == 0)
         {
             throw new CatalogException(StatusCodes.Status502BadGateway, "Lidarr indisponible");
         }
 
-        return new CatalogSearchResult(artists, ToAlbums(PreferFullRelease(albums), null, tracks));
+        var sentAlbums = ToAlbums(ranked.Albums, null, tracks);
+        var top = ranked.Top(
+            sentArtists.Select(a => a.Mbid).ToHashSet(StringComparer.Ordinal),
+            sentAlbums.Select(a => a.Mbid).ToHashSet(StringComparer.Ordinal),
+            id => sentAlbums.Any(a => a.Mbid == id && a.State is "library" or "available"));
+
+        if (named is not null && sentArtists.FindIndex(a => a.Mbid == named.ForeignArtistId) is >= 0 and var at && sentArtists[at].Images.Count == 0)
+        {
+            // the service's answer is big for a famous artist: the search does not wait for it past a moment, and the next one finds it kept
+            await Task.WhenAny(pictures, Task.Delay(PictureGrace, ct)).ConfigureAwait(false);
+            if (pictures.IsCompletedSuccessfully)
+            {
+                sentArtists[at] = sentArtists[at] with { Images = pictures.Result };
+            }
+        }
+
+        return new CatalogSearchResult(sentArtists, sentAlbums, top);
+    }
+
+    private async Task<IReadOnlyList<CatalogImage>> PicturesOrNoneAsync(string artistId, CancellationToken deadline, CancellationToken ct)
+    {
+        if (_metadata is null)
+        {
+            return Array.Empty<CatalogImage>();
+        }
+
+        try
+        {
+            var answer = await _metadata.GetArtistAsync(artistId, deadline).ConfigureAwait(false);
+            return answer?.Images.Where(i => i.Url.StartsWith("http", StringComparison.Ordinal)).Select(i => new CatalogImage(i.CoverType, i.Url)).ToList() ?? new List<CatalogImage>();
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogDebug("Artist pictures failed: {Reason}", ex.GetType().Name);
+        }
+
+        return Array.Empty<CatalogImage>();
     }
 
     /// <summary>Lists an artist's albums. Resolution, in order: Lidarr's id lookup (<c>lidarr:&lt;mbid&gt;</c>) gives the artist; if Lidarr already holds the artist, all of its albums; else the whole list of Lidarr's metadata service, or when it gives no answer the release groups MusicBrainz credits to the artist, each resolved by the same id lookup; when that is empty or incomplete, a search by the artist's name filtered to the albums of that artist. The name comes from the id lookup, or from the optional hint when that found nothing.</summary>
@@ -452,7 +439,8 @@ public sealed class CatalogService
     /// <returns>The URL, or empty.</returns>
     public static string ImageUrl(LidarrImage image)
     {
-        if (!string.IsNullOrEmpty(image.RemoteUrl))
+        // an artist Lidarr holds has its pictures in its own folder: /config/MediaCover/... as the remote URL, /MediaCover/... as the URL, neither of which the app can fetch
+        if (image.RemoteUrl.StartsWith("http", StringComparison.Ordinal))
         {
             return image.RemoteUrl;
         }
@@ -480,11 +468,11 @@ public sealed class CatalogService
         return string.Empty;
     }
 
-    /// <summary>Reads the year from the first four characters of a date.</summary>
+    /// <summary>Reads the year from the first four characters of a date. MusicBrainz's "no date" reaches Lidarr as 0001-01-01, which is no year to show.</summary>
     /// <param name="date">The date text.</param>
-    /// <returns>The year, 0 when unreadable.</returns>
+    /// <returns>The year, 0 when unreadable or not a real year.</returns>
     public static int YearOf(string? date)
-        => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) ? year : 0;
+        => date is { Length: >= 4 } && int.TryParse(date.AsSpan(0, 4), out var year) && year >= 1000 ? year : 0;
 
     /// <summary>
     /// Drops the EPs, singles and the like of an artist that has an album of the same title (case, diacritics and punctuation aside). Same-title albums are distinct release groups
@@ -672,27 +660,6 @@ public sealed class CatalogService
     {
         var top = items.Select(i => i.Artist).OfType<LidarrArtist>().FirstOrDefault(a => a.ForeignArtistId.Length > 0);
         return top is { Ratings.Votes: >= SureArtistVotes } && TrackQuery.Fold(top.ArtistName) == TrackQuery.Fold(query) && TrackQuery.Fold(query).Length > 0;
-    }
-
-    /// <summary>
-    /// The artist a query names: Lidarr's first artist must be called exactly that (case, diacritics and punctuation aside), or the query is taken for something else.
-    /// Among namesakes, the one with the most votes, then the one Lidarr holds, then the first listed. Nobody when that one has no votes and Lidarr does not hold it: nothing says it is who was meant.
-    /// </summary>
-    private static LidarrArtist? NamedArtist(IReadOnlyList<LidarrSearchItem> items, string query)
-    {
-        var wanted = TrackQuery.Fold(query);
-        var artists = items.Select(i => i.Artist).OfType<LidarrArtist>().Where(a => a.ForeignArtistId.Length > 0).ToList();
-        if (wanted.Length == 0 || artists.Count == 0 || TrackQuery.Fold(artists[0].ArtistName) != wanted)
-        {
-            return null;
-        }
-
-        var named = artists
-            .Where(a => TrackQuery.Fold(a.ArtistName) == wanted)
-            .OrderByDescending(a => a.Ratings?.Votes ?? 0)
-            .ThenByDescending(a => a.Id > 0)
-            .First();
-        return named.Id > 0 || (named.Ratings?.Votes ?? 0) > 0 ? named : null;
     }
 
     /// <summary>The studio albums of the artist a search names, from Lidarr when it holds the artist, else from the metadata service's one answer; nothing, rather than a failure, when they cannot be had.</summary>

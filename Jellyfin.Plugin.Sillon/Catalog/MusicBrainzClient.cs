@@ -17,7 +17,8 @@ namespace Jellyfin.Plugin.Sillon.Catalog;
 /// <param name="ArtistId">The MusicBrainz id of the artist credited first, empty when unknown.</param>
 /// <param name="ArtistName">The name of the artist credited first, empty when unknown.</param>
 /// <param name="Date">The first release date as MusicBrainz gives it, empty when unknown; a search tells that of what it found, so at best near the album's.</param>
-public sealed record MbReleaseGroup(string Id, string Title, string PrimaryType, IReadOnlyList<string> SecondaryTypes, int Year, int Disc = 0, int Position = 0, string ArtistId = "", string ArtistName = "", string Date = "");
+/// <param name="Status">The status of the release the group was found by (Official, Bootleg, Promotion, ...), empty when unknown.</param>
+public sealed record MbReleaseGroup(string Id, string Title, string PrimaryType, IReadOnlyList<string> SecondaryTypes, int Year, int Disc = 0, int Position = 0, string ArtistId = "", string ArtistName = "", string Date = "", string Status = "");
 
 /// <summary>A recording found by a track search.</summary>
 /// <param name="Title">The track title.</param>
@@ -384,7 +385,7 @@ public sealed class MusicBrainzClient : IMusicBrainzApi
                 groups.Add(new MbReleaseGroup(
                     g.Id, g.Title ?? release.Title ?? string.Empty, g.PrimaryType ?? string.Empty, g.SecondaryTypes ?? new List<string>(), year,
                     position > 0 ? Math.Max(1, medium!.Position) : 0, position,
-                    credited?.Id ?? string.Empty, credited?.Name ?? string.Empty, date));
+                    credited?.Id ?? string.Empty, credited?.Name ?? string.Empty, date, release.Status ?? string.Empty));
             }
 
             list.Add(new MbRecording(

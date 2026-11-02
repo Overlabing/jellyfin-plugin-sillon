@@ -1,0 +1,271 @@
+[
+ {
+  "artist": {
+   "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+   "artistName": "Radiohead",
+   "artistType": "Group",
+   "id": 13,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 80,
+    "value": 9.0
+   },
+   "images": [
+    {
+     "coverType": "clearlogo",
+     "url": "/MediaCover/13/clearlogo.png?lastWrite=639279547095271051",
+     "remoteUrl": "/config/MediaCover/13/clearlogo.png"
+    },
+    {
+     "coverType": "banner",
+     "url": "/MediaCover/13/banner.jpg?lastWrite=639279547095728939",
+     "remoteUrl": "/config/MediaCover/13/banner.jpg"
+    },
+    {
+     "coverType": "poster",
+     "url": "/MediaCover/13/poster.jpg?lastWrite=639279547093660032",
+     "remoteUrl": "/config/MediaCover/13/poster.jpg"
+    },
+    {
+     "coverType": "fanart",
+     "url": "/MediaCover/13/fanart.jpg?lastWrite=639279547094549172",
+     "remoteUrl": "/config/MediaCover/13/fanart.jpg"
+    }
+   ],
+   "genres": [
+    "Alternative Rock",
+    "Art Rock",
+    "Rock",
+    "Experimental Rock",
+    "Electronic",
+    "Indie Rock",
+    "Experimental",
+    "Art Pop",
+    "Post-Britpop",
+    "Electronica",
+    "Britpop",
+    "Chamber Pop",
+    "Indietronica",
+    "Post-Grunge",
+    "Crossover Prog",
+    "Electronic Rock",
+    "Ambient Pop",
+    "Idm"
+   ]
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "32e804ba-8e1f-3641-95ed-11b62d0c9157",
+   "title": "Radiohead",
+   "releaseDate": "1998-01-01T00:00:00Z",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "2a72687b-080e-4f24-933e-ae84d3b5f614",
+     "mediumCount": 1,
+     "trackCount": 3,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "635da8c0-f19a-41b9-8764-fd80306b4159",
+    "artistName": "X-Dream"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "3e19d5e9-4ac5-33a9-a1f8-5c8796c80363",
+   "title": "2003‐09‐29: Breakfast With Radiohead, KROQ, Capitol Records, Hollywood, CA, USA",
+   "releaseDate": "0001-01-01T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Live"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "8fae35a0-84d6-43d2-a03d-127c4933df69",
+     "mediumCount": 1,
+     "trackCount": 12,
+     "status": "Bootleg",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "artistName": "Radiohead",
+    "id": 13
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "3ab9fbe7-b809-3db8-96cf-4de6e56bb180",
+   "title": "Radiohead TV Covers",
+   "releaseDate": "0001-01-01T00:00:00Z",
+   "albumType": "EP",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "e8ec6327-bd41-4bd7-b2d0-cffd712cd4f8",
+     "mediumCount": 1,
+     "trackCount": 3,
+     "status": "Bootleg",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "artistName": "Radiohead",
+    "id": 13
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "89bbac22-8be9-40ca-a85f-bbf81d4a131d",
+   "title": "Radiohead",
+   "releaseDate": "1994-01-01T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "b9cb5436-41d5-4dad-8482-654574def198",
+     "mediumCount": 1,
+     "trackCount": 22,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "b0a16d0c-3d99-487d-be88-902131ad03d3",
+    "artistName": "Wesley Willis"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "af44dc42-1bf4-4cdc-ad98-cdfdc2312b09",
+   "title": "The Best of Radiohead",
+   "releaseDate": "2009-11-01T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Compilation"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "9ed1fe89-00c4-4f5c-8816-d309ac2dcf67",
+     "mediumCount": 1,
+     "trackCount": 10,
+     "status": "Promotion",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "artistName": "Radiohead",
+    "id": 13
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "6ac50c71-cfbf-4f6d-acb0-84af1462aae3",
+   "title": "1995-06-01: PASTE.COM Presents: Radiohead Live at Tramps: New York, NY, USA",
+   "releaseDate": "2013-06-21T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Live"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "08361587-ddd0-4047-b6e1-c85a75a151b0",
+     "mediumCount": 1,
+     "trackCount": 18,
+     "status": "Promotion",
+     "disambiguation": ""
+    },
+    {
+     "foreignReleaseId": "a3c67e19-e39f-471f-aa14-a56da1d85753",
+     "mediumCount": 1,
+     "trackCount": 18,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "artistName": "Radiohead",
+    "id": 13
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "d5eb0376-6f0f-4b28-b5d1-4584b9be8d75",
+   "title": "Radiohead",
+   "releaseDate": "2007-10-22T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "195d3aff-1e57-4612-891f-2950be2bd98c",
+     "mediumCount": 1,
+     "trackCount": 10,
+     "status": "Bootleg",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a6606aaa-6027-4d6d-8bea-0e8ee816b8f1",
+    "artistName": "In Rainbows"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "cfd8769b-62d3-4e94-b8fe-badfa9d14e79",
+   "title": "Radiohead",
+   "releaseDate": "2019-04-01T00:00:00Z",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "0ad2aa01-b698-47af-acdc-3adced187b56",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "bc27c66a-8958-498e-aa8b-e75220d0a208",
+    "artistName": "Blarg"
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "e48fc8b3-e8ab-4dd4-9dc8-6b0f06ef07d6",
+   "artistName": "Radiohead Cover Brasil",
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ }
+]

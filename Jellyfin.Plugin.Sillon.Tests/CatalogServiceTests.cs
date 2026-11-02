@@ -538,12 +538,12 @@ public class CatalogServiceTests
     }
 
     [Fact]
-    public async Task Search_SameTitleAlbums_TakeTheSlotsTheyHeld_BetweenOtherAlbums()
+    public async Task Search_AlbumsOfTheTitleSearched_ComeBeforeOtherAlbums_TheLikeliestFirst()
     {
         var other = Rel("other", "Cats", "Album", 20, artist: LesMis);
         var ids = (await SearchLesMis(LesMisGroup("a", "1994-06-01", new[] { "Live" }, null, new[] { "" }), other, LesMisGroup("b", "1985-12-01", Array.Empty<string>(), null, new[] { "", "" }))).Albums.Select(a => a.Mbid);
 
-        Assert.Equal(new[] { "b", "other", "a" }, ids);
+        Assert.Equal(new[] { "b", "a", "other" }, ids);
     }
 
     [Fact]
