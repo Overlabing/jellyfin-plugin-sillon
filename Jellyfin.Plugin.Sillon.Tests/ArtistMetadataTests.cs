@@ -244,9 +244,8 @@ public class ArtistMetadataTests
             new[]
             {
                 "Let It Be", "Abbey Road", "Revolver", "Please Please Me",
-                "Let It Be… Naked", "Help!",
-                "1964 US Albums in Mono", "1", "Yellow Submarine Songtrack", "Anthology 1", "Live at the BBC", "The Beatles at the Hollywood Bowl", "The Alternate Magical Mystery Tour",
                 "Norwegian Wood", "Help!", "The Beatles’ Hits",
+                "1964 US Albums in Mono", "Let It Be… Naked", "1", "Yellow Submarine Songtrack", "Anthology 1", "Live at the BBC", "The Beatles at the Hollywood Bowl", "Help!", "The Alternate Magical Mystery Tour",
             },
             Titles(result.Albums));
         Assert.Equal(new[] { Beatles }, metadata.Asked);
@@ -541,33 +540,28 @@ public class ArtistMetadataTests
         public Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct) => Task.FromResult<MbTracklist?>(null);
     }
 
-    private static CatalogService Waiting(TestEnv env, IMusicBrainzApi mb, TimeSpan wait)
-        => new(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, mb, metadata: new FakeMetadata(_ => DjSnakeListed), browseWait: wait);
+    private static CatalogService Waiting(TestEnv env, IMusicBrainzApi mb, TimeSpan budget)
+        => new(env.Lidarr, env.Store, env.Library, () => env.Config, NullLogger<CatalogService>.Instance, mb, metadata: new FakeMetadata(_ => DjSnakeListed), pageBudget: budget);
 
     [Fact]
-    public async Task Page_WhenMusicBrainzTakesLongerThanTheWait_AnswersWithTheList_AndOneBrowseGoesOn_ForTheNextVisit()
+    public async Task Page_WhenMusicBrainzIsLate_LeavesTheJointAlbumsOut_AndNothingGoesOnAfterwards_AndTheNextVisitAsksAgain()
     {
         using var env = Env(DjSnake, "DJ Snake");
         var mb = new SlowBrowse();
         var catalog = Waiting(env, mb, TimeSpan.FromMilliseconds(30));
 
         var first = await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
-        var second = await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
+        mb.Gate.SetResult();
+        await Task.Delay(100);
 
+        // what the first visit showed is all that was asked: no browse goes on after the answer
         Assert.Equal(new[] { "Nomad" }, Titles(first.Albums));
-        Assert.Equal(new[] { "Nomad" }, Titles(second.Albums));
         Assert.Equal(1, Volatile.Read(ref mb.Browses));
 
-        mb.Gate.SetResult();
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        IReadOnlyList<CatalogAlbum> later;
-        do
-        {
-            later = (await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None)).Albums;
-        }
-        while (later.Count < 2 && DateTime.UtcNow < deadline);
-
-        Assert.Equal(new[] { "Nomad", "Lean On EP (10th Anniversary)" }, Titles(later));
+        // the timeout was not kept as the answer: the next visit asks again, and has the album at once
+        var second = await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
+        Assert.Equal(2, Volatile.Read(ref mb.Browses));
+        Assert.Equal(new[] { "Nomad", "Lean On EP (10th Anniversary)" }, Titles(second.Albums));
     }
 
     [Fact]
@@ -584,15 +578,79 @@ public class ArtistMetadataTests
         Assert.Equal(new[] { "lidarr:" + DjSnake }, env.Lidarr.SearchTerms);
 
         mb.Failure = null;
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        IReadOnlyList<CatalogAlbum> later;
-        do
-        {
-            later = (await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None)).Albums;
-        }
-        while (later.Count < 2 && DateTime.UtcNow < deadline);
+        var second = await catalog.ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
 
-        Assert.Equal(2, later.Count);
+        Assert.Equal(2, Volatile.Read(ref mb.Browses));
+        Assert.Equal(new[] { "Nomad", "Lean On EP (10th Anniversary)" }, Titles(second.Albums));
+    }
+
+    private sealed class TwoPages : IMusicBrainzApi
+    {
+        public int Browses;
+
+        public async Task<MbReleaseGroupPage> BrowseReleaseGroupsAsync(string artistId, IReadOnlyList<string> types, int offset, CancellationToken ct)
+        {
+            Interlocked.Increment(ref Browses);
+            if (offset == 0)
+            {
+                return new MbReleaseGroupPage(new[] { LeanOn }, 150);
+            }
+
+            await Task.Delay(Timeout.Infinite, ct);
+            return new MbReleaseGroupPage(Array.Empty<MbReleaseGroup>(), 150);
+        }
+
+        public Task<IReadOnlyList<MbRecording>> SearchRecordingsAsync(TrackQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<MbRecording>>(Array.Empty<MbRecording>());
+
+        public Task<IReadOnlyList<MbRelease>?> GetReleasesAsync(string releaseGroupId, CancellationToken ct) => Task.FromResult<IReadOnlyList<MbRelease>?>(null);
+
+        public Task<MbTracklist?> GetTracklistAsync(string releaseId, CancellationToken ct) => Task.FromResult<MbTracklist?>(null);
+    }
+
+    [Fact]
+    public async Task Page_ABrowseTheBudgetCutShort_AddsNoneOfTheJointAlbums_NotAnArbitraryFew()
+    {
+        using var env = Env(DjSnake, "DJ Snake");
+
+        var page = await Waiting(env, new TwoPages(), TimeSpan.FromMilliseconds(100)).ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
+
+        Assert.Equal(new[] { "Nomad" }, Titles(page.Albums));
+    }
+
+    [Fact]
+    public async Task Page_TheServicesListAndTheBrowseAreAskedTogether_AndTwoColdVisitsGiveTheSamePage()
+    {
+        var mb = new FakeBrowse { Groups = new[] { LeanOn } };
+        var pages = new List<string>();
+        for (var i = 0; i < 2; i++)
+        {
+            using var env = Env(DjSnake, "DJ Snake");
+            var page = await Catalog(env, mb, new FakeMetadata(_ => DjSnakeListed)).ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
+            pages.Add(JsonSerializer.Serialize(page, Web));
+        }
+
+        Assert.Equal(pages[0], pages[1]);
+        Assert.Contains("Lean On EP", pages[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Page_StudioAlbumsComeFirst_ThenEps_ThenCompilationsAndTheRest_WhateverTheYears()
+    {
+        using var env = Env(DjSnake, "DJ Snake");
+        var listed = DjSnakeListed with
+        {
+            Albums = new[]
+            {
+                new MetadataAlbum("best", "Best Of", "Album", new[] { "Compilation" }, new[] { "Official" }, "2025-01-01", Array.Empty<string>()),
+                new MetadataAlbum("live", "Live", "Album", new[] { "Live" }, new[] { "Official" }, "2024-01-01", Array.Empty<string>()),
+                new MetadataAlbum("small", "Small EP", "EP", Array.Empty<string>(), new[] { "Official" }, "2010-01-01", Array.Empty<string>()),
+                new MetadataAlbum("first", "First", "Album", Array.Empty<string>(), new[] { "Official" }, "2009-01-01", Array.Empty<string>()),
+            },
+        };
+
+        var page = await Catalog(env, new FakeBrowse(), new FakeMetadata(_ => listed)).ArtistAlbumsAsync(DjSnake, null, CancellationToken.None);
+
+        Assert.Equal(new[] { "First", "Small EP", "Best Of", "Live" }, Titles(page.Albums));
     }
 
     [Fact]
