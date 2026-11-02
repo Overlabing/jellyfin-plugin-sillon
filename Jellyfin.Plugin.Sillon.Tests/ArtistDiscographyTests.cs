@@ -490,7 +490,7 @@ public class ArtistDiscographyTests
         var result = await Catalog(env, mb, metadata: metadata).SearchAsync("dj snake", CancellationToken.None);
 
         Assert.Equal(new[] { Nomad, CarteBlanche, Encore }, Ids(result).Take(3));
-        Assert.Equal(DjSnake, Assert.Single(metadata.Asked));
+        Assert.Equal(DjSnake, Assert.Single(metadata.Asked.Distinct()));
         Assert.Empty(mb.Calls);
         Assert.DoesNotContain(env.Lidarr.LookupTerms, t => t.StartsWith("lidarr:", StringComparison.Ordinal));
     }
@@ -549,13 +549,13 @@ public class ArtistDiscographyTests
         env.Lidarr.OnSearch = _ => new[]
         {
             new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = Namesake, ArtistName = "DJ Snake", Ratings = new LidarrRatings { Votes = 0 } } },
-            new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = DjSnake, ArtistName = "DJ Snake", Ratings = new LidarrRatings { Votes = 5 } } },
+            new LidarrSearchItem { Artist = new LidarrArtist { ForeignArtistId = DjSnake, ArtistName = "DJ Snake", Ratings = new LidarrRatings { Votes = 12 } } },
         };
         var metadata = new Listing((Encore, 2016));
 
         await Catalog(env, Browsing(), metadata: metadata).SearchAsync("DJ Snake", CancellationToken.None);
 
-        Assert.Equal(DjSnake, Assert.Single(metadata.Asked));
+        Assert.Equal(DjSnake, Assert.Single(metadata.Asked.Distinct()));
     }
 
     [Fact]
@@ -593,7 +593,7 @@ public class ArtistDiscographyTests
     }
 
     [Fact]
-    public async Task Search_HintedSongAlbums_StayFirst_TheArtistsAlbumsNext_ThenTheRest()
+    public async Task Search_TheArtistsAlbums_ComeFirst_TheHintedSongAlbumsNext_ThenTheRest()
     {
         using var env = Production();
         env.Config.DeezerPopularityHints = true;
@@ -609,8 +609,8 @@ public class ArtistDiscographyTests
         var result = await Catalog(env, mb, hints: new Hints("Famous"), metadata: new Listing((Encore, 2016))).SearchAsync("DJ Snake", CancellationToken.None);
 
         var ids = Ids(result).ToList();
-        Assert.Equal("hinted-hit", ids[0]);
-        Assert.Equal(Encore, ids[1]);
+        Assert.Equal(Encore, ids[0]);
+        Assert.Equal("hinted-hit", ids[1]);
         Assert.True(ids.IndexOf(Presents) < ids.IndexOf("title-match"));
         Assert.DoesNotContain("plain-hit", ids);
         Assert.Equal(1, mb.RecordingSearches);

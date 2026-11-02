@@ -1,0 +1,192 @@
+[
+ {
+  "artist": {
+   "foreignArtistId": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+   "artistName": "The Beatles",
+   "artistType": "Group",
+   "disambiguation": "UK rock band, “The Fab Four”",
+   "ratings": {
+    "votes": 86,
+    "value": 9.6
+   },
+   "images": [
+    {
+     "coverType": "clearlogo",
+     "url": "/MediaCoverProxy/a6b6600749d2dcc4f7c0cbe593bb25b0657eef9c9c8b636caa78e6dbf02d1196/beatles-the-5244b8bce3ac4.png",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-5244b8bce3ac4.png"
+    },
+    {
+     "coverType": "banner",
+     "url": "/MediaCoverProxy/c949cb70e997ac0ad140873b758e619bc57ea7f38f09e96072ece4c2d91bd925/beatles-the-5304a6cd34c6e.jpg",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-5304a6cd34c6e.jpg"
+    },
+    {
+     "coverType": "fanart",
+     "url": "/MediaCoverProxy/c195639f534d056abee6781758d0a67a23aabcee9e77c654ff089cf65adf1731/beatles-the-53062b2a99606.jpg",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-53062b2a99606.jpg"
+    },
+    {
+     "coverType": "poster",
+     "url": "/MediaCoverProxy/d899a9167421fcc99de5292ca77946f63370b9e2f1ba417ac2d55bd44af5042b/beatles-the-4facf1550225f.jpg",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/beatles-the-4facf1550225f.jpg"
+    }
+   ],
+   "genres": [
+    "Rock",
+    "Pop",
+    "Pop Rock",
+    "Merseybeat",
+    "Psychedelic Pop",
+    "Psychedelic Rock",
+    "Classic Rock",
+    "Rock And Roll",
+    "Experimental Rock",
+    "Britpop",
+    "Folk Rock",
+    "Mainstream Rock"
+   ]
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "daf68253-e023-4128-a92a-82896093c67f",
+   "artistName": "The Beatles",
+   "disambiguation": "punk/lofi; published on Wheelchair Full of Old Men",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "9d953ee6-4ea6-4b0e-aea6-7268d380bef1",
+   "artistName": "The Beatles",
+   "artistType": "Group",
+   "disambiguation": "SiIvaGunner collaboration",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "8d3431db-bc83-4dc2-93b8-0e46e31d09f7",
+   "artistName": "The Beatles",
+   "artistType": "Group",
+   "disambiguation": "1960s Philadelphia doo-wop group",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "5f3112ef-5325-437e-b875-d4c6eb6e2cbd",
+   "artistName": "The Beatles",
+   "artistType": "Other",
+   "disambiguation": "Ukrainian",
+   "ratings": {
+    "votes": 1,
+    "value": 10.0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "055be730-dcad-31bf-b550-45ba9c202aa3",
+   "title": "The Beatles",
+   "releaseDate": "1968-11-22T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [],
+   "disambiguation": "The White Album",
+   "releases": [
+    {
+     "foreignReleaseId": "df3a1cec-5ee0-4aa8-afb2-fe92423f9432",
+     "mediumCount": 2,
+     "trackCount": 30,
+     "status": "Official",
+     "disambiguation": "Remastered"
+    },
+    {
+     "foreignReleaseId": "541d4a84-f9f7-4969-8c28-ac89ca8e16c1",
+     "mediumCount": 2,
+     "trackCount": 30,
+     "status": "Official",
+     "disambiguation": "titles on record label oriented to the left, Capitol in green lettering"
+    },
+    {
+     "foreignReleaseId": "306a7445-8818-495c-bdde-2b8f2808c9a1",
+     "mediumCount": 2,
+     "trackCount": 30,
+     "status": "Official",
+     "disambiguation": "titles on record labels centred, capitol in beige lettering"
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+    "artistName": "The Beatles"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "dee35e46-ff13-3019-81e7-382cb19c2fd1",
+   "title": "The Beatles Conquer America",
+   "releaseDate": "1988-01-01T00:00:00Z",
+   "albumType": "Other",
+   "secondaryTypes": [
+    "Interview"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "3ec734b9-9eca-4816-9e89-4d039324f1ba",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Bootleg",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+    "artistName": "The Beatles"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "93f40926-1a49-31fe-a485-8eb70bd2d894",
+   "title": "The Beatles Talk Downunder, Volume 1",
+   "releaseDate": "1994-01-01T00:00:00Z",
+   "albumType": "Other",
+   "secondaryTypes": [
+    "Interview"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "727d1330-5513-4a8e-9bb4-24a32d2df069",
+     "mediumCount": 1,
+     "trackCount": 1,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+    "artistName": "The Beatles"
+   }
+  }
+ }
+]

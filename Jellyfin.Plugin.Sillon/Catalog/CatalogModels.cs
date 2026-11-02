@@ -106,12 +106,23 @@ public sealed record CatalogTracklist(
     [property: JsonPropertyName("discCount")] int DiscCount,
     [property: JsonPropertyName("tracks")] IReadOnlyList<CatalogTrack> Tracks);
 
+/// <summary>One of the best answers of a search.</summary>
+/// <param name="Kind">artist or album.</param>
+/// <param name="Mbid">The id of an item sent in <c>artists</c> or <c>albums</c> of the same answer.</param>
+/// <param name="Match">exact when the text is the artist's name, the album's title or the searched song's title; partial otherwise.</param>
+public sealed record CatalogTop(
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("mbid")] string Mbid,
+    [property: JsonPropertyName("match")] string Match);
+
 /// <summary>Result of a catalogue search.</summary>
 /// <param name="Artists">The artists.</param>
 /// <param name="Albums">The albums.</param>
+/// <param name="Top">The best answers in order, at most six, each also present in <paramref name="Artists"/> or <paramref name="Albums"/>; absent when none stands out. Read by apps newer than 1.1.1.</param>
 public sealed record CatalogSearchResult(
     [property: JsonPropertyName("artists")] IReadOnlyList<CatalogArtist> Artists,
-    [property: JsonPropertyName("albums")] IReadOnlyList<CatalogAlbum> Albums);
+    [property: JsonPropertyName("albums")] IReadOnlyList<CatalogAlbum> Albums,
+    [property: JsonPropertyName("top"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<CatalogTop>? Top = null);
 
 /// <summary>An artist's albums.</summary>
 /// <param name="Artist">The artist; absent when only albums were found.</param>

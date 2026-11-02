@@ -93,6 +93,7 @@ public static class TrackSearch
         }
 
         return found.Values
+            .Where(a => !IsUnofficial(a.Group!.Status))
             .OrderBy(a => a.Rank)
             .ThenByDescending(a => a.Hits)
             .ThenBy(a => a.Year == 0 ? int.MaxValue : a.Year)
@@ -116,6 +117,19 @@ public static class TrackSearch
 
     private static int EarlierYear(int a, int b) => a == 0 ? b : b == 0 ? a : Math.Min(a, b);
 
+    /// <summary>Whether a release is a bootleg, a promotional copy or a pseudo-release. A status MusicBrainz does not give tells nothing, and the album stays.</summary>
+    /// <param name="status">The release status.</param>
+    /// <returns>True for a release nobody should be offered.</returns>
+    internal static bool IsUnofficial(string? status)
+        => status is not null && (status.Equals("Bootleg", StringComparison.OrdinalIgnoreCase)
+            || status.Equals("Promotion", StringComparison.OrdinalIgnoreCase)
+            || status.Equals("Pseudo-Release", StringComparison.OrdinalIgnoreCase));
+
+    // a search lists some of an album's releases: one official among them is enough to offer the album
     private static MbReleaseGroup Earlier(MbReleaseGroup seen, MbReleaseGroup group)
-        => group.Date.Length > 0 && (seen.Date.Length == 0 || string.CompareOrdinal(group.Date, seen.Date) < 0) ? seen with { Date = group.Date } : seen;
+    {
+        var status = IsUnofficial(seen.Status) && !IsUnofficial(group.Status) ? group.Status : seen.Status;
+        var date = group.Date.Length > 0 && (seen.Date.Length == 0 || string.CompareOrdinal(group.Date, seen.Date) < 0) ? group.Date : seen.Date;
+        return seen with { Date = date, Status = status };
+    }
 }

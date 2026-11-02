@@ -1,0 +1,1338 @@
+{
+ "recordings": [
+  {
+   "id": "711cb85c-0b75-47c1-a2fa-04092db1f7ac",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "The Damned",
+     "artist": {
+      "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+      "name": "The Damned",
+      "sort-name": "Damned, The",
+      "disambiguation": "UK punk band",
+      "aliases": [
+       {
+        "sort-name": "Dammed, The",
+        "name": "The Dammed",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Damned",
+        "name": "Damned",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "The Doomed",
+        "name": "The Doomed",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Damned Night, The",
+        "name": "The Damned Night",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1986-10-17",
+   "releases": [
+    {
+     "id": "68d05cbc-9847-4ac1-ac07-80e29f20ee0e",
+     "status": "Official",
+     "title": "Noise Noise Noise: The Live Box",
+     "date": "2006",
+     "release-group": {
+      "id": "e8ab288c-3439-4d3e-a938-8573d0476f27",
+      "title": "Noise Noise Noise: The Live Box",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation",
+       "Live"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "The Damned",
+       "artist": {
+        "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+        "name": "The Damned",
+        "sort-name": "Damned, The",
+        "disambiguation": "UK punk band"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "124709da-c60d-3c2a-88e0-2579991bd46a",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "00ac5a9b-1204-4bc0-a1a8-9c9c2635c0c7",
+         "number": "2",
+         "title": "Creep (You Can’t Fool Me)",
+         "length": 121106
+        }
+       ],
+       "track-count": 8,
+       "track-offset": 1
+      }
+     ]
+    },
+    {
+     "id": "c77dfb45-c44e-41a2-88cf-a62d1e364cb2",
+     "status": "Official",
+     "title": "Noise Noise Noise",
+     "date": "2006-09-04",
+     "release-group": {
+      "id": "e8ab288c-3439-4d3e-a938-8573d0476f27",
+      "title": "Noise Noise Noise: The Live Box",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation",
+       "Live"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "The Damned",
+       "artist": {
+        "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+        "name": "The Damned",
+        "sort-name": "Damned, The",
+        "disambiguation": "UK punk band"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "2d9a92cd-8709-38b7-82de-0d25fe76dc44",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "7b9ccd13-1e5e-4de3-bf65-abb5b5ad9229",
+         "number": "2",
+         "title": "Creep (You Can’t Fool Me) (from “[Not] The Captain’s Birthday Party”, recorded at the Roundhouse, 27 November 1977)",
+         "length": 121107
+        }
+       ],
+       "track-count": 8,
+       "track-offset": 1
+      }
+     ]
+    },
+    {
+     "id": "2ed57ff8-addc-49f6-91c7-3f387e6740d4",
+     "status": "Official",
+     "title": "Not the Captains Birthday Party?",
+     "date": "1986-10-17",
+     "release-group": {
+      "id": "d5fa6fe6-50b2-30eb-9da4-c614a53b385e",
+      "title": "Not the Captains Birthday Party?",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Live"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "The Damned",
+       "artist": {
+        "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+        "name": "The Damned",
+        "sort-name": "Damned, The",
+        "disambiguation": "UK punk band"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "e095943b-10b7-33c3-a2e1-9ab3919969fc",
+       "position": 1,
+       "format": "12\" Vinyl",
+       "track": [
+        {
+         "id": "b51adace-d185-31b1-90d3-7cc3665e3fec",
+         "number": "A2",
+         "title": "Creep",
+         "length": 130733
+        }
+       ],
+       "track-count": 9,
+       "track-offset": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "5facd34b-46b6-494e-a04f-a493c15166cc",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Stone Temple Pilots",
+     "artist": {
+      "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+      "name": "Stone Temple Pilots",
+      "sort-name": "Stone Temple Pilots",
+      "aliases": [
+       {
+        "sort-name": "STP",
+        "name": "STP",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "8f987d32-954b-4787-a845-67ab5cbfa193",
+     "status": "Bootleg",
+     "title": "Acoustic Type Thing",
+     "release-group": {
+      "id": "3cdfc633-098e-3baa-9aa0-8eeed4889d7f",
+      "title": "Acoustic Type Thing",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Live"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Stone Temple Pilots",
+       "artist": {
+        "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+        "name": "Stone Temple Pilots",
+        "sort-name": "Stone Temple Pilots"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "0b3c8cb6-ec09-376a-aa6e-b9c4dd2cbe51",
+       "position": 1,
+       "track": [
+        {
+         "id": "249e1ab9-f759-3b2e-89d7-70a8d3ff6437",
+         "number": "2",
+         "title": "Creep",
+         "length": 349026
+        }
+       ],
+       "track-count": 16,
+       "track-offset": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "e910a98f-1970-4118-9fde-ecc3d07c3bd5",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Revolting Cocks",
+     "artist": {
+      "id": "2865730a-5757-4005-875e-84d6274cb1c0",
+      "name": "Revolting Cocks",
+      "sort-name": "Revolting Cocks",
+      "aliases": [
+       {
+        "sort-name": "RevCo",
+        "name": "RevCo",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "The Revolting Cocks",
+        "name": "The Revolting Cocks",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Rev Co",
+        "name": "Rev Co",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1993-09",
+   "releases": [
+    {
+     "id": "32d199af-bb30-48c9-ae27-f8cdb2997763",
+     "status": "Official",
+     "title": "Linger Ficken’ Good… and Other Barnyard Oddities",
+     "date": "1993-09",
+     "release-group": {
+      "id": "69e5a1b1-5c6c-389e-80b2-57c12405c118",
+      "title": "Linger Ficken’ Good… and Other Barnyard Oddities",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Revolting Cocks",
+       "artist": {
+        "id": "2865730a-5757-4005-875e-84d6274cb1c0",
+        "name": "Revolting Cocks",
+        "sort-name": "Revolting Cocks"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "443efd9d-c924-369c-a5d8-fceee2a6a7bc",
+       "position": 1,
+       "format": "12\" Vinyl",
+       "track": [
+        {
+         "id": "f574bdd8-aae4-4b72-a596-faf08ccf9ee8",
+         "number": "A2",
+         "title": "Creep",
+         "length": 533693
+        }
+       ],
+       "track-count": 5,
+       "track-offset": 1
+      }
+     ]
+    },
+    {
+     "id": "b5b241a0-85c3-4ca0-9071-057e27497761",
+     "status": "Official",
+     "title": "Cyberpunk",
+     "date": "2020-02-07",
+     "release-group": {
+      "id": "158dcfa6-49ed-4b81-b9a5-7e4c99c50c51",
+      "title": "Cyberpunk",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Various Artists",
+       "artist": {
+        "id": "89ad4ac3-39f7-470e-963a-56509c546377",
+        "name": "Various Artists",
+        "sort-name": "Various Artists",
+        "disambiguation": "add compilations to this artist"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "032a816a-9b2c-3068-9d28-68c1be28efb7",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "d3544115-7920-4c02-b61b-7a9ea73c18e9",
+         "number": "9",
+         "title": "Creep",
+         "length": 533000
+        }
+       ],
+       "track-count": 30,
+       "track-offset": 8
+      }
+     ]
+    },
+    {
+     "id": "c24cd5a4-a1cd-4c1f-b7eb-881280b68e9a",
+     "status": "Official",
+     "title": "Linger Ficken’ Good…and Other Barnyard Oddities",
+     "date": "1993",
+     "release-group": {
+      "id": "69e5a1b1-5c6c-389e-80b2-57c12405c118",
+      "title": "Linger Ficken’ Good… and Other Barnyard Oddities",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Revolting Cocks",
+       "artist": {
+        "id": "2865730a-5757-4005-875e-84d6274cb1c0",
+        "name": "Revolting Cocks",
+        "sort-name": "Revolting Cocks"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "136c4497-f009-35a2-8311-fabe7b654316",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "e72b00c7-c001-4f11-b24f-53d2c73a5d55",
+         "number": "2",
+         "title": "Creep",
+         "length": 533693
+        }
+       ],
+       "track-count": 10,
+       "track-offset": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "f80dfa60-0a17-4c2e-8d8c-629b1b1f5725",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Galactic Achievement Society",
+     "artist": {
+      "id": "b8d72348-0972-4f5e-8414-a8a4dc634d3d",
+      "name": "Galactic Achievement Society",
+      "sort-name": "Galactic Achievement Society"
+     }
+    }
+   ],
+   "first-release-date": "2001-04-17",
+   "releases": [
+    {
+     "id": "ed1221dc-74bd-455d-ad71-ba28bd1e7a1f",
+     "status": "Official",
+     "title": "Plastic Mutations: The Electronic Tribute to Radiohead",
+     "date": "2001-04-17",
+     "release-group": {
+      "id": "677fea40-8a0c-3292-ac92-4d654c509cd0",
+      "title": "Plastic Mutations: The Electronic Tribute to Radiohead",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Various Artists",
+       "artist": {
+        "id": "89ad4ac3-39f7-470e-963a-56509c546377",
+        "name": "Various Artists",
+        "sort-name": "Various Artists",
+        "disambiguation": "add compilations to this artist"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "5bd72480-3d36-3b76-a30a-4f62882d9330",
+       "position": 1,
+       "track": [
+        {
+         "id": "bcf35aa1-351e-363c-b4a0-5097327ae8aa",
+         "number": "7",
+         "title": "Creep",
+         "length": 199106
+        }
+       ],
+       "track-count": 12,
+       "track-offset": 6
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "75470e47-0c81-40e2-9d70-0331bc92c71b",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Northern Kings",
+     "artist": {
+      "id": "da6d63da-e2ee-4a85-a91b-0f7b322a9212",
+      "name": "Northern Kings",
+      "sort-name": "Northern Kings"
+     }
+    }
+   ],
+   "first-release-date": "2007-10-29",
+   "releases": [
+    {
+     "id": "1e35d37d-bb10-45d5-b0a5-2365303184d0",
+     "status": "Official",
+     "title": "Reborn",
+     "date": "2007-10-31",
+     "release-group": {
+      "id": "7f869aaa-0337-3d42-b43a-b44c2901bd46",
+      "title": "Reborn",
+      "primary-type": "Album"
+     },
+     "media": [
+      {
+       "id": "403194a1-d4ed-351e-a7ef-fb8f52b6e9fa",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "7ed6d13f-c79e-3704-9855-c05ae29ae861",
+         "number": "11",
+         "title": "Creep",
+         "length": 341000
+        }
+       ],
+       "track-count": 13,
+       "track-offset": 10
+      }
+     ]
+    },
+    {
+     "id": "85248275-0c09-49bf-9f88-be967a3ea848",
+     "status": "Official",
+     "title": "Reborn",
+     "date": "2007-10-29",
+     "release-group": {
+      "id": "7f869aaa-0337-3d42-b43a-b44c2901bd46",
+      "title": "Reborn",
+      "primary-type": "Album"
+     },
+     "media": [
+      {
+       "id": "d05aec88-2475-386a-b2cc-e54e231d5ff9",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "ab0a797e-dc54-4c26-a216-0efed486099a",
+         "number": "11",
+         "title": "Creep",
+         "length": 337453
+        }
+       ],
+       "track-count": 13,
+       "track-offset": 10
+      }
+     ]
+    },
+    {
+     "id": "236a04ea-8349-4930-9647-186773164eb3",
+     "status": "Official",
+     "title": "Reborn",
+     "date": "2007-10-29",
+     "release-group": {
+      "id": "7f869aaa-0337-3d42-b43a-b44c2901bd46",
+      "title": "Reborn",
+      "primary-type": "Album"
+     },
+     "media": [
+      {
+       "id": "c178e72a-6f77-3780-876a-62ea2776445e",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "48804212-c8fd-40f1-b54c-12b579b190ee",
+         "number": "11",
+         "title": "Creep",
+         "length": 337453
+        }
+       ],
+       "track-count": 15,
+       "track-offset": 10
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "f67f8d1f-51f5-42fa-830b-7153d752cab4",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "TLC",
+     "artist": {
+      "id": "99790314-885a-4975-8614-9c5bc890364d",
+      "name": "TLC",
+      "sort-name": "TLC",
+      "disambiguation": "US pop/R&B trio",
+      "aliases": [
+       {
+        "sort-name": "ティーエルシー",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "ティーエルシー",
+        "locale": "ja",
+        "type": "Artist name",
+        "primary": true,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "2nd Nature",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "2nd Nature",
+        "locale": null,
+        "type": "Artist name",
+        "primary": null,
+        "begin-date": "1990",
+        "end-date": "1990"
+       },
+       {
+        "sort-name": "TLC -",
+        "name": "TLC -",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "T.L.C.",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "T.L.C.",
+        "locale": null,
+        "type": "Artist name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1995-09-04",
+   "releases": [
+    {
+     "id": "369d0063-400e-4683-8647-a8adb4ad66cc",
+     "status": "Official",
+     "title": "Touch My Soul: The Finest of Black Music, Vol. 4",
+     "date": "1995-09-04",
+     "release-group": {
+      "id": "a295842d-9953-415b-807c-e6e80b250816",
+      "title": "Touch My Soul: The Finest of Black Music, Vol. 4",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Various Artists",
+       "artist": {
+        "id": "89ad4ac3-39f7-470e-963a-56509c546377",
+        "name": "Various Artists",
+        "sort-name": "Various Artists",
+        "disambiguation": "add compilations to this artist"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "64f7813b-b1f5-32a0-97bf-8726bd88c8ab",
+       "position": 2,
+       "format": "CD",
+       "track": [
+        {
+         "id": "191a51f2-7919-4026-8340-9e447116b93e",
+         "number": "2",
+         "title": "Creep",
+         "length": 224000
+        }
+       ],
+       "track-count": 18,
+       "track-offset": 1
+      }
+     ]
+    },
+    {
+     "id": "df02e0ca-2b66-4a76-a373-549526bf1e23",
+     "status": "Official",
+     "title": "Funky Divas 3",
+     "date": "1999-11-29",
+     "release-group": {
+      "id": "6b73c18e-7f5f-3cac-9b49-397d1387e274",
+      "title": "Funky Divas 3",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Various Artists",
+       "artist": {
+        "id": "89ad4ac3-39f7-470e-963a-56509c546377",
+        "name": "Various Artists",
+        "sort-name": "Various Artists",
+        "disambiguation": "add compilations to this artist"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "5d8666ae-07e5-3afd-b4d0-13c64e88b592",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "eec93ef8-71e8-3e93-9786-a0079f91a377",
+         "number": "4",
+         "title": "Creep",
+         "length": 227533
+        }
+       ],
+       "track-count": 20,
+       "track-offset": 3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "e7c8640a-3c12-4714-9c19-90b991b93f5c",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "The Damned",
+     "artist": {
+      "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+      "name": "The Damned",
+      "sort-name": "Damned, The",
+      "disambiguation": "UK punk band",
+      "aliases": [
+       {
+        "sort-name": "Dammed, The",
+        "name": "The Dammed",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Damned",
+        "name": "Damned",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "The Doomed",
+        "name": "The Doomed",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Damned Night, The",
+        "name": "The Damned Night",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1996",
+   "releases": [
+    {
+     "id": "86050854-cc4b-44ca-a864-ed8840127d79",
+     "status": "Official",
+     "title": "Neat Neat Neat",
+     "date": "1996",
+     "release-group": {
+      "id": "c91714b2-a864-3704-9c1e-cbaec73eb912",
+      "title": "Neat Neat Neat",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "The Damned",
+       "artist": {
+        "id": "77d21c13-846f-4f48-9546-873949eff6ae",
+        "name": "The Damned",
+        "sort-name": "Damned, The",
+        "disambiguation": "UK punk band"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "6a2f4b9e-bb60-3a59-9ecb-d6c1134d41cd",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "12743ee0-ecc1-3c06-ae7b-0e5d912b41c7",
+         "number": "18",
+         "title": "Creep",
+         "length": 135534
+        }
+       ],
+       "track-count": 18,
+       "track-offset": 17
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "69f03ae1-e48e-433b-9303-95b119b2c3c4",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Stone Temple Pilots",
+     "artist": {
+      "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+      "name": "Stone Temple Pilots",
+      "sort-name": "Stone Temple Pilots",
+      "aliases": [
+       {
+        "sort-name": "STP",
+        "name": "STP",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "releases": [
+    {
+     "id": "9a20769b-51ad-4406-83cd-80f73c3eefca",
+     "status": "Bootleg",
+     "title": "Rolling Rock 2.0",
+     "release-group": {
+      "id": "1c5d854d-da9b-341f-8dd4-aac2811771df",
+      "title": "Rolling Rock 2.0",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Live"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Stone Temple Pilots",
+       "artist": {
+        "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+        "name": "Stone Temple Pilots",
+        "sort-name": "Stone Temple Pilots"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "008b9418-fc3a-3d9e-afd7-404e98a61fba",
+       "position": 1,
+       "format": "DVD-Video",
+       "track": [
+        {
+         "id": "d4b524cf-0f49-38d0-a577-bac1d44914be",
+         "number": "5",
+         "title": "Creep"
+        }
+       ],
+       "track-count": 12,
+       "track-offset": 4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "1888ae29-c90b-460a-94cb-417dfd604a7c",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Stone Temple Pilots",
+     "artist": {
+      "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+      "name": "Stone Temple Pilots",
+      "sort-name": "Stone Temple Pilots",
+      "aliases": [
+       {
+        "sort-name": "STP",
+        "name": "STP",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1992",
+   "releases": [
+    {
+     "id": "f0cfdc0c-0fb5-469b-a8cc-b8c4ba832a4c",
+     "status": "Official",
+     "title": "Creep",
+     "date": "1992",
+     "release-group": {
+      "id": "ea1d0872-52a4-3b45-a467-4e9171bbc11f",
+      "title": "Creep",
+      "primary-type": "Single"
+     },
+     "artist-credit": [
+      {
+       "name": "Stone Temple Pilots",
+       "artist": {
+        "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+        "name": "Stone Temple Pilots",
+        "sort-name": "Stone Temple Pilots"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "4de6d2f6-fefe-3f3e-9e40-e7e9c57f2b9c",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "83462ca4-5ea8-34f9-a920-efbba27bd9e1",
+         "number": "1",
+         "title": "Creep",
+         "length": 245626
+        }
+       ],
+       "track-count": 3,
+       "track-offset": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "1c0cfad4-3b41-4a38-a0ae-88448973b184",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Stone Temple Pilots",
+     "artist": {
+      "id": "8c32bb01-58a3-453b-8050-8c0620edb0e5",
+      "name": "Stone Temple Pilots",
+      "sort-name": "Stone Temple Pilots",
+      "aliases": [
+       {
+        "sort-name": "STP",
+        "name": "STP",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "1993",
+   "releases": [
+    {
+     "id": "4f3518b6-6710-481f-9c81-5869894f2559",
+     "status": "Promotion",
+     "title": "Rockhard Presents: Feel It to Believe",
+     "date": "1993",
+     "release-group": {
+      "id": "00851939-dec1-4a62-8934-eef8296ab6b3",
+      "title": "Rockhard Presents: Feel It to Believe It",
+      "primary-type": "Album",
+      "secondary-types": [
+       "Compilation"
+      ]
+     },
+     "artist-credit": [
+      {
+       "name": "Various Artists",
+       "artist": {
+        "id": "89ad4ac3-39f7-470e-963a-56509c546377",
+        "name": "Various Artists",
+        "sort-name": "Various Artists",
+        "disambiguation": "add compilations to this artist"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "97ad57cc-cde3-3270-8dd6-d3f43b372a25",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "c4efc8e2-2af6-31e6-bc30-296cb9f8edd8",
+         "number": "3",
+         "title": "Creep",
+         "length": 220693
+        }
+       ],
+       "track-count": 6,
+       "track-offset": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "a2b36363-7a11-4fad-ad8d-273c1710490a",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Bill Frisell",
+     "artist": {
+      "id": "a21318db-f228-4a4d-8bce-6947a62985a5",
+      "name": "Bill Frisell",
+      "sort-name": "Frisell, Bill",
+      "aliases": [
+       {
+        "sort-name": "Bill Frissell",
+        "name": "Bill Frissell",
+        "locale": null,
+        "type": null,
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Frisell, William Richard",
+        "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+        "name": "William Richard Frisell",
+        "locale": null,
+        "type": "Legal name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "2000",
+   "releases": [
+    {
+     "id": "71fcf85e-3975-4e38-8d97-4755faa71f13",
+     "status": "Official",
+     "title": "Ghost Town",
+     "date": "2000",
+     "release-group": {
+      "id": "773d6e5b-5316-3489-9a42-6e9fc7044711",
+      "title": "Ghost Town",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Bill Frisell",
+       "artist": {
+        "id": "a21318db-f228-4a4d-8bce-6947a62985a5",
+        "name": "Bill Frisell",
+        "sort-name": "Frisell, Bill"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "dc9d7175-0405-38c6-a3dd-eea31ffbf2f4",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "410b0d1e-0735-4395-adb8-140513fd8537",
+         "number": "4",
+         "title": "Creep",
+         "length": 46933
+        }
+       ],
+       "track-count": 16,
+       "track-offset": 3
+      }
+     ]
+    },
+    {
+     "id": "f8340783-1f01-42c3-a075-c048c752b8db",
+     "status": "Official",
+     "title": "Ghost Town",
+     "date": "",
+     "release-group": {
+      "id": "773d6e5b-5316-3489-9a42-6e9fc7044711",
+      "title": "Ghost Town",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Bill Frisell",
+       "artist": {
+        "id": "a21318db-f228-4a4d-8bce-6947a62985a5",
+        "name": "Bill Frisell",
+        "sort-name": "Frisell, Bill"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "61aad0a6-bb13-3ff8-8741-75d519ba9c2d",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "83af5f29-7ebd-4e9d-a094-b302e3e83fba",
+         "number": "4",
+         "title": "Creep",
+         "length": 46933
+        }
+       ],
+       "track-count": 16,
+       "track-offset": 3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bba680f3-70f5-4c6b-91eb-34b98848ce48",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Glaucs",
+     "artist": {
+      "id": "b5a5a1cb-cf3d-49e4-9b57-45d2eedbf039",
+      "name": "Glaucs",
+      "sort-name": "Glaucs",
+      "aliases": [
+       {
+        "sort-name": "Glaucs (Duo)",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "Jofre Bardagí & Alexandre Rexach",
+        "locale": null,
+        "type": "Artist name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       },
+       {
+        "sort-name": "Jofre Bardagí",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "Jofre Bardagí",
+        "locale": null,
+        "type": "Artist name",
+        "primary": null,
+        "begin-date": null,
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "2003",
+   "releases": [
+    {
+     "id": "fefb8b3c-ae7a-4e78-b92d-32cc79763c89",
+     "status": "Official",
+     "title": "1994-2003",
+     "date": "2003",
+     "release-group": {
+      "id": "9d101480-3bc4-373a-b588-cc1f6b335d0c",
+      "title": "1994-2003",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Glaucs",
+       "artist": {
+        "id": "b5a5a1cb-cf3d-49e4-9b57-45d2eedbf039",
+        "name": "Glaucs",
+        "sort-name": "Glaucs"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "cfe330c7-3ba8-32d3-9b2f-059e664ae343",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "5fba27d8-bdfd-3cc0-8ba2-5741780d3246",
+         "number": "7",
+         "title": "Creep",
+         "length": 238986
+        }
+       ],
+       "track-count": 17,
+       "track-offset": 6
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "8121928e-3c53-4d91-9df8-b4e6b64e5add",
+   "score": 90,
+   "title": "Creep",
+   "artist-credit": [
+    {
+     "name": "Sadat X",
+     "artist": {
+      "id": "bd6f11fd-b4a8-42bd-9a6b-d1cc3616a6d4",
+      "name": "Sadat X",
+      "sort-name": "Sadat X",
+      "aliases": [
+       {
+        "sort-name": "X, Derek",
+        "type-id": "894afba6-2816-3c24-8072-eadb66bd04bc",
+        "name": "Derek X",
+        "locale": null,
+        "type": "Artist name",
+        "primary": null,
+        "begin-date": "1990",
+        "end-date": "1991"
+       },
+       {
+        "sort-name": "Murphy, Derek",
+        "type-id": "d4dcd0c0-b341-3612-a332-c0ce797b25cf",
+        "name": "Derek Murphy",
+        "locale": null,
+        "type": "Legal name",
+        "primary": null,
+        "begin-date": "1968-12-29",
+        "end-date": null
+       }
+      ]
+     }
+    }
+   ],
+   "first-release-date": "2005-10-25",
+   "releases": [
+    {
+     "id": "fa219d79-4815-4b38-89f0-917b544add09",
+     "status": "Official",
+     "title": "Experience & Education",
+     "release-group": {
+      "id": "da59bf13-82d2-3ca4-9ee3-5f594d7c7e4f",
+      "title": "Experience & Education",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Sadat X",
+       "artist": {
+        "id": "bd6f11fd-b4a8-42bd-9a6b-d1cc3616a6d4",
+        "name": "Sadat X",
+        "sort-name": "Sadat X"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "6146216b-f713-3841-be34-c82f0e32f315",
+       "position": 1,
+       "format": "Digital Media",
+       "track": [
+        {
+         "id": "0367fa07-4fa0-4723-8e23-0d8dca004087",
+         "number": "11",
+         "title": "Creep",
+         "length": 176386
+        }
+       ],
+       "track-count": 16,
+       "track-offset": 10
+      }
+     ]
+    },
+    {
+     "id": "22efdab9-afee-4ec1-8c14-e7425fdf0910",
+     "status": "Official",
+     "title": "Experience & Education",
+     "date": "2005-10-25",
+     "release-group": {
+      "id": "da59bf13-82d2-3ca4-9ee3-5f594d7c7e4f",
+      "title": "Experience & Education",
+      "primary-type": "Album"
+     },
+     "artist-credit": [
+      {
+       "name": "Sadat X",
+       "artist": {
+        "id": "bd6f11fd-b4a8-42bd-9a6b-d1cc3616a6d4",
+        "name": "Sadat X",
+        "sort-name": "Sadat X"
+       }
+      }
+     ],
+     "media": [
+      {
+       "id": "792349c0-b504-31d2-ab31-4360c1053834",
+       "position": 1,
+       "format": "CD",
+       "track": [
+        {
+         "id": "953c3595-4a5f-364c-b03a-2851ad9f4099",
+         "number": "11",
+         "title": "Creep",
+         "length": 176386
+        }
+       ],
+       "track-count": 16,
+       "track-offset": 10
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

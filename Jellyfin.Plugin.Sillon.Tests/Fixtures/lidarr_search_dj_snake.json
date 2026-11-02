@@ -5,7 +5,14 @@
    "artistName": "DJ Snake",
    "artistType": "Person",
    "id": 0,
-   "disambiguation": "",
+   "disambiguation": "French EDM/trap producer",
+   "images": [
+    {
+     "coverType": "poster",
+     "url": "/MediaCoverProxy/2f3a/snake-dj-poster.jpg",
+     "remoteUrl": "https://images.lidarr.audio/cache/https://assets.fanart.tv/fanart/snake-dj-poster.jpg"
+    }
+   ],
    "ratings": {
     "votes": 1,
     "value": 8.0

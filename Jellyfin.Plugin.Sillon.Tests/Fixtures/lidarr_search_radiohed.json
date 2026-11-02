@@ -1,0 +1,196 @@
+[
+ {
+  "album": {
+   "foreignAlbumId": "f76938c5-3e66-42fb-9c46-951b9dc74ff7",
+   "title": "Radiohedonistycznie",
+   "releaseDate": "2018-11-18T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "c1c6e076-a1c0-46cf-b358-5be0f5893be3",
+     "mediumCount": 1,
+     "trackCount": 11,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "38bf5a90-a6d9-4eef-96d5-77de603bd703",
+    "artistName": "Monika Borzym"
+   }
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+   "artistName": "Radiohead",
+   "artistType": "Group",
+   "id": 13,
+   "disambiguation": "",
+   "ratings": {
+    "votes": 80,
+    "value": 9.0
+   },
+   "images": [
+    {
+     "coverType": "clearlogo",
+     "url": "/MediaCover/13/clearlogo.png?lastWrite=639279547095271051",
+     "remoteUrl": "/config/MediaCover/13/clearlogo.png"
+    },
+    {
+     "coverType": "banner",
+     "url": "/MediaCover/13/banner.jpg?lastWrite=639279547095728939",
+     "remoteUrl": "/config/MediaCover/13/banner.jpg"
+    },
+    {
+     "coverType": "poster",
+     "url": "/MediaCover/13/poster.jpg?lastWrite=639279547093660032",
+     "remoteUrl": "/config/MediaCover/13/poster.jpg"
+    },
+    {
+     "coverType": "fanart",
+     "url": "/MediaCover/13/fanart.jpg?lastWrite=639279547094549172",
+     "remoteUrl": "/config/MediaCover/13/fanart.jpg"
+    }
+   ],
+   "genres": [
+    "Alternative Rock",
+    "Art Rock",
+    "Rock",
+    "Experimental Rock",
+    "Electronic",
+    "Indie Rock",
+    "Experimental",
+    "Art Pop",
+    "Post-Britpop",
+    "Electronica",
+    "Britpop",
+    "Chamber Pop",
+    "Indietronica",
+    "Post-Grunge",
+    "Crossover Prog",
+    "Electronic Rock",
+    "Ambient Pop",
+    "Idm"
+   ]
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "2a0921db-e826-4b29-98ce-4bc0d573529b",
+   "artistName": "RadioEditAV",
+   "artistType": "Group",
+   "disambiguation": "Audio/Video solutions company",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "e48fc8b3-e8ab-4dd4-9dc8-6b0f06ef07d6",
+   "artistName": "Radiohead Cover Brasil",
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "fc5983a6-b4f2-4504-99b3-9ca235dd7224",
+   "artistName": "Radioredux",
+   "disambiguation": "",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "3ecaa799-94ae-45cd-9ad1-bcabae4073e1",
+   "artistName": "radiohead 3",
+   "disambiguation": "Capsmusic LTD. artist",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "0e8c5dd5-f1dc-4f34-bfa3-4c8a3fbee5c1",
+   "artistName": "Radioedith",
+   "artistType": "Group",
+   "disambiguation": "Chilean rock band",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "32e804ba-8e1f-3641-95ed-11b62d0c9157",
+   "title": "Radiohead",
+   "releaseDate": "1998-01-01T00:00:00Z",
+   "albumType": "Single",
+   "secondaryTypes": [],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "2a72687b-080e-4f24-933e-ae84d3b5f614",
+     "mediumCount": 1,
+     "trackCount": 3,
+     "status": "Official",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "635da8c0-f19a-41b9-8764-fd80306b4159",
+    "artistName": "X-Dream"
+   }
+  }
+ },
+ {
+  "album": {
+   "foreignAlbumId": "3e19d5e9-4ac5-33a9-a1f8-5c8796c80363",
+   "title": "2003‐09‐29: Breakfast With Radiohead, KROQ, Capitol Records, Hollywood, CA, USA",
+   "releaseDate": "0001-01-01T00:00:00Z",
+   "albumType": "Album",
+   "secondaryTypes": [
+    "Live"
+   ],
+   "disambiguation": "",
+   "releases": [
+    {
+     "foreignReleaseId": "8fae35a0-84d6-43d2-a03d-127c4933df69",
+     "mediumCount": 1,
+     "trackCount": 12,
+     "status": "Bootleg",
+     "disambiguation": ""
+    }
+   ],
+   "artist": {
+    "foreignArtistId": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "artistName": "Radiohead",
+    "id": 13
+   }
+  }
+ }
+]

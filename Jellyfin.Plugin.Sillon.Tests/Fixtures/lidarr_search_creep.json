@@ -1,0 +1,86 @@
+[
+ {
+  "artist": {
+   "foreignArtistId": "2514a72d-1a27-476d-8058-38c4b79a65df",
+   "artistName": "Creep",
+   "artistType": "Group",
+   "disambiguation": "German punk band",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "ac1887f5-7da1-48ee-aa1f-0585ee2ff31f",
+   "artistName": "Creep",
+   "artistType": "Person",
+   "disambiguation": "Drum & Bass artist",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "46253aca-ecee-47d4-b7b5-c81472ac1533",
+   "artistName": "CREEP",
+   "artistType": "Group",
+   "disambiguation": "Lauren Flax & Lauren Dillard",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "874b0a49-1fe2-4d81-8ecd-89de99fe5902",
+   "artistName": "Creep",
+   "artistType": "Person",
+   "disambiguation": "Geroge Creep Temper",
+   "ratings": {
+    "votes": 2,
+    "value": 2.0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "3b401791-6030-4183-b374-5c478184ae28",
+   "artistName": "The Creep",
+   "artistType": "Group",
+   "disambiguation": "R&R/Rockabilly, has songs \"Betty Lou's Got a New Tattoo\" & \"I'm Wise\"",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ },
+ {
+  "artist": {
+   "foreignArtistId": "5895e686-b387-4a00-b0eb-4d67260fcedb",
+   "artistName": "Creep",
+   "artistType": "Group",
+   "disambiguation": "Washington band",
+   "ratings": {
+    "votes": 0,
+    "value": 0
+   },
+   "images": [],
+   "genres": []
+  }
+ }
+]
