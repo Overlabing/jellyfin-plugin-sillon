@@ -29,8 +29,9 @@ playback and browsing your existing library work without it. The app's privacy p
   - **Artists Lidarr does not hold.** An artist's page lists the whole discography at once, from a single request to the
     service Lidarr itself gets its metadata from (see [Lidarr's metadata service](#lidarrs-metadata-service)), leaving out what is
     known from bootlegs or promotional releases alone, interviews, broadcasts and the types the settings hide. MusicBrainz adds the joint albums
-    that service does not list, because they name someone else first: the page waits 3 seconds for those at most, and whatever arrives later is there on
-    the next visit. A search for the artist's exact name puts the artist's studio albums first, up to 40, after any popularity hint: those Lidarr holds, else
+    that service does not list, because they name someone else first: they are asked for together with the service's list, and the whole page has 5 seconds. The joint albums
+    are all there or, when MusicBrainz is too slow or fails, all left out, and nothing goes on after the answer: the next visit asks again, and a page shows the same albums
+    until the catalogue changes. A search for the artist's exact name puts the artist's studio albums first, up to 40, after any popularity hint: those Lidarr holds, else
     the metadata service's list, and nothing more when it does not answer. Among namesakes it takes the one with the most votes on Lidarr's metadata, then the one Lidarr holds,
     and none of them when that one has no vote and is not held. A request follows the usual
     path through Lidarr. Track count, disc count, label and disambiguation are not known at this stage: the apps leave them out, and the tracklist

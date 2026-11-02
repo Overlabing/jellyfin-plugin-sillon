@@ -57,7 +57,7 @@ public sealed class CatalogService
     /// <param name="searchDeadline">How long a search may take, its answer being what is known by then; 5 seconds when null.</param>
     /// <param name="discographyBudget">How long the artist page's list of albums may take, keeping what it found by then; 15 seconds when null.</param>
     /// <param name="metadata">Lidarr's metadata service, for the whole list of an artist's albums at once; MusicBrainz and a lookup per album when null, or when it does not answer.</param>
-    /// <param name="browseWait">How long the metadata service's list waits for the joint albums MusicBrainz adds to it; 3 seconds when null.</param>
+    /// <param name="pageBudget">How long a page listed from the metadata service may take in all, the joint albums MusicBrainz adds to it included; 5 seconds when null.</param>
     public CatalogService(
         ILidarrProvider lidarr,
         RequestStore requests,
@@ -70,7 +70,7 @@ public sealed class CatalogService
         TimeSpan? searchDeadline = null,
         TimeSpan? discographyBudget = null,
         IArtistMetadata? metadata = null,
-        TimeSpan? browseWait = null)
+        TimeSpan? pageBudget = null)
     {
         _artistBudget = discographyBudget ?? DefaultArtistBudget;
         _hints = hints;
@@ -82,7 +82,7 @@ public sealed class CatalogService
         _library = library;
         _config = config;
         _logger = logger;
-        _discography = musicBrainz is null ? null : new ArtistDiscography(musicBrainz, _now, metadata, browseWait);
+        _discography = musicBrainz is null ? null : new ArtistDiscography(musicBrainz, _now, metadata, pageBudget);
     }
 
     /// <summary>Searches artists and albums. Everything has one deadline, and what is known by then is the answer: whatever failed or ran out of time only costs its own results.</summary>

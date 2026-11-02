@@ -20,7 +20,8 @@ internal sealed record DiscographyLimits(TimeSpan Budget, TimeSpan Browse);
 /// An artist's albums when Lidarr does not hold the artist. Lidarr's metadata service lists them all in one request, without a lookup per album, since a request goes through
 /// Lidarr by the release group's id anyway. When it gives no answer: MusicBrainz lists the release groups credited to the artist, and each one goes through Lidarr's id lookup.
 /// Either covers joint albums and compilations that name the artist, not the various-artists ones the artist merely has a track on.
-/// Answers are kept (the service's and MusicBrainz's by their clients, Lidarr's here for an hour), so what a budget cut short goes further the next time.
+/// Answers are kept (the service's and MusicBrainz's by their clients, Lidarr's here for an hour), but nothing goes on after the answer is given: the page is what the sources said
+/// within its budget, and an answer that a budget cut short is not kept as the answer, so the next visit asks again.
 /// </summary>
 internal sealed class ArtistDiscography
 {
@@ -34,28 +35,27 @@ internal sealed class ArtistDiscography
     private static readonly TimeSpan FoundTtl = TimeSpan.FromHours(1);
     private static readonly TimeSpan NotFoundTtl = TimeSpan.FromMinutes(5);
 
-    // The Beatles take 3 pages, at MusicBrainz's pace of one a little over a second
-    private static readonly TimeSpan DefaultBrowseWait = TimeSpan.FromSeconds(3);
-    private static readonly TimeSpan BackgroundBrowse = TimeSpan.FromSeconds(30);
+    // what the whole of a listed page may take, joint albums included; The Beatles' 3 pages take about 3 seconds at MusicBrainz's pace of one a little over a second.
+    // The app gives up on this page after 20 seconds
+    private static readonly TimeSpan DefaultPageBudget = TimeSpan.FromSeconds(5);
 
     private readonly IMusicBrainzApi _musicBrainz;
     private readonly Func<DateTimeOffset> _now;
     private readonly IArtistMetadata? _metadata;
-    private readonly TimeSpan _browseWait;
-    private readonly Dictionary<string, Task<(IReadOnlyList<MbReleaseGroup> Groups, string? Failure)>> _browses = new(StringComparer.Ordinal);
+    private readonly TimeSpan _pageBudget;
     private readonly Dictionary<string, (DateTimeOffset Expires, LidarrAlbum? Album)> _kept = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Initializes a new instance of the <see cref="ArtistDiscography"/> class.</summary>
     /// <param name="musicBrainz">MusicBrainz.</param>
     /// <param name="now">The clock.</param>
     /// <param name="metadata">Lidarr's metadata service; MusicBrainz alone when null.</param>
-    /// <param name="browseWait">How long a listed answer waits for MusicBrainz's joint albums; 3 seconds when null.</param>
-    public ArtistDiscography(IMusicBrainzApi musicBrainz, Func<DateTimeOffset> now, IArtistMetadata? metadata = null, TimeSpan? browseWait = null)
+    /// <param name="pageBudget">How long a listed page may take in all, MusicBrainz's joint albums included; 5 seconds when null.</param>
+    public ArtistDiscography(IMusicBrainzApi musicBrainz, Func<DateTimeOffset> now, IArtistMetadata? metadata = null, TimeSpan? pageBudget = null)
     {
         _musicBrainz = musicBrainz;
         _now = now;
         _metadata = metadata;
-        _browseWait = browseWait ?? DefaultBrowseWait;
+        _pageBudget = pageBudget ?? DefaultPageBudget;
     }
 
     /// <summary>The limits of an artist page.</summary>
@@ -114,12 +114,16 @@ internal sealed class ArtistDiscography
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
         budget.CancelAfter(limits.Budget > TimeSpan.Zero ? limits.Budget : TimeSpan.FromMilliseconds(1));
 
-        if (await ListedAsync(artistId, config, limits, budget.Token, ct).ConfigureAwait(false) is { } listed)
+        var (listed, browsed) = await ListedAsync(artistId, config, limits, budget.Token, ct).ConfigureAwait(false);
+        if (listed is not null)
         {
             return listed;
         }
 
-        var (groups, failure) = await BrowseAsync(artistId, config, limits, budget.Token, ct).ConfigureAwait(false);
+        // the browse that went with the service's request is the one wanted here too, when it got to the end
+        var (groups, failure) = browsed is { Failure: null } done
+            ? done
+            : await BrowseAsync(artistId, config, limits, budget.Token, ct).ConfigureAwait(false);
 
         // the oldest first: when the limits cut the list short, what goes is the late unofficial compilations an old artist has by the hundred, not the albums
         var wanted = groups
@@ -151,30 +155,47 @@ internal sealed class ArtistDiscography
     /// <returns>The URL.</returns>
     public static string CoverUrl(string releaseGroupId) => $"https://coverartarchive.org/release-group/{Uri.EscapeDataString(releaseGroupId)}/front-500";
 
-    private async Task<DiscographyAnswer?> ListedAsync(string artistId, PluginConfiguration config, DiscographyLimits limits, CancellationToken budget, CancellationToken ct)
+    private async Task<(DiscographyAnswer? Listed, (IReadOnlyList<MbReleaseGroup> Groups, string? Failure)? Browsed)> ListedAsync(string artistId, PluginConfiguration config, DiscographyLimits limits, CancellationToken budget, CancellationToken ct)
     {
         if (_metadata is null)
         {
-            return null;
+            return (null, null);
         }
 
-        MetadataArtist? answer;
+        // the service's list and MusicBrainz's joint albums are asked together, and the page has one budget for both
+        var pageBudget = limits.Budget < _pageBudget ? limits.Budget : _pageBudget;
+        using var page = CancellationTokenSource.CreateLinkedTokenSource(budget);
+        page.CancelAfter(pageBudget > TimeSpan.Zero ? pageBudget : TimeSpan.FromMilliseconds(1));
+        var browse = BrowseAsync(artistId, config, limits with { Browse = pageBudget }, page.Token, ct);
+
+        MetadataArtist? answer = null;
         try
         {
             answer = await _metadata.GetArtistAsync(artistId, budget).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            return null;
+        }
+        catch
+        {
+            page.Cancel();
+            await ObserveAsync(browse).ConfigureAwait(false);
+            throw;
         }
 
         if (answer is null)
         {
-            return null;
+            return (null, await browse.ConfigureAwait(false));
         }
 
         var artist = ToArtist(answer);
-        var (others, failure) = await JointAlbumsAsync(artistId, answer, config, limits, ct).ConfigureAwait(false);
+        var (groups, failure) = await browse.ConfigureAwait(false);
+
+        // all or none: a browse the budget cut short would show some joint albums now and others at the next visit, which is the answer changing
+        var known = answer.Albums.SelectMany(a => a.OldIds.Append(a.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var others = failure is null
+            ? groups.Where(g => !known.Contains(g.Id) && !IsSpokenOnly(g.SecondaryTypes)).ToList()
+            : new List<MbReleaseGroup>();
         var albums = answer.Albums
             .Where(a => IsListed(a, config, studioOnly: false))
             .Select(a => (Group: new MbReleaseGroup(a.Id, a.Title, a.Type, a.SecondaryTypes, CatalogService.YearOf(a.ReleaseDate)), Album: ToAlbum(a, artist)))
@@ -184,7 +205,18 @@ internal sealed class ArtistDiscography
             .ThenBy(a => a.Group.Title, StringComparer.Ordinal)
             .Select(a => a.Album)
             .ToList();
-        return new DiscographyAnswer(albums, true, failure);
+        return (new DiscographyAnswer(albums, true, failure), null);
+    }
+
+    private static async Task ObserveAsync(Task task)
+    {
+        try
+        {
+            await task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private static LidarrArtist ToArtist(MetadataArtist answer)
@@ -197,56 +229,6 @@ internal sealed class ArtistDiscography
             Genres = answer.Genres.ToList(),
             Images = answer.Images.Select(i => new LidarrImage { CoverType = i.CoverType, RemoteUrl = i.Url }).ToList(),
         };
-
-    /// <summary>
-    /// What MusicBrainz credits to the artist and the service does not list: joint albums that name someone else first, and whatever the service has not caught up with.
-    /// Waits for it a little, and whoever comes next finds its pages kept by MusicBrainz's client. MusicBrainz's filter has already left out what has only bootleg or promotional releases.
-    /// </summary>
-    private async Task<(IReadOnlyList<MbReleaseGroup> Groups, string? Failure)> JointAlbumsAsync(string artistId, MetadataArtist listed, PluginConfiguration config, DiscographyLimits limits, CancellationToken ct)
-    {
-        var browse = SharedBrowse(artistId, config, limits);
-        await Task.WhenAny(browse, Task.Delay(_browseWait, ct)).ConfigureAwait(false);
-        ct.ThrowIfCancellationRequested();
-        if (!browse.IsCompleted)
-        {
-            return (Array.Empty<MbReleaseGroup>(), CatalogService.OutOfTime);
-        }
-
-        var (groups, failure) = await browse.ConfigureAwait(false);
-        var known = listed.Albums.SelectMany(a => a.OldIds.Append(a.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return (groups.Where(g => !known.Contains(g.Id) && !IsSpokenOnly(g.SecondaryTypes)).ToList(), failure);
-    }
-
-    /// <summary>One browse per artist at most, whoever asks and however soon they give up: it goes on after the wait, at MusicBrainz's pace, for the next visit to find.</summary>
-    private Task<(IReadOnlyList<MbReleaseGroup> Groups, string? Failure)> SharedBrowse(string artistId, PluginConfiguration config, DiscographyLimits limits)
-    {
-        var key = $"{artistId.ToLowerInvariant()}|{config.HideEps}|{config.HideSingles}";
-        lock (_browses)
-        {
-            if (_browses.TryGetValue(key, out var running))
-            {
-                return running;
-            }
-
-            var browse = Task.Run(async () =>
-            {
-                using var budget = new CancellationTokenSource(BackgroundBrowse);
-                try
-                {
-                    return await BrowseAsync(artistId, config, limits with { Browse = BackgroundBrowse }, budget.Token, CancellationToken.None).ConfigureAwait(false);
-                }
-                finally
-                {
-                    lock (_browses)
-                    {
-                        _browses.Remove(key);
-                    }
-                }
-            });
-            _browses[key] = browse;
-            return browse;
-        }
-    }
 
     private static bool IsListed(MetadataAlbum album, PluginConfiguration config, bool studioOnly)
     {
@@ -408,7 +390,23 @@ internal sealed class ArtistDiscography
         }
     }
 
-    private static int Rank(MbReleaseGroup group) => ReleaseKind.Rank(group.PrimaryType, group.SecondaryTypes);
+    /// <summary>
+    /// The order of an artist's page: studio albums, then EPs, then the other albums (compilations, live, ...), then the rest. It is not <see cref="ReleaseKind"/>'s, which puts
+    /// a compilation before an EP for a song search, where an EP is the last place to look.
+    /// </summary>
+    private static int Rank(MbReleaseGroup group)
+    {
+        var album = group.PrimaryType.Trim().Equals("album", StringComparison.OrdinalIgnoreCase);
+        var ep = group.PrimaryType.Trim().Equals("ep", StringComparison.OrdinalIgnoreCase);
+        var plain = group.SecondaryTypes.Count == 0;
+        return (album, ep, plain) switch
+        {
+            (true, _, true) => 0,
+            (_, true, true) => 1,
+            (true, _, false) => 2,
+            _ => 3,
+        };
+    }
 
     /// <summary>A release group known from unofficial releases alone is not something a request can be expected to find.</summary>
     private static bool IsOffered(LidarrAlbum album)

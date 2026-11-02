@@ -72,7 +72,7 @@ public sealed class LidarrMetadataClient : IArtistMetadata
     /// <param name="logger">The logger.</param>
     /// <param name="now">The clock; the system clock when null.</param>
     /// <param name="baseUrl">The service root; Lidarr's when null.</param>
-    /// <param name="timeout">How long it may take to answer; 3 seconds when null, which the 15 of an artist page can afford before asking MusicBrainz.</param>
+    /// <param name="timeout">How long it may take to answer; 3 seconds when null, inside the 5 seconds a page has, MusicBrainz being asked meanwhile.</param>
     public LidarrMetadataClient(HttpClient http, string version, ILogger logger, Func<DateTimeOffset>? now = null, string? baseUrl = null, TimeSpan? timeout = null)
     {
         _http = http;
