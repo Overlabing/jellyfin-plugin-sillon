@@ -3,7 +3,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-version="0.9.3.0"
+version="0.10.0.0"
 target_abi="12.2.0.0"
 guid="1daed904-1b05-483c-8544-16cb6dcced54"
 
@@ -26,7 +26,7 @@ cat > "$stage/meta.json" <<JSON
   "category": "Music",
   "overview": "Music requests for the Sillon app.",
   "description": "Connects Jellyfin to Lidarr so music requests made from the Sillon app can be fulfilled automatically.",
-  "changelog": "The catalogue search is lighter and gives its final answer within one 5-second deadline, with far fewer outside calls. Song hits and the artist page follow the same shorter path, so the app is no longer left waiting on a slow lookup. An allow list stays absolute and reaches none of this.",
+  "changelog": "A search now comes with a short ordered list of its best matches, ranked in one place, so the app can show the artist or album meant first. The artist page gives its final answer at the first view instead of completing on a later visit. An allow list stays absolute and reaches none of this.",
   "status": "Active",
   "autoUpdate": false
 }
