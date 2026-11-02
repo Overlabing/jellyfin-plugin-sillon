@@ -197,6 +197,24 @@ public class SearchTopTests
     }
 
     [Fact]
+    public async Task Search_WithHints_ACompilationOfVariousArtists_NeverComesBeforeTheHintedArtistsOwnAlbum()
+    {
+        const string Compilation = "99999999-9999-4999-8999-999999999999";
+        using var env = EnvFor("lidarr_search_creep.json");
+        env.Config.DeezerPopularityHints = true;
+        var recordings = RadioheadCreep().Replace("\"releases\":[", $$$"""
+            "releases":[{"id":"v","status":"Official","title":"Now Live","date":"1993","release-group":{"id":"{{{Compilation}}}","title":"Now Live","primary-type":"Album"},"artist-credit":[{"name":"Various Artists","artist":{"id":"89ad4ac3-39f7-470e-963a-56509c546377","name":"Various Artists"}}]},
+            """, StringComparison.Ordinal);
+
+        var result = await Catalog(env, MusicBrainz(() => recordings), new Hints("Radiohead")).SearchAsync("Creep", CancellationToken.None);
+
+        var songs = result.Albums.Where(a => a.MatchedTrack is not null).Select(a => a.Title).ToList();
+        Assert.Contains("Now Live", songs);
+        Assert.True(songs.IndexOf("Pablo Honey") < songs.IndexOf("Now Live"), string.Join(" | ", songs));
+        Assert.DoesNotContain(result.Top ?? Array.Empty<CatalogTop>(), t => t.Mbid == Compilation);
+    }
+
+    [Fact]
     public async Task Top_AmongManyArtistsWithTheSong_NoneIsOnTop_BecauseNothingSaysWhichIsMeant()
     {
         using var env = EnvFor("lidarr_search_creep.json");

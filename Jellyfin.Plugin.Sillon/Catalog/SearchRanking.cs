@@ -228,7 +228,7 @@ internal static class SearchRanking
         var ordered = entries.Values
             .OrderBy(e => e.Tier)
             .ThenByDescending(e => e.Tier == ExactTitleTier ? Editions(e.Album) : 0)
-            .ThenBy(e => e.Tier == SongTier && IsVariousArtists(e.Album) ? 1 : 0)
+            .ThenBy(e => (e.Tier == SongTier || e.Tier == HintedTier) && IsVariousArtists(e.Album) ? 1 : 0)
             .ThenBy(e => e.Seq)
             .Where(e => e.Tier != SongTier || ++songsSeen <= MaxPlainSongs)
             .Take(albumCap)
